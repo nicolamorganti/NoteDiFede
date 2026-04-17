@@ -4,6 +4,7 @@ node_modules/
 # next.js
 .next/
 out/
+.vercel/
 
 # production
 build/
@@ -14,6 +15,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+dev-server.log
+dev-server.err
 
 # env files
 .env
