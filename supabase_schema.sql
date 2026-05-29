@@ -24,6 +24,8 @@ create type public.song_file_type as enum (
   'mp3_basso',
   'mp3_organo'
 );
+create type public.song_link_provider as enum ('youtube', 'generic');
+create type public.song_link_type as enum ('ascolto', 'tutorial', 'riferimento');
 create type public.activity_action as enum ('creazione', 'modifica', 'eliminazione');
 
 create or replace function public.set_updated_at()
@@ -78,6 +80,19 @@ create table public.song_moments (
   primary key (song_id, moment_id)
 );
 
+create table public.song_arrangements (
+  id uuid primary key default gen_random_uuid(),
+  song_id uuid not null references public.songs (id) on delete cascade,
+  arrangement_name varchar(255),
+  musical_key varchar(50),
+  instrumentation varchar(100),
+  notes text,
+  created_by uuid references public.profiles (id) on delete set null,
+  updated_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create table public.masses (
   id uuid primary key default gen_random_uuid(),
   title varchar(255) not null,
@@ -108,6 +123,7 @@ create table public.mass_songs (
 create table public.song_files (
   id uuid primary key default gen_random_uuid(),
   song_id uuid not null references public.songs (id) on delete cascade,
+  arrangement_id uuid references public.song_arrangements (id) on delete cascade,
   file_type public.song_file_type not null,
   storage_bucket varchar(100) not null default 'note-di-fede',
   storage_path text not null,
@@ -120,6 +136,21 @@ create table public.song_files (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
   constraint song_files_size_check check (file_size_bytes is null or file_size_bytes >= 0)
+);
+
+create table public.song_links (
+  id uuid primary key default gen_random_uuid(),
+  song_id uuid not null references public.songs (id) on delete cascade,
+  arrangement_id uuid references public.song_arrangements (id) on delete cascade,
+  label varchar(255) not null,
+  url text not null,
+  provider public.song_link_provider not null default 'generic',
+  link_type public.song_link_type not null default 'ascolto',
+  notes text,
+  created_by uuid references public.profiles (id) on delete set null,
+  updated_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
 );
 
 create table public.activity_log (
@@ -136,6 +167,8 @@ create table public.activity_log (
 create index songs_title_idx on public.songs (title);
 create index songs_alternate_title_idx on public.songs (alternate_title);
 create index songs_code_idx on public.songs (code);
+create index song_arrangements_song_idx on public.song_arrangements (song_id);
+create index song_arrangements_key_idx on public.song_arrangements (musical_key);
 create index masses_celebration_date_idx on public.masses (celebration_date desc);
 create index masses_liturgical_year_idx on public.masses (liturgical_year);
 create index mass_songs_mass_idx on public.mass_songs (mass_id);
@@ -143,6 +176,9 @@ create index mass_songs_song_idx on public.mass_songs (song_id);
 create index mass_songs_moment_idx on public.mass_songs (moment_id);
 create index song_files_song_idx on public.song_files (song_id);
 create index song_files_type_idx on public.song_files (file_type);
+create index song_links_song_idx on public.song_links (song_id);
+create index song_links_arrangement_idx on public.song_links (arrangement_id);
+create index song_links_provider_idx on public.song_links (provider);
 create index activity_log_table_record_idx on public.activity_log (table_name, record_id);
 create index activity_log_user_idx on public.activity_log (user_id);
 
@@ -166,6 +202,11 @@ before update on public.song_moments
 for each row
 execute function public.set_updated_at();
 
+create trigger song_arrangements_set_updated_at
+before update on public.song_arrangements
+for each row
+execute function public.set_updated_at();
+
 create trigger masses_set_updated_at
 before update on public.masses
 for each row
@@ -178,6 +219,11 @@ execute function public.set_updated_at();
 
 create trigger song_files_set_updated_at
 before update on public.song_files
+for each row
+execute function public.set_updated_at();
+
+create trigger song_links_set_updated_at
+before update on public.song_links
 for each row
 execute function public.set_updated_at();
 
@@ -200,9 +246,11 @@ comment on table public.profiles is 'Profili applicativi collegati a Supabase Au
 comment on table public.songs is 'Catalogo dei canti liturgici.';
 comment on table public.mass_moments is 'Momenti della celebrazione in cui un canto puo essere utilizzato.';
 comment on table public.song_moments is 'Associazione molti-a-molti tra canti e momenti della messa.';
+comment on table public.song_arrangements is 'Versioni del canto per tonalita, arrangiamento o strumentazione diversa.';
 comment on table public.masses is 'Anagrafica delle celebrazioni/messa.';
 comment on table public.mass_songs is 'Sequenza dei canti assegnati a una specifica messa.';
-comment on table public.song_files is 'Metadati dei file salvati nello storage, senza contenuti binari nel database.';
+comment on table public.song_files is 'Metadati dei file salvati nello storage, senza contenuti binari nel database. Possono puntare a una specifica versione del canto.';
+comment on table public.song_links is 'Link esterni di ascolto, tutorial o riferimento associabili al canto o a una sua variante.';
 comment on table public.activity_log is 'Registro attivita applicativa e tracciamento modifiche.';
 
 -- Bucket storage suggerito.
