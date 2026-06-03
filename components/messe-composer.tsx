@@ -171,14 +171,21 @@ export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
                     className="rounded-xl border border-[#d9cdbf] bg-white px-3 py-2 text-xs text-[#3f3933] outline-none transition focus:border-[#9b8361] w-full sm:w-64"
                   >
                     <option value="">Seleziona un canto...</option>
-                    {allSongs.map((song) => {
-                      const codePrefix = song.code ? `[${song.code}] ` : "";
-                      return (
-                        <option key={song.id} value={song.id}>
-                          {codePrefix}{song.title}
-                        </option>
-                      );
-                    })}
+                    {allSongs
+                      .filter(
+                        (song) =>
+                          song.moments.some((m) => m.id === moment.id) ||
+                          song.moments.length === 0,
+                      )
+                      .map((song) => {
+                        const codePrefix = song.code ? `[${song.code}] ` : "";
+                        return (
+                          <option key={song.id} value={song.id}>
+                            {codePrefix}
+                            {song.title}
+                          </option>
+                        );
+                      })}
                   </select>
 
                   <AddButton />
