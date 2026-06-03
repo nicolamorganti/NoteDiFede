@@ -35,7 +35,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
 
   // Stato Modale Report
   const [modalReport, setModalReport] = useState(false);
-  const [reportFormat, setReportFormat] = useState<"links" | "lyrics">("links");
+  const [reportFormat, setReportFormat] = useState<"links" | "lyrics" | "binder">("links");
   const [copied, setCopied] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -637,57 +637,94 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
               </div>
 
               {/* Scelta formato */}
-              <div className="flex items-center gap-3 bg-[#f6f1ea] p-1.5 rounded-2xl border border-[#e4dcce]/30">
+              <div className="flex flex-wrap gap-2 bg-[#f6f1ea] p-1.5 rounded-2xl border border-[#e4dcce]/30">
                 <button
                   onClick={() => setReportFormat("links")}
-                  className={`flex-1 text-center py-2.5 rounded-xl text-xs font-semibold transition ${
+                  className={`flex-1 min-w-[120px] text-center py-2.5 rounded-xl text-xs font-semibold transition ${
                     reportFormat === "links"
                       ? "bg-white text-[#5c4a37] shadow-sm"
                       : "text-[#736555] hover:text-[#3f3933]"
                   }`}
                 >
-                  Lista Canti con Link di Studio
+                  Lista Canti con Link
                 </button>
                 <button
                   onClick={() => setReportFormat("lyrics")}
-                  className={`flex-1 text-center py-2.5 rounded-xl text-xs font-semibold transition ${
+                  className={`flex-1 min-w-[120px] text-center py-2.5 rounded-xl text-xs font-semibold transition ${
                     reportFormat === "lyrics"
                       ? "bg-white text-[#5c4a37] shadow-sm"
                       : "text-[#736555] hover:text-[#3f3933]"
                   }`}
                 >
-                  Foglietto Coro (Testi Concatenati)
+                  Testi Concatenati (Foglietto)
+                </button>
+                <button
+                  onClick={() => setReportFormat("binder")}
+                  className={`flex-1 min-w-[120px] text-center py-2.5 rounded-xl text-xs font-semibold transition ${
+                    reportFormat === "binder"
+                      ? "bg-white text-[#5c4a37] shadow-sm"
+                      : "text-[#736555] hover:text-[#3f3933]"
+                  }`}
+                >
+                  Binder Spartiti (PDF Unico)
                 </button>
               </div>
 
               {/* Area di Visualizzazione/Copia */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Anteprima Report Generato:</span>
-                  <button
-                    onClick={handleCopyReport}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#5c4a37] hover:underline"
-                  >
-                    {copied ? (
-                      <span className="text-emerald-600 font-bold">Copiato!</span>
-                    ) : (
-                      <>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                        </svg>
-                        <span>Copia Report</span>
-                      </>
-                    )}
-                  </button>
+              {reportFormat !== "binder" ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Anteprima Report Generato:</span>
+                    <button
+                      onClick={handleCopyReport}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#5c4a37] hover:underline"
+                    >
+                      {copied ? (
+                        <span className="text-emerald-600 font-bold">Copiato!</span>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                          </svg>
+                          <span>Copia Report</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <textarea
+                    readOnly
+                    onClick={(e) => e.currentTarget.select()}
+                    value={generateReportText()}
+                    rows={15}
+                    className="w-full rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-4 text-xs font-mono text-[#4e4437] outline-none shadow-inner"
+                  />
                 </div>
-                <textarea
-                  readOnly
-                  onClick={(e) => e.currentTarget.select()}
-                  value={generateReportText()}
-                  rows={15}
-                  className="w-full rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-4 text-xs font-mono text-[#4e4437] outline-none shadow-inner"
-                />
-              </div>
+              ) : (
+                <div className="rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-8 text-center space-y-4 shadow-inner">
+                  <div className="mx-auto w-16 h-16 bg-[#efe4d2] text-[#8a755d] rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <h4 className="font-serif text-lg text-[#3f3933]">Genera il Binder di Spartiti per Musicisti</h4>
+                  <p className="text-xs text-[#736555] max-w-md mx-auto leading-relaxed">
+                    Scarica un singolo file PDF contenente tutti gli spartiti o i fogli accordi della scaletta, ordinati cronologicamente secondo la liturgia della messa. Perfetto da caricare su tablet per l&apos;organista o per la stampa.
+                  </p>
+                  <div className="pt-2">
+                    <a
+                      href={`/api/masses/${massDetails.id}/binder`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] active:scale-[0.98]"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <span>Scarica PDF Unificato</span>
+                    </a>
+                  </div>
+                </div>
+              )}
 
               <div className="text-[10px] text-[#8c7e6c] italic text-center">
                 Suggerimento: clicca sul testo del report per selezionarlo tutto automaticamente, pronto da incollare su WhatsApp o Telegram per i coristi.
