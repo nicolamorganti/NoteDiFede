@@ -37,6 +37,8 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   const [modalReport, setModalReport] = useState(false);
   const [reportFormat, setReportFormat] = useState<"links" | "lyrics" | "binder">("binder");
   const [copied, setCopied] = useState(false);
+  const [isGeneratingBinder, setIsGeneratingBinder] = useState(false);
+  const [binderError, setBinderError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -153,6 +155,43 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleDownloadBinder = async () => {
+    setIsGeneratingBinder(true);
+    setBinderError(null);
+    try {
+      const res = await fetch(`/api/masses/${massDetails.id}/binder`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Errore durante la generazione del binder.");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = url;
+      
+      const contentDisposition = res.headers.get("content-disposition");
+      let filename = `Messa_${massDetails.title}.pdf`;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) {
+          filename = match[1];
+        }
+      }
+      
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error(err);
+      setBinderError(err.message || "Impossibile scaricare il file. Riprova.");
+    } finally {
+      setIsGeneratingBinder(false);
+    }
   };
 
   return (
@@ -701,28 +740,47 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                 </div>
               ) : (
                 <div className="rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-8 text-center space-y-4 shadow-inner">
-                  <div className="mx-auto w-16 h-16 bg-[#efe4d2] text-[#8a755d] rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                  <h4 className="font-serif text-lg text-[#3f3933]">Genera il Binder di Spartiti per Musicisti</h4>
-                  <p className="text-xs text-[#736555] max-w-md mx-auto leading-relaxed">
-                    Scarica un singolo file PDF contenente tutti gli spartiti o i fogli accordi della scaletta, ordinati cronologicamente secondo la liturgia della messa. Perfetto da caricare su tablet per l&apos;organista o per la stampa.
-                  </p>
-                  <div className="pt-2">
-                    <a
-                      href={`/api/masses/${massDetails.id}/binder`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] active:scale-[0.98]"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      <span>Scarica PDF Unificato</span>
-                    </a>
-                  </div>
+                  {isGeneratingBinder ? (
+                    <div className="py-6 space-y-4 flex flex-col items-center">
+                      <div className="relative flex items-center justify-center">
+                        <div className="h-12 w-12 rounded-full border-4 border-[#aa9576]/20 border-t-[#5c4a37] animate-spin" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-serif text-lg text-[#3f3933] animate-pulse">Compilazione del libretto...</h4>
+                        <p className="text-xs text-[#736555] max-w-xs mx-auto leading-relaxed">
+                          Stiamo unendo tutti gli spartiti e accordi in un unico PDF. Attendere qualche istante.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mx-auto w-16 h-16 bg-[#efe4d2] text-[#8a755d] rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      </div>
+                      <h4 className="font-serif text-lg text-[#3f3933]">Genera il Binder di Spartiti per Musicisti</h4>
+                      <p className="text-xs text-[#736555] max-w-md mx-auto leading-relaxed">
+                        Scarica un singolo file PDF contenente tutti gli spartiti o i fogli accordi dell&apos;elenco, ordinati cronologicamente secondo la liturgia della messa. Perfetto da caricare su tablet per l&apos;organista o per la stampa.
+                      </p>
+                      {binderError && (
+                        <p className="text-xs text-rose-600 font-semibold max-w-xs mx-auto">
+                          {binderError}
+                        </p>
+                      )}
+                      <div className="pt-2">
+                        <button
+                          onClick={handleDownloadBinder}
+                          className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] active:scale-[0.98]"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          <span>Scarica PDF Unificato</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
