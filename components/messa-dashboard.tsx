@@ -35,7 +35,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
 
   // Stato Modale Report
   const [modalReport, setModalReport] = useState(false);
-  const [reportFormat, setReportFormat] = useState<"links" | "lyrics" | "binder">("links");
+  const [reportFormat, setReportFormat] = useState<"links" | "lyrics" | "binder">("binder");
   const [copied, setCopied] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -639,6 +639,16 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
               {/* Scelta formato */}
               <div className="flex flex-wrap gap-2 bg-[#f6f1ea] p-1.5 rounded-2xl border border-[#e4dcce]/30">
                 <button
+                  onClick={() => setReportFormat("binder")}
+                  className={`flex-1 min-w-[120px] text-center py-2.5 rounded-xl text-xs font-semibold transition ${
+                    reportFormat === "binder"
+                      ? "bg-white text-[#5c4a37] shadow-sm"
+                      : "text-[#736555] hover:text-[#3f3933]"
+                  }`}
+                >
+                  Binder Spartiti (PDF Unico)
+                </button>
+                <button
                   onClick={() => setReportFormat("links")}
                   className={`flex-1 min-w-[120px] text-center py-2.5 rounded-xl text-xs font-semibold transition ${
                     reportFormat === "links"
@@ -657,16 +667,6 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                   }`}
                 >
                   Testi Concatenati (Foglietto)
-                </button>
-                <button
-                  onClick={() => setReportFormat("binder")}
-                  className={`flex-1 min-w-[120px] text-center py-2.5 rounded-xl text-xs font-semibold transition ${
-                    reportFormat === "binder"
-                      ? "bg-white text-[#5c4a37] shadow-sm"
-                      : "text-[#736555] hover:text-[#3f3933]"
-                  }`}
-                >
-                  Binder Spartiti (PDF Unico)
                 </button>
               </div>
 
