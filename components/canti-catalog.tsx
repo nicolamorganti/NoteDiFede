@@ -66,6 +66,7 @@ type ActiveAudioTrack = {
 type PreviewPdf = {
   title: string;
   url: string;
+  fileName: string;
 };
 
 export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
@@ -617,7 +618,7 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                                       <div className="flex items-center gap-2">
                                         {/* Visualizza PDF */}
                                         <button
-                                          onClick={() => setPreviewPdf({ title: `${song.title} - ${file.fileLabel}`, url: file.previewHref })}
+                                          onClick={() => setPreviewPdf({ title: `${song.title} - ${file.fileLabel}`, url: file.previewHref, fileName: file.fileName })}
                                           className="text-[#5c4a37] hover:underline font-semibold"
                                         >
                                           Vedi
@@ -897,7 +898,14 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
             {/* Header Preview */}
             <div className="flex items-center justify-between border-b border-[#e4dcce] px-6 py-4">
               <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Anteprima Documento</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">
+                  {(() => {
+                    const ext = previewPdf.fileName.substring(previewPdf.fileName.lastIndexOf(".")).toLowerCase();
+                    if ([".png", ".jpg", ".jpeg", ".webp"].includes(ext)) return "Anteprima Immagine";
+                    if ([".doc", ".docx", ".odt", ".rtf", ".txt"].includes(ext)) return "Anteprima Documento";
+                    return "Anteprima PDF";
+                  })()}
+                </span>
                 <h4 className="font-serif text-lg font-normal text-[#3f3933] truncate" title={previewPdf.title}>
                   {previewPdf.title}
                 </h4>
@@ -906,10 +914,10 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
               <div className="flex items-center gap-3">
                 <a
                   href={previewPdf.url}
-                  download
+                  download={previewPdf.fileName}
                   className="rounded-full border border-[#d9cdbf] bg-white px-4 py-2 text-xs font-semibold text-[#5c4a37] transition hover:bg-[#fdfbf7] hover:border-[#aa9576]"
                 >
-                  Scarica PDF
+                  Scarica File
                 </a>
                 <button
                   onClick={() => setPreviewPdf(null)}
@@ -923,17 +931,74 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
               </div>
             </div>
 
-            {/* Area del Visualizzatore PDF */}
-            <div className="flex-1 bg-[#ede8df] relative p-4 flex items-center justify-center">
-              <iframe
-                src={`${previewPdf.url}#toolbar=0&navpanes=0`}
-                className="w-full h-full rounded-2xl border border-[#d9cdbf] shadow-inner bg-white"
-                title="Visualizzazione PDF"
-              />
-              {/* Messaggio di fallback */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#fffdfa] border border-[#e4dcce] rounded-full px-4 py-2 text-xs text-[#736555] shadow-md pointer-events-none">
-                Se il file non viene visualizzato correttamente, clicca &ldquo;Scarica PDF&rdquo; in alto.
-              </div>
+            {/* Area del Visualizzatore */}
+            <div className="flex-1 bg-[#ede8df] relative p-4 flex items-center justify-center overflow-auto">
+              {(() => {
+                const ext = previewPdf.fileName.substring(previewPdf.fileName.lastIndexOf(".")).toLowerCase();
+                
+                // Immagini
+                if ([".png", ".jpg", ".jpeg", ".webp"].includes(ext)) {
+                  return (
+                    <div className="max-w-full max-h-full overflow-auto flex items-center justify-center p-2 bg-white rounded-2xl border border-[#d9cdbf] shadow-inner">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={previewPdf.url}
+                        alt={previewPdf.title}
+                        className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                      />
+                    </div>
+                  );
+                }
+                
+                // Documenti Word non visualizzabili nativamente
+                if ([".doc", ".docx", ".odt", ".rtf"].includes(ext)) {
+                  return (
+                    <div className="bg-[#fffdfa] border border-[#e4dcce] rounded-3xl p-8 text-center max-w-md shadow-lg space-y-4">
+                      <div className="mx-auto w-16 h-16 bg-[#efe4d2] text-[#8a755d] rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h5 className="font-serif text-lg text-[#3f3933]">Anteprima non disponibile</h5>
+                      <p className="text-xs text-[#736555] leading-relaxed">
+                        I documenti in formato Word o simili ({ext.toUpperCase()}) non possono essere aperti direttamente all&apos;interno del browser.
+                      </p>
+                      <a
+                        href={previewPdf.url}
+                        download={previewPdf.fileName}
+                        className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-5 py-2.5 text-xs font-semibold text-white shadow transition hover:bg-[#4b3c2c]"
+                      >
+                        Scarica e Modifica
+                      </a>
+                    </div>
+                  );
+                }
+
+                // File di testo
+                if (ext === ".txt") {
+                  return (
+                    <iframe
+                      src={previewPdf.url}
+                      className="w-full h-full rounded-2xl border border-[#d9cdbf] shadow-inner bg-white p-4 font-mono text-xs"
+                      title="Visualizzazione File di Testo"
+                    />
+                  );
+                }
+
+                // Default: PDF
+                return (
+                  <>
+                    <iframe
+                      src={`${previewPdf.url}#toolbar=0&navpanes=0`}
+                      className="w-full h-full rounded-2xl border border-[#d9cdbf] shadow-inner bg-white"
+                      title="Visualizzazione PDF"
+                    />
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#fffdfa] border border-[#e4dcce] rounded-full px-4 py-2 text-xs text-[#736555] shadow-md pointer-events-none">
+                      Se il file non viene visualizzato correttamente, clicca &ldquo;Scarica File&rdquo; in alto.
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
