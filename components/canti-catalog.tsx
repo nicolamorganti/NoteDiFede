@@ -284,6 +284,10 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  const freshEditSong = modalEditSong
+    ? (initialSongs.find((s) => s.id === modalEditSong.id) || modalEditSong)
+    : null;
+
   return (
     <div className="space-y-8 pb-32">
       {/* Intestazione Area Operativa */}
@@ -1028,7 +1032,7 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
       {/* ========================================================================= */}
       {/* MODALE: MODIFICA CANTO */}
       {/* ========================================================================= */}
-      {modalEditSong && (
+      {freshEditSong && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-3xl rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-6 shadow-2xl my-8">
             <button
@@ -1046,7 +1050,7 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                   Aggiorna i dettagli anagrafici del canto o eliminalo definitivamente.
                 </p>
               </div>
-              <SongEditForm song={modalEditSong} allMoments={allMoments} />
+              <SongEditForm song={freshEditSong} allMoments={allMoments} />
             </div>
           </div>
         </div>

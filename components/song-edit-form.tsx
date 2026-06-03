@@ -60,10 +60,11 @@ export function SongEditForm({ song, allMoments }: SongEditFormProps) {
 
   const currentMomentIds = new Set(song.moments.map((m) => m.id));
   const parsed = parseNotesAndLyrics(song.notes);
+  const formKey = `${song.id}_${song.notes}_${song.title}_${song.alternateTitle ?? ""}_${song.code ?? ""}`;
 
   return (
     <div className="grid gap-3 border border-[#ddd2c2] bg-[#fffdfa] p-4">
-      <form action={updateFormAction} className="grid gap-3">
+      <form key={formKey} action={updateFormAction} className="grid gap-3">
         <input type="hidden" name="songId" value={song.id} />
 
         <div className="grid min-w-0 gap-3 xl:grid-cols-[0.22fr_0.39fr_0.39fr]">
