@@ -248,11 +248,27 @@ export async function createSongFileAction(
   const isPdf = fileType.endsWith("_pdf");
   const isAudio = fileType.startsWith("mp3_");
 
-  if (isPdf && fileValue.type !== "application/pdf" && !fileValue.name.toLowerCase().endsWith(".pdf")) {
-    return {
-      error: "Per questo tipo di file è supportato solo il formato PDF.",
-      success: null,
-    };
+  if (isPdf) {
+    const isAcceptedDoc = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.oasis.opendocument.text",
+      "text/plain",
+      "application/rtf"
+    ].includes(fileValue.type) || fileValue.type.startsWith("image/");
+
+    const isAcceptedExtension = [
+      ".pdf", ".png", ".jpg", ".jpeg", ".webp",
+      ".doc", ".docx", ".odt", ".rtf", ".txt"
+    ].some(ext => fileValue.name.toLowerCase().endsWith(ext));
+
+    if (!isAcceptedDoc && !isAcceptedExtension) {
+      return {
+        error: "Per questo tipo di file sono supportati i formati documento (PDF, Word, TXT, ecc.) o immagini (PNG, JPG, ecc.).",
+        success: null,
+      };
+    }
   }
 
   if (isAudio) {
@@ -287,7 +303,26 @@ export async function createSongFileAction(
     };
   }
 
-  const mimeType = isPdf ? "application/pdf" : "audio/mpeg";
+  let mimeType = fileValue.type;
+  if (!mimeType || mimeType === "application/octet-stream") {
+    const ext = fileValue.name.substring(fileValue.name.lastIndexOf(".")).toLowerCase();
+    if (ext === ".pdf") mimeType = "application/pdf";
+    else if (ext === ".png") mimeType = "image/png";
+    else if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg";
+    else if (ext === ".webp") mimeType = "image/webp";
+    else if (ext === ".doc") mimeType = "application/msword";
+    else if (ext === ".docx") mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    else if (ext === ".odt") mimeType = "application/vnd.oasis.opendocument.text";
+    else if (ext === ".rtf") mimeType = "application/rtf";
+    else if (ext === ".txt") mimeType = "text/plain";
+    else if (ext === ".mp3") mimeType = "audio/mpeg";
+    else if (ext === ".m4a") mimeType = "audio/mp4";
+    else if (ext === ".wav") mimeType = "audio/wav";
+    else if (ext === ".aac") mimeType = "audio/aac";
+    else if (ext === ".ogg") mimeType = "audio/ogg";
+    else if (ext === ".mp4") mimeType = "audio/mp4";
+    else mimeType = isPdf ? "application/pdf" : "audio/mpeg";
+  }
   const safeFileName = sanitizeFileName(fileValue.name);
   const storagePath = `songs/${songId}/${arrangementId}/${Date.now()}-${safeFileName}`;
   const fileBuffer = Buffer.from(await fileValue.arrayBuffer());

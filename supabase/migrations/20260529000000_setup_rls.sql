@@ -12,12 +12,12 @@ values (
   'note-di-fede',
   false,
   52428800, -- 50MB in bytes
-  array['application/pdf', 'audio/mpeg', 'audio/mp3', 'audio/x-mpeg', 'audio/x-mp3']
+  null
 )
 on conflict (id) do update
 set
   file_size_limit = 52428800,
-  allowed_mime_types = array['application/pdf', 'audio/mpeg', 'audio/mp3', 'audio/x-mpeg', 'audio/x-mp3'];
+  allowed_mime_types = null;
 
 -- =====================================================================
 -- 2. ABILITAZIONE RLS SULLE TABELLE APPLICATIVE

@@ -39,8 +39,10 @@ export function SongFileForm({ arrangementId, songId }: SongFileFormProps) {
   const [selectedType, setSelectedType] = useState("spartito_pdf");
 
   const isPdf = selectedType.endsWith("_pdf");
-  const acceptMime = isPdf ? "application/pdf" : "audio/*";
-  const fileLabel = isPdf ? "File PDF" : "Traccia Audio (MP3, M4A, ecc.)";
+  const acceptMime = isPdf 
+    ? "application/pdf,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,text/plain,application/rtf" 
+    : "audio/*";
+  const fileLabel = isPdf ? "Documento o Immagine" : "Traccia Audio (MP3, M4A, ecc.)";
 
   return (
     <form

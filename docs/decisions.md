@@ -47,11 +47,16 @@ This document maintains the record of structural, architectural, and database de
   14. **Comunione** (sort_order: 14)
   15. **Finale** (sort_order: 15)
 
-## 5. Structural Configurations
+## 5. Dynamic Vocal Tracks and Expanded Audio Formats Support
+- **Status:** Implemented (Logic in `components/canti-catalog.tsx` and `components/song-file-form.tsx`)
+- **Dynamic Vocal Tracks:** Vocal tracks are completely dynamic and rely solely on user-uploaded files. No mock audio tracks or default files are loaded by default, mirroring the behavior of PDF sheet music files. Audio tracks are only rendered if they have been explicitly uploaded to the active arrangement.
+- **Expanded Audio Support:** The system has been configured to accept a wider range of audio file formats beyond standard MP3, supporting formats such as M4A, WAV, and AAC. The file upload interfaces dynamically configure their input file accept attributes (using `audio/*` for audio types and `application/pdf` for PDFs) to ensure consistent client-side validation.
+
+## 6. Structural Configurations
 - **Mock Authentication:** To facilitate local testing and quick evaluation, a mock login mechanism is configured in `app/page.tsx`. It simulates access for the credentials `maestro@notedifede.it` with password `cantoliturgico`, routing users to the `/canti` and `/messe` workspace dashboards.
 - **Deployment and Architecture:** The frontend is built on Next.js (using App Router features like Server Actions), styled with Tailwind CSS, and powered by TypeScript. It interfaces directly with a remote Supabase instance (PostgreSQL 17) for persistence, database-level constraint enforcement, and media storage.
 
-## 6. Progress Checklist
+## 7. Progress Checklist
 This checklist tracks the implementation status of Note di Fede features.
 
 ### Database & Migrations
@@ -71,7 +76,7 @@ This checklist tracks the implementation status of Note di Fede features.
 
 ### File & Storage Management
 - [x] Document upload functionality (PDF sheet music, chord sheets) with file validation.
-- [x] Audio file upload functionality (MP3 study/vocal tracks for Soprano, Contralto, Tenore, Basso, Organ).
+- [x] Dynamic audio file upload and rendering functionality (Soprano, Contralto, Tenore, Basso, Organ vocal tracks supporting MP3, M4A, WAV, AAC, etc.).
 - [x] Enforced file size limits of 50MB across Next.js, local Supabase CLI, and database migrations.
 - [x] Storage cleanup on file replacement or deletion.
 
@@ -80,4 +85,5 @@ This checklist tracks the implementation status of Note di Fede features.
 - [x] Form to create, update, and delete masses.
 - [x] Messa Composer interface to arrange canti within the 15 Ambrosian liturgical moments (`components/messe-composer.tsx`).
 - [x] Contextual search and selection of catalog songs inside the mass composer.
+
 
