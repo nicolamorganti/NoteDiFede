@@ -22,7 +22,7 @@ type SongArrangementRow = {
 type SongFileRow = {
   id: string;
   arrangement_id: string | null;
-  file_type: "spartito_pdf" | "accordi_pdf";
+  file_type: string;
   file_name: string;
   mime_type: string | null;
   file_size_bytes: number | null;
@@ -32,7 +32,7 @@ type SongFileRow = {
 
 export type SongFileListItem = {
   id: string;
-  fileType: "spartito_pdf" | "accordi_pdf";
+  fileType: string;
   fileLabel: string;
   fileName: string;
   mimeType: string | null;
@@ -147,7 +147,6 @@ export async function getSongs(): Promise<SongListItem[]> {
       .select(
         "id, arrangement_id, file_type, file_name, mime_type, file_size_bytes, created_at, storage_path",
       )
-      .in("file_type", ["spartito_pdf", "accordi_pdf"])
       .order("created_at", { ascending: false }),
     supabase
       .from("song_links")
@@ -198,7 +197,15 @@ export async function getSongs(): Promise<SongListItem[]> {
       id: file.id,
       fileType: file.file_type,
       fileLabel:
-        file.file_type === "spartito_pdf" ? "Spartito PDF" : "Accordi PDF",
+        file.file_type === "spartito_pdf" ? "Spartito PDF" :
+        file.file_type === "accordi_pdf" ? "Accordi PDF" :
+        file.file_type === "mp3_completo" ? "Brano Completo" :
+        file.file_type === "mp3_soprano" ? "Soprano" :
+        file.file_type === "mp3_contralto" ? "Contralto" :
+        file.file_type === "mp3_tenore" ? "Tenore" :
+        file.file_type === "mp3_basso" ? "Basso" :
+        file.file_type === "mp3_organo" ? "Organo" :
+        file.file_type,
       fileName: file.file_name,
       mimeType: file.mime_type,
       fileSizeLabel: formatFileSize(file.file_size_bytes),

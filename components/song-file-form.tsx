@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   createSongFileAction,
@@ -36,6 +36,11 @@ export function SongFileForm({ arrangementId, songId }: SongFileFormProps) {
     createSongFileAction,
     initialCreateSongFileFormState,
   );
+  const [selectedType, setSelectedType] = useState("spartito_pdf");
+
+  const isPdf = selectedType.endsWith("_pdf");
+  const acceptMime = isPdf ? "application/pdf" : "audio/*";
+  const fileLabel = isPdf ? "File PDF" : "Traccia Audio (MP3, M4A, ecc.)";
 
   return (
     <form
@@ -45,29 +50,36 @@ export function SongFileForm({ arrangementId, songId }: SongFileFormProps) {
       <input type="hidden" name="arrangementId" value={arrangementId} />
       <input type="hidden" name="songId" value={songId} />
 
-      <div className="grid min-w-0 gap-3 xl:grid-cols-[0.36fr_0.64fr]">
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[0.4fr_0.6fr]">
         <label className="grid gap-2">
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a6a58]">
             Tipo file
           </span>
           <select
             name="fileType"
-            defaultValue="spartito_pdf"
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
             className="rounded-2xl border border-[#d9cdbf] bg-white px-4 py-3 text-sm text-[#3f3933] outline-none transition focus:border-[#9b8361] focus:ring-4 focus:ring-[#efe4d2]"
           >
             <option value="spartito_pdf">Spartito PDF</option>
             <option value="accordi_pdf">Accordi PDF</option>
+            <option value="mp3_completo">Traccia Completa MP3</option>
+            <option value="mp3_soprano">Soprano MP3</option>
+            <option value="mp3_contralto">Contralto MP3</option>
+            <option value="mp3_tenore">Tenore MP3</option>
+            <option value="mp3_basso">Basso MP3</option>
+            <option value="mp3_organo">Organo MP3</option>
           </select>
         </label>
 
         <label className="grid gap-2">
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a6a58]">
-            File PDF
+            {fileLabel}
           </span>
           <input
             type="file"
             name="file"
-            accept="application/pdf"
+            accept={acceptMime}
             className="rounded-2xl border border-[#d9cdbf] bg-white px-4 py-3 text-sm text-[#3f3933] outline-none transition file:mr-3 file:rounded-full file:border-0 file:bg-[#eadcc8] file:px-3 file:py-2 file:text-sm file:font-medium file:text-[#6e5a45] focus:border-[#9b8361] focus:ring-4 focus:ring-[#efe4d2]"
           />
         </label>
@@ -87,8 +99,7 @@ export function SongFileForm({ arrangementId, songId }: SongFileFormProps) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-[#736556]">
-          In questa fase supportiamo upload PDF per spartiti e accordi della
-          variante selezionata.
+          Supportiamo file PDF e tracce audio (MP3, M4A, ecc.) fino a 50MB per l&apos;archiviazione di spartiti e lo studio delle parti vocali.
         </p>
         <SubmitButton />
       </div>

@@ -41,7 +41,7 @@ export function SongFileDeleteForm({ fileId }: SongFileDeleteFormProps) {
       action={formAction}
       className="grid gap-2"
       onSubmit={(event) => {
-        if (!window.confirm("Eliminare questo file PDF?")) {
+        if (!window.confirm("Eliminare definitivamente questo allegato?")) {
           event.preventDefault();
         }
       }}

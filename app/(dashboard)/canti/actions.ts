@@ -246,7 +246,7 @@ export async function createSongFileAction(
   }
 
   const isPdf = fileType.endsWith("_pdf");
-  const isMp3 = fileType.startsWith("mp3_");
+  const isAudio = fileType.startsWith("mp3_");
 
   if (isPdf && fileValue.type !== "application/pdf" && !fileValue.name.toLowerCase().endsWith(".pdf")) {
     return {
@@ -255,11 +255,17 @@ export async function createSongFileAction(
     };
   }
 
-  if (isMp3 && !["audio/mpeg", "audio/mp3", "audio/x-mpeg", "audio/x-mp3"].includes(fileValue.type) && !fileValue.name.toLowerCase().endsWith(".mp3")) {
-    return {
-      error: "Per questo tipo di file è supportato solo il formato MP3.",
-      success: null,
-    };
+  if (isAudio) {
+    const isAudioType = fileValue.type.startsWith("audio/");
+    const isAudioExtension = [".mp3", ".m4a", ".wav", ".aac", ".ogg", ".wma", ".mp4"].some(ext =>
+      fileValue.name.toLowerCase().endsWith(ext)
+    );
+    if (!isAudioType && !isAudioExtension) {
+      return {
+        error: "Per questo tipo di file sono supportati solo i formati audio (MP3, M4A, WAV, ecc.).",
+        success: null,
+      };
+    }
   }
 
   if (fileValue.size > 50 * 1024 * 1024) {

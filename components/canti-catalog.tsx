@@ -12,17 +12,7 @@ import { SongFileForm } from "./song-file-form";
 import { SongLinkForm } from "./song-link-form";
 import { SongArrangementEditForm } from "./song-arrangement-edit-form";
 import { SongLinkEditForm } from "./song-link-edit-form";
-
-
-
-// Tracce audio MP3 mockate per lo studio delle parti
-const VOCAL_PARTS = [
-  { part: "Completo", label: "Brano Completo / Organo", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
-  { part: "Soprano", label: "Soprano (Voci Acute F)", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-  { part: "Contralto", label: "Contralto (Voci Gravi F)", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-  { part: "Tenore", label: "Tenore (Voci Acute M)", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
-  { part: "Basso", label: "Basso (Voci Gravi M)", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
-];
+import { SongFileDeleteForm } from "./song-file-delete-form";
 
 // Bottone di eliminazione con stato pending per la form
 function DeleteButton() {
@@ -125,6 +115,46 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
       createFormRef.current.reset();
     }
   }, [createState]);
+
+  // Chiude la modale di modifica variante se la variante viene eliminata
+  useEffect(() => {
+    if (modalEditArrangement) {
+      const exists = initialSongs.some((song) =>
+        song.arrangements.some((arr) => arr.id === modalEditArrangement.id)
+      );
+      if (!exists) {
+        setTimeout(() => {
+          setModalEditArrangement(null);
+        }, 0);
+      }
+    }
+  }, [initialSongs, modalEditArrangement]);
+
+  // Chiude la modale di modifica canto se il canto viene eliminato
+  useEffect(() => {
+    if (modalEditSong) {
+      const exists = initialSongs.some((song) => song.id === modalEditSong.id);
+      if (!exists) {
+        setTimeout(() => {
+          setModalEditSong(null);
+        }, 0);
+      }
+    }
+  }, [initialSongs, modalEditSong]);
+
+  // Chiude la modale di modifica link se il link viene eliminato
+  useEffect(() => {
+    if (modalEditLink) {
+      const exists = initialSongs.some((song) =>
+        song.links.some((l) => l.id === modalEditLink.id)
+      );
+      if (!exists) {
+        setTimeout(() => {
+          setModalEditLink(null);
+        }, 0);
+      }
+    }
+  }, [initialSongs, modalEditLink]);
 
   // Stato per la Preview PDF
   const [previewPdf, setPreviewPdf] = useState<PreviewPdf | null>(null);
@@ -566,11 +596,11 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                                 </button>
                               </div>
 
-                              {arr.files.length === 0 ? (
+                              {arr.files.filter((f) => f.fileType.endsWith("_pdf")).length === 0 ? (
                                 <p className="text-xs text-[#aa9e90] italic">Nessun PDF (spartito o accordi) allegato.</p>
                               ) : (
                                 <div className="space-y-1.5">
-                                  {arr.files.map((file) => (
+                                  {arr.files.filter((f) => f.fileType.endsWith("_pdf")).map((file) => (
                                     <div
                                       key={file.id}
                                       className="flex items-center justify-between rounded-xl bg-white border border-[#e4dcce]/30 px-3 py-2 text-xs"
@@ -596,11 +626,13 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                                         {/* Scarica PDF */}
                                         <a
                                           href={file.downloadHref}
-                                          className="text-[#8a755d] hover:text-[#5c4a37]"
+                                          className="text-[#8a755d] hover:text-[#5c4a37] mr-1"
                                           title="Scarica PDF"
                                         >
                                           Scarica
                                         </a>
+                                        <span className="text-[#d9cdbf]">|</span>
+                                        <SongFileDeleteForm fileId={file.id} />
                                       </div>
                                     </div>
                                   ))}
@@ -610,25 +642,49 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
 
                             {/* Tracce Vocali MP3 */}
                             <div className="space-y-2 pt-1">
-                              <h6 className="text-xs font-semibold text-[#8a755d]">Tracce Vocali per lo Studio:</h6>
-                              <div className="flex flex-wrap gap-1.5">
-                                {VOCAL_PARTS.map((part) => (
-                                  <button
-                                    key={part.part}
-                                    onClick={() => handleTrackSelect(song.title, part)}
-                                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
-                                      activeTrack?.songTitle === song.title && activeTrack?.partLabel === part.label
-                                        ? "bg-[#5c4a37] text-white"
-                                        : "bg-white border border-[#d9cdbf] text-[#736555] hover:bg-[#5c4a37]/5"
-                                    }`}
-                                  >
-                                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                                    </svg>
-                                    <span>{part.part}</span>
-                                  </button>
-                                ))}
+                              <div className="flex items-center justify-between text-xs font-semibold text-[#8a755d]">
+                                <span>Tracce Vocali per lo Studio:</span>
+                                <button
+                                  onClick={() => setModalCreateFile({ songId: song.id, arrangementId: arr.id, songTitle: song.title })}
+                                  className="text-[11px] text-[#5c4a37] hover:underline"
+                                >
+                                  + Aggiungi Audio
+                                </button>
                               </div>
+
+                              {arr.files.filter((f) => f.fileType.startsWith("mp3_")).length === 0 ? (
+                                <p className="text-xs text-[#aa9e90] italic">Nessuna traccia vocale allegata.</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {arr.files.filter((f) => f.fileType.startsWith("mp3_")).map((file) => {
+                                    const isActive = activeTrack?.songTitle === song.title && activeTrack?.url === file.previewHref;
+                                    return (
+                                      <div
+                                        key={file.id}
+                                        className="flex items-center justify-between rounded-xl bg-white border border-[#e4dcce]/30 px-3 py-2 text-xs"
+                                      >
+                                        <button
+                                          onClick={() => handleTrackSelect(song.title, { part: file.fileLabel, label: file.fileName, url: file.previewHref })}
+                                          className={`flex items-center gap-2 text-left min-w-0 font-medium ${
+                                            isActive ? "text-[#aa9576]" : "text-[#736555] hover:text-[#5c4a37]"
+                                          }`}
+                                        >
+                                          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                          </svg>
+                                          <span className="truncate" title={file.fileName}>
+                                            {file.fileLabel} ({file.fileSizeLabel || "MP3"})
+                                          </span>
+                                        </button>
+                                        
+                                        <div className="flex items-center gap-2">
+                                          <SongFileDeleteForm fileId={file.id} />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
 
                           </div>
