@@ -274,7 +274,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                       {/* Spartiti / Accordi PDF */}
                       {song.arrangements.length > 0 && (
                         <div className="space-y-2 border-t border-[#e4dcce]/30 pt-3">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576] block">Documenti e Spartiti PDF:</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576] block">Documenti e Spartiti:</span>
                           <div className="flex flex-wrap gap-2">
                             {song.arrangements.map((arr) => 
                               arr.files.map((file: DashboardFile) => {

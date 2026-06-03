@@ -588,17 +588,17 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                             {/* Allegati PDF */}
                             <div className="space-y-2">
                               <div className="flex items-center justify-between text-xs font-semibold text-[#8a755d]">
-                                <span>Documenti PDF:</span>
+                                <span>Spartiti ed Accordi:</span>
                                 <button
                                   onClick={() => setModalCreateFile({ songId: song.id, arrangementId: arr.id, songTitle: song.title })}
                                   className="text-[11px] text-[#5c4a37] hover:underline"
                                 >
-                                  + Aggiungi PDF
+                                  + Aggiungi File
                                 </button>
                               </div>
 
                               {arr.files.filter((f) => f.fileType.endsWith("_pdf")).length === 0 ? (
-                                <p className="text-xs text-[#aa9e90] italic">Nessun PDF (spartito o accordi) allegato.</p>
+                                <p className="text-xs text-[#aa9e90] italic">Nessun file (spartito o accordi) allegato.</p>
                               ) : (
                                 <div className="space-y-1.5">
                                   {arr.files.filter((f) => f.fileType.endsWith("_pdf")).map((file) => (
@@ -1122,9 +1122,9 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
             </button>
             <div className="max-h-[80vh] overflow-y-auto pr-1 space-y-4">
               <div className="border-b border-[#e3d8c9] pb-3">
-                <h3 className="text-lg font-serif text-[#3f3933]">Carica Spartito o Accordi PDF</h3>
+                <h3 className="text-lg font-serif text-[#3f3933]">Carica Allegato</h3>
                 <p className="text-xs text-[#736555]">
-                  Carica un file PDF da associare a questa variante del canto &ldquo;{modalCreateFile.songTitle}&rdquo;.
+                  Carica uno spartito, accordi (PDF, immagine, Word) o traccia audio da associare a questa variante di &ldquo;{modalCreateFile.songTitle}&rdquo;.
                 </p>
               </div>
               <SongFileForm arrangementId={modalCreateFile.arrangementId} songId={modalCreateFile.songId} />
