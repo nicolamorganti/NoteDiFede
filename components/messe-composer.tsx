@@ -63,11 +63,39 @@ function RemoveButton() {
   );
 }
 
+const STANDARD_MOMENTS = [
+  "Ingresso",
+  "Gloria",
+  "Salmo",
+  "Canto al Vangelo",
+  "Dopo il Vangelo",
+  "Offertorio",
+  "Santo",
+  "Mistero della Fede",
+  "Spezzare del Pane",
+  "Comunione",
+  "Finale"
+];
+
 export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
   const [selectedSongs, setSelectedSongs] = useState<Record<string, string>>({});
   
   const [addState, addAction] = useActionState(addSongToMassAction, initialFormState);
   const [removeState, removeAction] = useActionState(removeSongFromMassAction, initialFormState);
+
+  const [addedMoments, setAddedMoments] = useState<string[]>([]);
+
+  const visibleMoments = massDetails.moments.filter(({ moment, songs }) => {
+    return (
+      STANDARD_MOMENTS.includes(moment.name) ||
+      songs.length > 0 ||
+      addedMoments.includes(moment.id)
+    );
+  });
+
+  const hiddenMoments = massDetails.moments.filter(({ moment }) => {
+    return !visibleMoments.some((vm) => vm.moment.id === moment.id);
+  });
 
   // Formatta la data
   const formattedDate = new Intl.DateTimeFormat("it-IT", {
@@ -139,7 +167,7 @@ export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
 
       {/* Flusso dei Momenti Liturgici */}
       <div className="space-y-6 max-w-4xl">
-        {massDetails.moments.map(({ moment, songs }) => {
+        {visibleMoments.map(({ moment, songs }) => {
           const selectedValue = selectedSongs[moment.id] ?? "";
 
           return (
@@ -238,6 +266,36 @@ export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
             </div>
           );
         })}
+
+        {hiddenMoments.length > 0 && (
+          <div className="rounded-3xl border border-dashed border-[#d9cdbf] bg-[#fffdfa]/50 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-semibold text-[#5c4a37]">Aggiungi altri momenti liturgici</h4>
+              <p className="text-xs text-[#736555] mt-1">
+                Seleziona uno dei momenti liturgici non presenti nel template principale per aggiungerlo a questa celebrazione.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value=""
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (id) {
+                    setAddedMoments((prev) => [...prev, id]);
+                  }
+                }}
+                className="rounded-xl border border-[#d9cdbf] bg-white px-3 py-2 text-xs text-[#3f3933] outline-none transition focus:border-[#9b8361] w-full sm:w-56"
+              >
+                <option value="">Scegli un momento...</option>
+                {hiddenMoments.map(({ moment }) => (
+                  <option key={moment.id} value={moment.id}>
+                    {moment.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
