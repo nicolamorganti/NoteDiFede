@@ -62,7 +62,7 @@ export default function LoginPage() {
 
           <div className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#8a755d]">
-              Archivio Musicale Sacro
+              Archivio musica liturgica
             </span>
             <h1 className="font-serif text-3xl font-normal tracking-wide text-[#3f3933] sm:text-4xl">
               Note di Fede
