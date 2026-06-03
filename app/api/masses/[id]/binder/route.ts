@@ -42,7 +42,7 @@ export async function GET(
   // 1. Fetch mass details
   const { data: mass, error: massError } = await supabase
     .from("masses")
-    .select("id, title")
+    .select("id, title, celebration_date")
     .eq("id", massId)
     .maybeSingle();
 
@@ -170,13 +170,21 @@ export async function GET(
     }
 
     const mergedPdfBytes = await mergedPdf.save();
-    const safeTitle = sanitizeFileName(mass.title);
+    let formattedDate = "";
+    if (mass.celebration_date) {
+      const parts = mass.celebration_date.split("-");
+      if (parts.length === 3) {
+        const [year, month, day] = parts;
+        formattedDate = `_${day}${month}${year}`;
+      }
+    }
+    const safeFileName = sanitizeFileName(`${mass.title}${formattedDate}`);
 
     return new Response(Buffer.from(mergedPdfBytes), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="Messa_${safeTitle}_Libretto.pdf"`,
+        "Content-Disposition": `inline; filename="${safeFileName}.pdf"`,
       },
     });
   } catch (err) {

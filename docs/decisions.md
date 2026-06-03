@@ -85,5 +85,12 @@ This checklist tracks the implementation status of Note di Fede features.
 - [x] Form to create, update, and delete masses.
 - [x] Messa Composer interface to arrange canti within the 15 Ambrosian liturgical moments (`components/messe-composer.tsx`).
 - [x] Contextual search and selection of catalog songs inside the mass composer, with dynamic filtering to display only canti associated with the current moment or unassociated canti.
+- [x] Dynamic PDF binder compilation (`app/api/masses/[id]/binder/route.ts`) to merge all sheets chronologically.
+- [x] Unified PDF binder naming convention using the sanitized format `[Title]_[Date].pdf`.
+
+## 8. Unified PDF Binder Compilation & Naming Convention
+- **Status:** Implemented (Endpoint `app/api/masses/[id]/binder/route.ts`)
+- **Dynamic Compilation:** Compiles all selected PDF sheet music and image uploads (PNG/JPG/JPEG) for the mass songs chronologically into a single PDF document using `pdf-lib`.
+- **Naming Convention:** Generates the filename using the sanitized mass title followed by the celebration date formatted as `_DDMMYYYY` (e.g. `II_dopo_Pentecoste_07062026.pdf`). Space characters and non-alphanumeric symbols are sanitized to underscores.
 
 
