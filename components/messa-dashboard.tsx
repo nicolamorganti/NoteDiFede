@@ -15,6 +15,14 @@ type ActiveAudioTrack = {
   url: string;
 };
 
+type DashboardFile = {
+  id: string;
+  fileName: string;
+  fileType: string;
+  previewHref: string;
+  fileLabel: string;
+};
+
 export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   // Stati PDF e Audio
   const [previewPdf, setPreviewPdf] = useState<{ title: string; url: string } | null>(null);
@@ -59,7 +67,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     setIsPlaying(!isPlaying);
   };
 
-  const handleTrackSelect = (songTitle: string, file: any) => {
+  const handleTrackSelect = (songTitle: string, file: DashboardFile) => {
     const fileUrl = `/api/song-files/${file.id}?disposition=inline`;
     setActiveTrack({
       songTitle,
@@ -103,7 +111,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
 
           // File PDF
           song.arrangements.forEach((arr) => {
-            arr.files.forEach((file: any) => {
+            arr.files.forEach((file: DashboardFile) => {
               if (file.fileType.endsWith("_pdf")) {
                 const url = `${window.location.origin}${file.previewHref}`;
                 lines.push(`    • PDF ${file.fileLabel}: ${url}`);
@@ -231,9 +239,9 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                   const { notes, lyrics } = parseNotesAndLyrics(song.notes);
 
                   // Estrae tutti i file audio dalle varianti
-                  const audioFiles: any[] = [];
+                  const audioFiles: (DashboardFile & { key?: string | null; arrName?: string | null })[] = [];
                   song.arrangements.forEach((arr) => {
-                    arr.files.forEach((file: any) => {
+                    arr.files.forEach((file: DashboardFile) => {
                       if (file.fileType.startsWith("mp3_")) {
                         audioFiles.push({ ...file, key: arr.musicalKey, arrName: arr.arrangementName });
                       }
@@ -269,7 +277,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                           <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576] block">Documenti e Spartiti PDF:</span>
                           <div className="flex flex-wrap gap-2">
                             {song.arrangements.map((arr) => 
-                              arr.files.map((file: any) => {
+                              arr.files.map((file: DashboardFile) => {
                                 if (file.fileType.endsWith("_pdf")) {
                                   const displayLabel = arr.musicalKey 
                                     ? `${file.fileLabel} (in ${arr.musicalKey})` 

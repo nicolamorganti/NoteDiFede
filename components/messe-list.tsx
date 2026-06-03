@@ -65,14 +65,18 @@ export function MesseList({ initialMasses }: MesseListProps) {
   // Resetta le form al successo delle azioni
   useEffect(() => {
     if (createState.success) {
-      setModalCreate(false);
+      setTimeout(() => {
+        setModalCreate(false);
+      }, 0);
       createFormRef.current?.reset();
     }
   }, [createState]);
 
   useEffect(() => {
     if (updateState.success) {
-      setModalEdit(null);
+      setTimeout(() => {
+        setModalEdit(null);
+      }, 0);
       editFormRef.current?.reset();
     }
   }, [updateState]);

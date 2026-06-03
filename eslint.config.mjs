@@ -13,6 +13,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "_legacy_php_archive/**",
+    "scratch/**",
   ]),
 ]);
 

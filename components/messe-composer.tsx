@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState, useEffect } from "react";
+import { useState, useActionState } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { MassDetails } from "@/lib/masses";

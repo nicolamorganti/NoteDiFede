@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     setLoading(true);
     
-    // Simulazione di un login solenne con transizione dolce
+    // Simulazione di un login con transizione dolce
     setTimeout(() => {
       setLoading(false);
       setSuccess("Accesso consentito. Ingresso nel repertorio in corso...");
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(155,131,97,0.15),_transparent_50%),linear-gradient(180deg,_#fdfbf7_0%,_#f6eee0_60%,_#ebdcb9_100%)] px-4 py-12 text-[#3f3933] font-sans antialiased selection:bg-[#aa9576] selection:text-white">
-      {/* Sottile cornice decorativa solenne, visibile solo su schermi medio-grandi */}
+      {/* Sottile cornice decorativa, visibile solo su schermi medio-grandi */}
       <div className="pointer-events-none absolute inset-4 hidden rounded-3xl border border-[#aa9576]/20 md:block" />
       <div className="pointer-events-none absolute inset-6 hidden rounded-[20px] border border-[#aa9576]/10 md:block" />
 
@@ -71,7 +71,7 @@ export default function LoginPage() {
           </div>
 
           <p className="mx-auto max-w-xs text-sm leading-relaxed text-[#736555] italic">
-            &ldquo;Chi canta bene prega due volte.&rdquo;
+            &ldquo;Il cantare è proprio di chi ama.&rdquo;
             <span className="block mt-1 text-[11px] not-italic font-medium uppercase tracking-[0.1em] text-[#8a755d]">— S. Agostino</span>
           </p>
         </div>
@@ -79,7 +79,7 @@ export default function LoginPage() {
         {/* Card di Login */}
         <div className="rounded-3xl border border-[#e4dcce] bg-[#fffdfa]/95 p-6 shadow-xl shadow-[#8a755d]/10 backdrop-blur-sm sm:p-8">
           <h2 className="font-serif text-xl font-medium text-[#4b3c2c] text-center mb-6">
-            Accedi al Santuario Corale
+            Accedi all&apos;archivio
           </h2>
 
           <form onSubmit={handleMockLogin} className="space-y-5">
@@ -199,7 +199,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-xs tracking-wider text-[#8a755d] uppercase">
-          &copy; {new Date().getFullYear()} Note di Fede &bull; Liturgical Choir Directory
+          &copy; {new Date().getFullYear()} Note di Fede &bull; Archivio canti liturgici
         </p>
       </div>
     </main>

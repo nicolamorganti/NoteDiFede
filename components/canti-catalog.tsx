@@ -13,55 +13,7 @@ import { SongLinkForm } from "./song-link-form";
 import { SongArrangementEditForm } from "./song-arrangement-edit-form";
 import { SongLinkEditForm } from "./song-link-edit-form";
 
-// Mappatura client-side deterministica dei momenti liturgici
-const LITURGICAL_MOMENTS = [
-  "Ingresso",
-  "Atto Penitenziale",
-  "Gloria",
-  "Salmo",
-  "Canto al Vangelo",
-  "Offertorio",
-  "Santo",
-  "Comunione",
-  "Finale",
-];
 
-function getLiturgicalMomentForSong(songTitle: string, songCode: string | null): string {
-  const titleLower = songTitle.toLowerCase();
-  const codeStr = songCode?.toLowerCase() || "";
-
-  if (titleLower.includes("ingresso") || titleLower.includes("vieni") || titleLower.includes("popolo") || codeStr.includes("176")) {
-    return "Ingresso";
-  }
-  if (titleLower.includes("penitenziale") || titleLower.includes("kyrie") || titleLower.includes("signore pieta") || titleLower.includes("pietà")) {
-    return "Atto Penitenziale";
-  }
-  if (titleLower.includes("gloria")) {
-    return "Gloria";
-  }
-  if (titleLower.includes("salmo") || titleLower.includes("lode") || titleLower.includes("cantico")) {
-    return "Salmo";
-  }
-  if (titleLower.includes("alleluia") || titleLower.includes("vangelo")) {
-    return "Canto al Vangelo";
-  }
-  if (titleLower.includes("offertorio") || titleLower.includes("segno") || titleLower.includes("pane") || titleLower.includes("vino") || titleLower.includes("offriamo")) {
-    return "Offertorio";
-  }
-  if (titleLower.includes("santo") || titleLower.includes("sabaoth")) {
-    return "Santo";
-  }
-  if (titleLower.includes("comunione") || titleLower.includes("anima") || titleLower.includes("corpo") || titleLower.includes("pane di vita") || titleLower.includes("tu sei") || titleLower.includes("ristoro") || titleLower.includes("custodiscimi")) {
-    return "Comunione";
-  }
-  if (titleLower.includes("finale") || titleLower.includes("salve") || titleLower.includes("regina") || titleLower.includes("maria") || titleLower.includes("madre") || titleLower.includes("andate")) {
-    return "Finale";
-  }
-
-  // Fallback deterministico
-  const hash = songTitle.length % LITURGICAL_MOMENTS.length;
-  return LITURGICAL_MOMENTS[hash];
-}
 
 // Tracce audio MP3 mockate per lo studio delle parti
 const VOCAL_PARTS = [

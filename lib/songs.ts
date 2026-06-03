@@ -309,7 +309,7 @@ export async function getMassMoments(): Promise<MassMomentItem[]> {
     return [];
   }
 
-  return (data as any[]).map((row) => ({
+  return ((data || []) as { id: string; name: string; sort_order: number }[]).map((row) => ({
     id: row.id,
     name: row.name,
     sortOrder: row.sort_order,

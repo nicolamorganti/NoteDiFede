@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { SongListItem, MassMomentItem } from "@/lib/songs";
+import type { SongListItem, MassMomentItem, SongArrangementListItem, SongFileListItem, SongLinkListItem } from "@/lib/songs";
 
 export type MassListItem = {
   id: string;
@@ -31,6 +31,21 @@ export type MassDetails = {
   celebrationDate: string;
   notes: string | null;
   moments: MassMomentWithSongs[];
+};
+
+export type MassSongRow = {
+  id: string;
+  song_id: string;
+  moment_id: string;
+  position: number;
+  songs: {
+    id: string;
+    code: string | null;
+    title: string;
+    alternate_title: string | null;
+    notes: string | null;
+    updated_at: string;
+  } | null;
 };
 
 function formatMassDate(value: string) {
@@ -68,7 +83,13 @@ export async function getMasses(): Promise<MassListItem[]> {
     return acc;
   }, {});
 
-  return (massesData as any[]).map((mass) => ({
+  return ((massesData || []) as {
+    id: string;
+    title: string;
+    liturgical_year: "A" | "B" | "C";
+    celebration_date: string;
+    notes: string | null;
+  }[]).map((mass) => ({
     id: mass.id,
     title: mass.title,
     liturgicalYear: mass.liturgical_year,
@@ -134,10 +155,10 @@ export async function getMass(id: string): Promise<MassDetails | null> {
   // Recuperiamo le informazioni complete per TUTTI i canti associati per poter mostrare spartiti, audio, ecc.
   const songIds = (massSongsData ?? []).map((ms) => ms.song_id);
 
-  let arrangementsBySongId: Record<string, any[]> = {};
-  let filesByArrangementId: Record<string, any[]> = {};
-  let linksBySongId: Record<string, any[]> = {};
-  let momentsBySongId: Record<string, any[]> = {};
+  let arrangementsBySongId: Record<string, SongArrangementListItem[]> = {};
+  let filesByArrangementId: Record<string, SongFileListItem[]> = {};
+  let linksBySongId: Record<string, SongLinkListItem[]> = {};
+  let momentsBySongId: Record<string, MassMomentItem[]> = {};
 
   if (songIds.length > 0) {
     const [
@@ -178,7 +199,7 @@ export async function getMass(id: string): Promise<MassDetails | null> {
     };
 
     // Mappatura files
-    filesByArrangementId = (filesData ?? []).reduce<Record<string, any[]>>((acc, file) => {
+    filesByArrangementId = (filesData ?? []).reduce<Record<string, SongFileListItem[]>>((acc, file) => {
       if (!file.arrangement_id) return acc;
       const list = acc[file.arrangement_id] ?? [];
       list.push({
@@ -198,7 +219,7 @@ export async function getMass(id: string): Promise<MassDetails | null> {
     }, {});
 
     // Mappatura arrangiamenti
-    arrangementsBySongId = (arrangementsData ?? []).reduce<Record<string, any[]>>((acc, arr) => {
+    arrangementsBySongId = (arrangementsData ?? []).reduce<Record<string, SongArrangementListItem[]>>((acc, arr) => {
       const list = acc[arr.song_id] ?? [];
       list.push({
         id: arr.id,
@@ -214,7 +235,7 @@ export async function getMass(id: string): Promise<MassDetails | null> {
     }, {});
 
     // Mappatura links
-    linksBySongId = (linksData ?? []).reduce<Record<string, any[]>>((acc, link) => {
+    linksBySongId = (linksData ?? []).reduce<Record<string, SongLinkListItem[]>>((acc, link) => {
       if (link.arrangement_id) return acc;
       const list = acc[link.song_id] ?? [];
       list.push({
@@ -231,7 +252,11 @@ export async function getMass(id: string): Promise<MassDetails | null> {
     }, {});
 
     // Mappatura momenti associati al canto
-    momentsBySongId = (momentsJoinData ?? []).reduce<Record<string, any[]>>((acc, item: any) => {
+    momentsBySongId = ((momentsJoinData || []) as unknown as {
+      song_id: string;
+      moment_id: string;
+      mass_moments: { id: string; name: string; sort_order: number } | null;
+    }[]).reduce<Record<string, MassMomentItem[]>>((acc, item) => {
       if (!item.mass_moments) return acc;
       const list = acc[item.song_id] ?? [];
       list.push({
@@ -246,7 +271,7 @@ export async function getMass(id: string): Promise<MassDetails | null> {
   }
 
   // Costruisci le canzoni associate con tutti i metadati mappati
-  const songsByMomentId = (massSongsData ?? []).reduce<Record<string, MassSongItem[]>>((acc, ms: any) => {
+  const songsByMomentId = ((massSongsData || []) as unknown as MassSongRow[]).reduce<Record<string, MassSongItem[]>>((acc, ms) => {
     if (!ms.songs) return acc;
     const songRow = ms.songs;
     const list = acc[ms.moment_id] ?? [];
@@ -274,7 +299,7 @@ export async function getMass(id: string): Promise<MassDetails | null> {
   }, {});
 
   // Mappa i momenti con i canti corrispondenti
-  const momentsWithSongs: MassMomentWithSongs[] = (momentsData as any[]).map((moment) => ({
+  const momentsWithSongs: MassMomentWithSongs[] = ((momentsData || []) as { id: string; name: string; sort_order: number }[]).map((moment) => ({
     moment: {
       id: moment.id,
       name: moment.name,
