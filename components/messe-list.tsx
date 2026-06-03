@@ -171,7 +171,7 @@ export function MesseList({ initialMasses }: MesseListProps) {
                     href={`/messe/${mass.id}`}
                     className="inline-flex items-center justify-center gap-1 rounded-full bg-[#f4efe6] px-4 py-2 text-xs font-semibold text-[#5c4a37] transition hover:bg-[#eadcc8]"
                   >
-                    <span>Apri Cruscotto</span>
+                    <span>Apri Scaletta</span>
                     <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
