@@ -170,6 +170,12 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
         songs.forEach(({ song }) => {
           const codePrefix = song.code ? `[${song.code}] ` : "";
           lines.push(`\n  --- ${codePrefix}${song.title} ---`);
+          
+          // Aggiunge i link di riferimento
+          song.links.forEach((link) => {
+            lines.push(`  🔗 Youtube: ${link.url}`);
+          });
+
           const { notes, lyrics } = parseNotesAndLyrics(song.notes);
           if (notes) lines.push(`  📝 Note: ${notes}`);
           if (lyrics) lines.push(`  📖 Testo:\n${lyrics.split("\n").map(l => "    " + l).join("\n")}`);
@@ -185,6 +191,217 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handlePrintReport = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const title = `Note di Fede - ${massDetails.title}`;
+    const dateStr = formattedDate;
+    const yearStr = massDetails.liturgicalYear;
+
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <meta charset="utf-8">
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+          body {
+            font-family: 'Inter', sans-serif;
+            color: #2b2b2b;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+          }
+          h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: normal;
+            margin-bottom: 5px;
+            color: #3f3933;
+          }
+          .metadata {
+            font-size: 13px;
+            color: #736555;
+            font-weight: 600;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #eae2d5;
+            padding-bottom: 10px;
+          }
+          .moment-section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+          }
+          .moment-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: #8a755d;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #f0e8dd;
+            padding-bottom: 4px;
+          }
+          .song-block {
+            margin-left: 15px;
+            margin-bottom: 20px;
+          }
+          .song-header-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+          .song-header {
+            font-size: 15px;
+            font-weight: 700;
+            color: #3f3933;
+          }
+          .song-code {
+            display: inline-block;
+            background: #f4efe6;
+            color: #736555;
+            padding: 2px 6px;
+            font-size: 11px;
+            border-radius: 4px;
+            font-weight: bold;
+          }
+          .links-container {
+            margin-top: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          .song-link {
+            font-size: 12px;
+            color: #b30000;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            font-weight: 600;
+          }
+          .song-link:hover {
+            text-decoration: underline;
+          }
+          .notes {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            font-style: italic;
+            background: #faf8f5;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 3px solid #ebdccb;
+          }
+          .lyrics {
+            font-family: monospace;
+            font-size: 11px;
+            color: #444;
+            white-space: pre-wrap;
+            margin-top: 10px;
+            background: #fcfbfa;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #efeae0;
+            line-height: 1.6;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+            .song-link {
+              color: #0000ee;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${massDetails.title}</h1>
+        <div class="metadata">
+          Domenica ${dateStr} &bull; Anno ${yearStr} &bull; Archivio Note di Fede
+        </div>
+    `;
+
+    if (massDetails.notes) {
+      htmlContent += `
+        <div style="margin-bottom: 30px; font-size: 13px; color: #555; background: #fdfcfb; padding: 15px; border-radius: 12px; border: 1px dashed #e4dcce;">
+          <strong>Indicazioni Celebrazione:</strong><br>${massDetails.notes.replace(/\n/g, "<br>")}
+        </div>
+      `;
+    }
+
+    massDetails.moments.forEach(({ moment, songs }) => {
+      if (songs.length === 0) return;
+      htmlContent += `
+        <div class="moment-section">
+          <div class="moment-title">${moment.sortOrder}. ${moment.name}</div>
+      `;
+
+      songs.forEach(({ song }) => {
+        const { notes, lyrics } = parseNotesAndLyrics(song.notes);
+        const codeSpan = song.code ? `<span class="song-code">${song.code}</span>` : "";
+        
+        htmlContent += `
+          <div class="song-block">
+            <div class="song-header-row">
+              ${codeSpan}
+              <span class="song-header">${song.title}</span>
+            </div>
+        `;
+
+        if (reportFormat === "links" || reportFormat === "lyrics") {
+          if (song.links.length > 0) {
+            htmlContent += `<div class="links-container">`;
+            song.links.forEach((link) => {
+              htmlContent += `
+                <a href="${link.url}" target="_blank" class="song-link">
+                  &bull; YouTube: ${link.label}
+                </a>
+              `;
+            });
+            htmlContent += `</div>`;
+          }
+        }
+
+        if (reportFormat === "lyrics") {
+          if (notes) {
+            htmlContent += `<div class="notes"><strong>Nota Canto:</strong> ${notes}</div>`;
+          }
+          if (lyrics) {
+            htmlContent += `<div class="lyrics">${lyrics}</div>`;
+          }
+        }
+
+        htmlContent += `
+          </div>
+        `;
+      });
+
+      htmlContent += `
+        </div>
+      `;
+    });
+
+    htmlContent += `
+      </body>
+      <script>
+        window.onload = function() {
+          window.print();
+        }
+      </script>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const handleDownloadBinder = async () => {
@@ -472,7 +689,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                           )}
                           {lyrics && (
                             <div className="text-xs text-[#736555] bg-[#fbf9f5] p-3 rounded-xl border border-[#e4dcce]/20 max-h-48 overflow-y-auto whitespace-pre-line font-mono">
-                              <span className="font-semibold text-[#8a755d] uppercase block mb-1 font-sans">Lyrics / Testo:</span>
+                              <span className="font-semibold text-[#8a755d] uppercase block mb-1 font-sans">Testo del canto:</span>
                               {lyrics}
                             </div>
                           )}
@@ -777,21 +994,33 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Anteprima Report Generato:</span>
-                    <button
-                      onClick={handleCopyReport}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#5c4a37] hover:underline"
-                    >
-                      {copied ? (
-                        <span className="text-emerald-600 font-bold">Copiato!</span>
-                      ) : (
-                        <>
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                          </svg>
-                          <span>Copia Report</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleCopyReport}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#5c4a37] hover:underline"
+                      >
+                        {copied ? (
+                          <span className="text-emerald-600 font-bold">Copiato!</span>
+                        ) : (
+                          <>
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            <span>Copia Testo</span>
+                          </>
+                        )}
+                      </button>
+                      <span className="text-[#d9cdbf]">|</span>
+                      <button
+                        onClick={handlePrintReport}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#5c4a37] hover:underline"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        <span>Scarica PDF / Stampa</span>
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     readOnly
