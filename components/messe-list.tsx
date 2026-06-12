@@ -87,10 +87,10 @@ export function MesseList({ initialMasses }: MesseListProps) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-serif text-3xl font-normal text-[#3f3933]">
-            Database Celebrazioni e Messe
+            Celebrazioni e Messe
           </h2>
           <p className="mt-1 text-sm text-[#736555]">
-            Pianifica le celebrazioni liturgiche, componi la scaletta dei canti e prepara i report per il coro.
+            Prepara le celebrazioni liturgiche, componi la scaletta dei canti e genera i foglietti per il coro.
           </p>
         </div>
 
@@ -101,7 +101,7 @@ export function MesseList({ initialMasses }: MesseListProps) {
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          <span>Pianifica Messa</span>
+          <span>Prepara Celebrazione</span>
         </button>
       </div>
 
@@ -123,9 +123,9 @@ export function MesseList({ initialMasses }: MesseListProps) {
           <svg className="mx-auto h-12 w-12 text-[#aa9576]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <h3 className="mt-4 font-serif text-lg font-normal text-[#3f3933]">Nessuna celebrazione pianificata</h3>
+          <h3 className="mt-4 font-serif text-lg font-normal text-[#3f3933]">Nessuna celebrazione preparata</h3>
           <p className="mt-2 text-sm text-[#736555] max-w-sm">
-            Inizia pianificando una nuova celebrazione (es. la Messa domenicale) per poi associarvi i canti.
+            Inizia preparando una nuova celebrazione (es. la Messa domenicale) per poi associarvi i canti.
           </p>
         </div>
       ) : (
@@ -215,7 +215,7 @@ export function MesseList({ initialMasses }: MesseListProps) {
       )}
 
       {/* ========================================================================= */}
-      {/* MODALE: PIANIFICA MESSA */}
+      {/* MODALE: PREPARA CELEBRAZIONE */}
       {/* ========================================================================= */}
       {modalCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
@@ -231,7 +231,7 @@ export function MesseList({ initialMasses }: MesseListProps) {
 
             <form ref={createFormRef} action={createAction} className="space-y-4">
               <div className="border-b border-[#e3d8c9] pb-3">
-                <h3 className="text-lg font-serif text-[#3f3933]">Pianifica Nuova Celebrazione</h3>
+                <h3 className="text-lg font-serif text-[#3f3933]">Prepara Nuova Celebrazione</h3>
                 <p className="text-xs text-[#736555]">
                   Inserisci i dettagli liturgici di base. Potrai comporre la scaletta subito dopo.
                 </p>

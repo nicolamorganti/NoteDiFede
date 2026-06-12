@@ -90,12 +90,12 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#887865]">
                     Note di Fede
                   </p>
-                  <p className="text-lg font-semibold">Workspace</p>
+                  <p className="text-lg font-semibold">Portale Coro</p>
                 </div>
               </Link>
 
               <p className="max-w-xs text-sm leading-6 text-[#685d53]">
-                Dashboard amministrativa per canti, messe e materiali liturgici.
+                Gestione dei canti, delle celebrazioni e degli spartiti liturgici.
               </p>
             </div>
 

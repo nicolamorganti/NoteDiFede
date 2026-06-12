@@ -949,7 +949,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
 
             <div className="space-y-4">
               <div className="border-b border-[#e3d8c9] pb-3">
-                <h3 className="text-lg font-serif text-[#3f3933]">Esporta e Condividi Report Celebrazione</h3>
+                <h3 className="text-lg font-serif text-[#3f3933]">Esporta e Condividi Celebrazione</h3>
                 <p className="text-xs text-[#736555]">
                   Genera il materiale in formato testuale pronto da copiare, condividere sul gruppo del coro o stampare.
                 </p>
@@ -993,7 +993,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
               {reportFormat !== "binder" ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Anteprima Report Generato:</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Anteprima Testo Esportato:</span>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={handleCopyReport}
@@ -1101,7 +1101,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
               )}
 
               <div className="text-[10px] text-[#8c7e6c] italic text-center">
-                Suggerimento: clicca sul testo del report per selezionarlo tutto automaticamente, pronto da incollare su WhatsApp o Telegram per i coristi.
+                Suggerimento: clicca sul testo per selezionarlo tutto automaticamente, pronto da incollare su WhatsApp o Telegram per i coristi.
               </div>
             </div>
           </div>
