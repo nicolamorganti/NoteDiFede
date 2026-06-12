@@ -87,6 +87,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   const [modalReport, setModalReport] = useState(false);
   const [reportFormat, setReportFormat] = useState<"links" | "lyrics" | "binder">("binder");
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [isGeneratingBinder, setIsGeneratingBinder] = useState(false);
   const [binderError, setBinderError] = useState<string | null>(null);
 
@@ -405,6 +406,174 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     printWindow.document.close();
   };
 
+  const handleCopyShareLink = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
+  };
+
+  const handleDownloadPdfReport = () => {
+    import("jspdf").then(({ jsPDF }) => {
+      const doc = new jsPDF();
+      
+      let y = 20;
+      const margin = 20;
+      const pageHeight = 275;
+      const docWidth = 210 - (margin * 2);
+
+      const checkPageSpace = (heightNeeded: number) => {
+        if (y + heightNeeded > pageHeight) {
+          doc.addPage();
+          y = 20;
+        }
+      };
+
+      const printText = (text: string, size: number, style: "normal" | "bold" | "italic" = "normal", color = [63, 57, 51]) => {
+        doc.setFont("Helvetica", style);
+        doc.setFontSize(size);
+        doc.setTextColor(color[0], color[1], color[2]);
+        
+        const lines = doc.splitTextToSize(text, docWidth);
+        const lineHeight = size * 0.45;
+        const height = lines.length * lineHeight + 2;
+        
+        checkPageSpace(height);
+        doc.text(lines, margin, y);
+        y += height;
+      };
+
+      // 1. Title
+      printText(massDetails.title, 20, "bold", [63, 57, 51]);
+      
+      // 2. Subtitle (Date and Liturgical Year)
+      const dateStr = new Intl.DateTimeFormat("it-IT", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      }).format(new Date(massDetails.celebrationDate));
+      printText(`Domenica ${dateStr}  |  Anno ${massDetails.liturgicalYear}  |  Portale Note di Fede`, 10, "italic", [115, 101, 85]);
+
+      // 3. Separator line
+      y += 2;
+      doc.setDrawColor(228, 220, 206);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, 210 - margin, y);
+      y += 8;
+
+      // 4. Notes if present
+      if (massDetails.notes) {
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(9);
+        const noteLines = doc.splitTextToSize(`Indicazioni Celebrazione:\n${massDetails.notes}`, docWidth - 10);
+        const noteHeight = noteLines.length * 4.5 + 6;
+        
+        checkPageSpace(noteHeight);
+        
+        // Draw background box
+        doc.setFillColor(251, 249, 245);
+        doc.rect(margin, y, docWidth, noteHeight, "F");
+        
+        // Draw left border
+        doc.setDrawColor(235, 220, 203);
+        doc.setLineWidth(1.5);
+        doc.line(margin, y, margin, y + noteHeight);
+        
+        doc.setTextColor(92, 74, 55);
+        doc.text(noteLines, margin + 5, y + 5);
+        
+        y += noteHeight + 8;
+      }
+
+      // 5. Loop moments
+      massDetails.moments.forEach(({ moment, songs }) => {
+        if (songs.length === 0) return;
+
+        // Moment Header
+        checkPageSpace(15);
+        y += 4;
+        printText(`${moment.sortOrder}. ${moment.name.toUpperCase()}`, 11, "bold", [138, 117, 93]);
+        y += 1;
+
+        songs.forEach(({ song }) => {
+          checkPageSpace(12);
+          const codePrefix = song.code ? `[${song.code}] ` : "";
+          printText(`${codePrefix}${song.title}`, 12, "bold", [63, 57, 51]);
+
+          // Links
+          if (reportFormat === "links" || reportFormat === "lyrics") {
+            if (song.links && song.links.length > 0) {
+              song.links.forEach((link) => {
+                checkPageSpace(8);
+                doc.setFont("Helvetica", "normal");
+                doc.setFontSize(9);
+                doc.setTextColor(115, 101, 85);
+                
+                doc.text("• YouTube: ", margin + 5, y);
+                const prefixWidth = doc.getTextWidth("• YouTube: ");
+                
+                doc.setTextColor(0, 0, 238);
+                doc.text(link.label, margin + 5 + prefixWidth, y);
+                
+                const labelWidth = doc.getTextWidth(link.label);
+                doc.link(margin + 5 + prefixWidth, y - 3, labelWidth, 4.5, { url: link.url });
+                
+                y += 5;
+              });
+            }
+          }
+
+          // Lyrics & notes
+          if (reportFormat === "lyrics") {
+            const { notes, lyrics } = parseNotesAndLyrics(song.notes);
+            
+            if (notes) {
+              doc.setFont("Helvetica", "italic");
+              doc.setFontSize(9);
+              const songNoteLines = doc.splitTextToSize(`Nota: ${notes}`, docWidth - 5);
+              const noteHeight = songNoteLines.length * 4.5;
+              
+              checkPageSpace(noteHeight + 2);
+              doc.setTextColor(100, 100, 100);
+              doc.text(songNoteLines, margin + 5, y);
+              y += noteHeight + 2;
+            }
+
+            if (lyrics) {
+              doc.setFont("Helvetica", "normal");
+              doc.setFontSize(9);
+              const lyricLines = doc.splitTextToSize(lyrics, docWidth - 10);
+              const lyricHeight = lyricLines.length * 4.5;
+              
+              checkPageSpace(lyricHeight + 4);
+              
+              // Draw light background for lyrics
+              doc.setFillColor(253, 251, 247);
+              doc.rect(margin + 2, y - 2, docWidth - 4, lyricHeight + 4, "F");
+              
+              // Draw thin border
+              doc.setDrawColor(240, 235, 225);
+              doc.setLineWidth(0.3);
+              doc.rect(margin + 2, y - 2, docWidth - 4, lyricHeight + 4, "S");
+              
+              doc.setTextColor(60, 60, 60);
+              doc.text(lyricLines, margin + 5, y + 2);
+              
+              y += lyricHeight + 6;
+            }
+          }
+          y += 2; // spacing between songs
+        });
+        y += 4; // spacing between moments
+      });
+
+      // Save PDF
+      const safeTitle = massDetails.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      doc.save(`Report_${safeTitle}.pdf`);
+    });
+  };
+
   const handleDownloadBinder = async () => {
     setIsGeneratingBinder(true);
     setBinderError(null);
@@ -487,6 +656,27 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
             <span>Esporta / Stampa</span>
+          </button>
+
+          <button
+            onClick={handleCopyShareLink}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-[#d9cdbf] bg-white px-5 py-3 text-sm font-semibold text-[#5c4a37] shadow-sm transition hover:bg-[#fdfbf7] hover:border-[#aa9576] active:scale-[0.98]"
+          >
+            {shareCopied ? (
+              <>
+                <svg className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-emerald-600">Link Copiato!</span>
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 10.742l-2.084-1.107A4.901 4.901 0 002 14a4.902 4.902 0 006 4.9m0-9.8a4.902 4.902 0 016 4.9m-6-4.9l2.084 1.107m0 0a4.902 4.902 0 010 3.84m0-3.84L14 12m0 0l2.084 1.107a4.902 4.902 0 006 4.9m0-9.8a4.902 4.902 0 01-6 4.9m6-4.9l-2.084 1.107" />
+                </svg>
+                <span>Copia Link</span>
+              </>
+            )}
           </button>
 
           {isAdmin && (
@@ -1015,13 +1205,13 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                       </button>
                       <span className="text-[#d9cdbf]">|</span>
                       <button
-                        onClick={handlePrintReport}
+                        onClick={handleDownloadPdfReport}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#5c4a37] hover:underline"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
-                        <span>Scarica PDF / Stampa</span>
+                        <span>Scarica PDF Report</span>
                       </button>
                     </div>
                   </div>
