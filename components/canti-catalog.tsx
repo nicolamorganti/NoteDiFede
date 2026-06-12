@@ -6,6 +6,7 @@ import type { SongListItem, SongArrangementListItem, SongLinkListItem, MassMomen
 import { parseNotesAndLyrics } from "@/lib/songs";
 import { createMassMomentAction, deleteMassMomentAction } from "@/app/(dashboard)/canti/actions";
 import { SongCreateForm } from "./song-create-form";
+import { supabase } from "@/lib/supabase/client";
 import { SongEditForm } from "./song-edit-form";
 import { SongArrangementForm } from "./song-arrangement-form";
 import { SongFileForm } from "./song-file-form";
@@ -70,6 +71,55 @@ type PreviewPdf = {
 };
 
 export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
+  // Stati Auth
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      }
+      setAuthLoading(false);
+    }
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      } else {
+        setCurrentUser(null);
+        setUserRole(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
+  const isAuthorizedForRestrictedContent = currentUser !== null && (userRole === "cantore" || userRole === "maestro" || userRole === "responsabile");
+
   // Stati di ricerca e filtri
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKey, setSelectedKey] = useState("all");
@@ -261,6 +311,7 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
   };
 
   const handleTrackSelect = (songTitle: string, part: { part: string; label: string; url: string }) => {
+    if (!isAuthorizedForRestrictedContent) return;
     setActiveTrack({
       songTitle,
       partLabel: part.label,
@@ -301,27 +352,29 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setModalManageMoments(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-[#d9cdbf] bg-white px-5 py-3 text-sm font-semibold text-[#5c4a37] shadow-sm transition hover:bg-[#fdfbf7] hover:border-[#aa9576] active:scale-[0.98]"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-            <span>Gestisci Momenti</span>
-          </button>
+        {isAdmin && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setModalManageMoments(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#d9cdbf] bg-white px-5 py-3 text-sm font-semibold text-[#5c4a37] shadow-sm transition hover:bg-[#fdfbf7] hover:border-[#aa9576] active:scale-[0.98]"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <span>Gestisci Momenti</span>
+            </button>
 
-          <button
-            onClick={() => setModalCreateSong(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-5 py-3 text-sm font-semibold text-[#fffdfa] shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] hover:shadow-xl active:scale-[0.98]"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Nuovo Canto</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setModalCreateSong(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-5 py-3 text-sm font-semibold text-[#fffdfa] shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] hover:shadow-xl active:scale-[0.98]"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Nuovo Canto</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Pannello di Ricerca e Filtri */}
@@ -485,21 +538,25 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
 
                   {/* Azioni del canto */}
                   <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <button
-                      onClick={() => setModalCreateArrangement(song)}
-                      className="rounded-full border border-[#d9cdbf] bg-white px-4 py-2 text-xs font-semibold text-[#5c4a37] transition hover:bg-[#fdfbf7] hover:border-[#aa9576]"
-                    >
-                      + Variante
-                    </button>
-                    <button
-                      onClick={() => setModalEditSong(song)}
-                      className="rounded-full p-2 text-[#aa9e90] transition hover:bg-[#fdfbf7] hover:text-[#5c4a37]"
-                      title="Modifica o Elimina Canto"
-                    >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setModalCreateArrangement(song)}
+                        className="rounded-full border border-[#d9cdbf] bg-white px-4 py-2 text-xs font-semibold text-[#5c4a37] transition hover:bg-[#fdfbf7] hover:border-[#aa9576]"
+                      >
+                        + Variante
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button
+                        onClick={() => setModalEditSong(song)}
+                        className="rounded-full p-2 text-[#aa9e90] transition hover:bg-[#fdfbf7] hover:text-[#5c4a37]"
+                        title="Modifica o Elimina Canto"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
                     {/* Pulsante Espandi su mobile */}
                     <button
                       onClick={() => toggleExpandSong(song.id)}
@@ -574,12 +631,14 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                                 </div>
                               </div>
                               
-                              <button
-                                onClick={() => setModalEditArrangement(arr)}
-                                className="text-xs text-[#8a755d] hover:text-[#5c4a37] font-semibold"
-                              >
-                                Modifica
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => setModalEditArrangement(arr)}
+                                  className="text-xs text-[#8a755d] hover:text-[#5c4a37] font-semibold"
+                                >
+                                  Modifica
+                                </button>
+                              )}
                             </div>
 
                             {/* Note Variante */}
@@ -593,12 +652,14 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                             <div className="space-y-2">
                               <div className="flex items-center justify-between text-xs font-semibold text-[#8a755d]">
                                 <span>Spartiti ed Accordi:</span>
-                                <button
-                                  onClick={() => setModalCreateFile({ songId: song.id, arrangementId: arr.id, songTitle: song.title })}
-                                  className="text-[11px] text-[#5c4a37] hover:underline"
-                                >
-                                  + Aggiungi File
-                                </button>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => setModalCreateFile({ songId: song.id, arrangementId: arr.id, songTitle: song.title })}
+                                    className="text-[11px] text-[#5c4a37] hover:underline"
+                                  >
+                                    + Aggiungi File
+                                  </button>
+                                )}
                               </div>
 
                               {arr.files.filter((f) => f.fileType.endsWith("_pdf")).length === 0 ? (
@@ -636,8 +697,12 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                                         >
                                           Scarica
                                         </a>
-                                        <span className="text-[#d9cdbf]">|</span>
-                                        <SongFileDeleteForm fileId={file.id} />
+                                        {isAdmin && (
+                                          <>
+                                            <span className="text-[#d9cdbf]">|</span>
+                                            <SongFileDeleteForm fileId={file.id} />
+                                          </>
+                                        )}
                                       </div>
                                     </div>
                                   ))}
@@ -649,17 +714,19 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                             <div className="space-y-2 pt-1">
                               <div className="flex items-center justify-between text-xs font-semibold text-[#8a755d]">
                                 <span>Tracce Vocali per lo Studio:</span>
-                                <button
-                                  onClick={() => setModalCreateFile({ songId: song.id, arrangementId: arr.id, songTitle: song.title })}
-                                  className="text-[11px] text-[#5c4a37] hover:underline"
-                                >
-                                  + Aggiungi Audio
-                                </button>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => setModalCreateFile({ songId: song.id, arrangementId: arr.id, songTitle: song.title })}
+                                    className="text-[11px] text-[#5c4a37] hover:underline"
+                                  >
+                                    + Aggiungi Audio
+                                  </button>
+                                )}
                               </div>
 
                               {arr.files.filter((f) => f.fileType.startsWith("mp3_")).length === 0 ? (
                                 <p className="text-xs text-[#aa9e90] italic">Nessuna traccia vocale allegata.</p>
-                              ) : (
+                              ) : isAuthorizedForRestrictedContent ? (
                                 <div className="space-y-1.5">
                                   {arr.files.filter((f) => f.fileType.startsWith("mp3_")).map((file) => {
                                     const isActive = activeTrack?.songTitle === song.title && activeTrack?.url === file.previewHref;
@@ -682,12 +749,37 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                                           </span>
                                         </button>
                                         
-                                        <div className="flex items-center gap-2">
-                                          <SongFileDeleteForm fileId={file.id} />
-                                        </div>
+                                        {isAdmin && (
+                                          <div className="flex items-center gap-2">
+                                            <SongFileDeleteForm fileId={file.id} />
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })}
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="space-y-1.5 opacity-60">
+                                    {arr.files.filter((f) => f.fileType.startsWith("mp3_")).map((file) => (
+                                      <div
+                                        key={file.id}
+                                        className="flex items-center gap-2 rounded-xl bg-white border border-[#e4dcce]/30 px-3 py-2 text-xs text-[#aa9e90] cursor-not-allowed"
+                                      >
+                                        <svg className="h-4 w-4 shrink-0 text-[#aa9e90]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                        <span className="truncate">
+                                          {file.fileLabel}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="text-[10px] text-[#b35959] italic font-semibold">
+                                    {currentUser
+                                      ? "🔒 Tracce riservate: il tuo account è in attesa di abilitazione come Cantore."
+                                      : "🔒 Tracce riservate: effettua l'accesso per sbloccare il materiale di studio."}
+                                  </p>
                                 </div>
                               )}
                             </div>
@@ -704,12 +796,14 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                       <h4 className="text-xs font-bold uppercase tracking-wider text-[#aa9576]">
                         Riferimenti e Ascolto Esterno ({song.links.length})
                       </h4>
-                      <button
-                        onClick={() => setModalCreateLink(song)}
-                        className="text-xs font-semibold text-[#5c4a37] hover:underline"
-                      >
-                        + Aggiungi Link
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => setModalCreateLink(song)}
+                          className="text-xs font-semibold text-[#5c4a37] hover:underline"
+                        >
+                          + Aggiungi Link
+                        </button>
+                      )}
                     </div>
 
                     {song.links.length === 0 ? (
@@ -748,15 +842,17 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
                               {link.linkType}
                             </span>
 
-                            <button
-                              onClick={() => setModalEditLink(link)}
-                              className="text-gray-400 hover:text-gray-700 ml-1 shrink-0"
-                              title="Modifica link"
-                            >
-                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => setModalEditLink(link)}
+                                className="text-gray-400 hover:text-gray-700 ml-1 shrink-0"
+                                title="Modifica link"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { MassDetails } from "@/lib/masses";
@@ -78,6 +79,54 @@ const STANDARD_MOMENTS = [
 ];
 
 export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
+  // Stati Auth
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      }
+      setAuthLoading(false);
+    }
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      } else {
+        setCurrentUser(null);
+        setUserRole(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
+
   const [selectedSongs, setSelectedSongs] = useState<Record<string, string>>({});
   
   const [addState, addAction] = useActionState(addSongToMassAction, initialFormState);
@@ -111,6 +160,36 @@ export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
       [momentId]: value,
     }));
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#aa9576]/20 border-t-[#5c4a37]" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-12 text-center max-w-xl mx-auto my-12 shadow-sm">
+        <svg className="h-12 w-12 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h3 className="mt-4 font-serif text-xl font-normal text-[#3f3933]">Accesso Negato</h3>
+        <p className="mt-2 text-sm text-[#736555] leading-relaxed">
+          La composizione e la modifica della scaletta dei canti è riservata ai Maestri e Responsabili della Liturgia.
+        </p>
+        <div className="mt-6">
+          <Link
+            href="/messe"
+            className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#4b3c2c]"
+          >
+            Torna alle Messe
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-32">

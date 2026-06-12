@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import {
   updateUserProfile,
@@ -80,8 +81,8 @@ export default function ImpostazioniPage() {
         setFullNameInput(profile.full_name || "");
         setVocalRegisterInput(profile.vocal_register || "nessuno");
 
-        // If maestro, load all data
-        if (profile.role === "maestro") {
+        // If maestro or responsabile, load all data
+        if (profile.role === "maestro" || profile.role === "responsabile") {
           await refreshAdminData();
         }
       } catch (err) {
@@ -289,6 +290,28 @@ export default function ImpostazioniPage() {
   }
 
   const isMaestro = myProfile?.role === "maestro" || myProfile?.role === "responsabile";
+
+  if (!isMaestro) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-12 text-center max-w-xl mx-auto my-12 shadow-sm">
+        <svg className="h-12 w-12 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h3 className="mt-4 font-serif text-xl font-normal text-[#3f3933]">Accesso Negato</h3>
+        <p className="mt-2 text-sm text-[#736555] leading-relaxed">
+          Questa pagina è riservata esclusivamente ai Maestri e Responsabili della Liturgia.
+        </p>
+        <div className="mt-6">
+          <Link
+            href="/canti"
+            className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#4b3c2c]"
+          >
+            Torna al Catalogo Canti
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-16">

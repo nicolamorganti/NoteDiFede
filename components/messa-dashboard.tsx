@@ -71,6 +71,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     };
   }, []);
 
+  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
   const isAuthorizedForRestrictedContent = currentUser !== null && (userRole === "cantore" || userRole === "maestro" || userRole === "responsabile");
 
   // Stati PDF e Audio
@@ -488,12 +489,14 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
             <span>Esporta / Stampa</span>
           </button>
 
-          <Link
-            href={`/messe/${massDetails.id}/modifica`}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] active:scale-[0.98]"
-          >
-            <span>Componi Messa</span>
-          </Link>
+          {isAdmin && (
+            <Link
+              href={`/messe/${massDetails.id}/modifica`}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] active:scale-[0.98]"
+            >
+              <span>Componi Messa</span>
+            </Link>
+          )}
         </div>
       </div>
 

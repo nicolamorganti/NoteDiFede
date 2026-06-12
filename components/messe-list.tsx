@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { MassListItem } from "@/lib/masses";
 import { createMassAction, deleteMassAction, updateMassAction } from "@/app/(dashboard)/messe/actions";
+import { supabase } from "@/lib/supabase/client";
 
 type MesseListProps = {
   initialMasses: MassListItem[];
@@ -58,6 +59,54 @@ export function MesseList({ initialMasses }: MesseListProps) {
   const createFormRef = useRef<HTMLFormElement | null>(null);
   const editFormRef = useRef<HTMLFormElement | null>(null);
 
+  // Stati Auth
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      }
+      setAuthLoading(false);
+    }
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      } else {
+        setCurrentUser(null);
+        setUserRole(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
+
   const [createState, createAction] = useActionState(createMassAction, initialFormState);
   const [updateState, updateAction] = useActionState(updateMassAction, initialFormState);
   const [deleteState, deleteAction] = useActionState(deleteMassAction, initialFormState);
@@ -94,15 +143,17 @@ export function MesseList({ initialMasses }: MesseListProps) {
           </p>
         </div>
 
-        <button
-          onClick={() => setModalCreate(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-5 py-3 text-sm font-semibold text-[#fffdfa] shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] hover:shadow-xl active:scale-[0.98]"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Prepara Celebrazione</span>
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setModalCreate(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-5 py-3 text-sm font-semibold text-[#fffdfa] shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] hover:shadow-xl active:scale-[0.98]"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Prepara Celebrazione</span>
+          </button>
+        )}
       </div>
 
       {/* Messaggi di Stato Eliminazione */}
@@ -177,37 +228,41 @@ export function MesseList({ initialMasses }: MesseListProps) {
                     </svg>
                   </Link>
 
-                  <Link
-                    href={`/messe/${mass.id}/modifica`}
-                    className="inline-flex items-center justify-center gap-1 rounded-full border border-[#d9cdbf] bg-white px-4 py-2 text-xs font-semibold text-[#736555] transition hover:bg-[#fdfbf7]"
-                  >
-                    <span>Componi</span>
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href={`/messe/${mass.id}/modifica`}
+                      className="inline-flex items-center justify-center gap-1 rounded-full border border-[#d9cdbf] bg-white px-4 py-2 text-xs font-semibold text-[#736555] transition hover:bg-[#fdfbf7]"
+                    >
+                      <span>Componi</span>
+                    </Link>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setModalEdit(mass)}
-                    className="rounded-full bg-white border border-[#d9cdbf] p-2 text-[#736555] hover:bg-[#f4efe6] transition"
-                    title="Modifica Celebrazione"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
+                {isAdmin && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setModalEdit(mass)}
+                      className="rounded-full bg-white border border-[#d9cdbf] p-2 text-[#736555] hover:bg-[#f4efe6] transition"
+                      title="Modifica Celebrazione"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
 
-                  <form
-                    action={deleteAction}
-                    onSubmit={(e) => {
-                      if (!window.confirm("Eliminare definitivamente questa celebrazione?")) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    <input type="hidden" name="massId" value={mass.id} />
-                    <DeleteButton />
-                  </form>
-                </div>
+                    <form
+                      action={deleteAction}
+                      onSubmit={(e) => {
+                        if (!window.confirm("Eliminare definitivamente questa celebrazione?")) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <input type="hidden" name="massId" value={mass.id} />
+                      <DeleteButton />
+                    </form>
+                  </div>
+                )}
               </div>
             </div>
           ))}
