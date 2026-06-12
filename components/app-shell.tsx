@@ -79,7 +79,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
     <div className="min-h-screen bg-[#f6f1ea] text-[#3e3933]">
       <div className="mx-auto flex min-h-screen w-full max-w-screen-2xl flex-col lg:flex-row">
         {/* Sidebar */}
-        <aside className="flex flex-col justify-between border-b border-[#ddd2c2] bg-[#ede4d8] px-5 py-5 text-[#3f3933] lg:min-h-screen lg:w-80 lg:border-b-0 lg:border-r lg:px-6 lg:py-8">
+        <aside className="flex flex-col justify-between border-b border-[#ddd2c2] bg-[#ede4d8] px-5 py-5 text-[#3f3933] lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:border-b-0 lg:border-r lg:px-6 lg:py-8 lg:overflow-y-auto">
           <div className="space-y-6">
             <div className="space-y-3">
               <Link href="/canti" className="inline-flex items-center gap-3">
