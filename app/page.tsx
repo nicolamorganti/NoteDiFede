@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { notifyNewRegistration } from "@/app/actions/notifications";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,7 +43,14 @@ export default function LoginPage() {
 
         if (signUpError) throw signUpError;
 
-        setSuccess("Registrazione completata con successo! Ora puoi accedere. Attendi che il Maestro ti promuova a 'Cantore' per consultare il materiale riservato.");
+        // Invia notifica agli amministratori (non blocca se fallisce)
+        try {
+          await notifyNewRegistration(email, fullName);
+        } catch (err) {
+          console.error("Errore invio notifica registrazione:", err);
+        }
+
+        setSuccess("Registrazione effettuata! Ti abbiamo inviato un'email di conferma: controlla la tua casella di posta (anche nella cartella Spam) e clicca sul link di attivazione prima di effettuare l'accesso.");
         setIsSignUp(false);
         setPassword("");
       } else {
@@ -217,9 +225,9 @@ export default function LoginPage() {
             {/* Success Message */}
             {success && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-sm text-emerald-700 animate-fadeIn">
-                <p className="flex items-center gap-2">
-                  <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                <p className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   <span>{success}</span>
                 </p>

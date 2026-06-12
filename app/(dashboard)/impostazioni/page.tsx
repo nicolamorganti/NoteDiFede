@@ -16,7 +16,7 @@ type Profile = {
   id: string;
   username: string;
   full_name: string;
-  role: "ospite" | "cantore" | "maestro";
+  role: "ospite" | "cantore" | "maestro" | "responsabile";
   vocal_register: string;
   created_at?: string;
 };
@@ -288,7 +288,7 @@ export default function ImpostazioniPage() {
     );
   }
 
-  const isMaestro = myProfile?.role === "maestro";
+  const isMaestro = myProfile?.role === "maestro" || myProfile?.role === "responsabile";
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-16">
@@ -407,7 +407,7 @@ export default function ImpostazioniPage() {
                 Ruolo Corale Attivo
               </span>
               <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider border ${
-                myProfile.role === "maestro" 
+                myProfile.role === "maestro" || myProfile.role === "responsabile"
                   ? "bg-amber-100 text-amber-800 border-amber-200"
                   : myProfile.role === "cantore"
                   ? "bg-blue-100 text-blue-800 border-blue-200"
@@ -415,6 +415,8 @@ export default function ImpostazioniPage() {
               }`}>
                 {myProfile.role === "maestro" 
                   ? "Maestro Direttore" 
+                  : myProfile.role === "responsabile"
+                  ? "Responsabile Liturgia"
                   : myProfile.role === "cantore" 
                   ? "Cantore Corista" 
                   : "Ospite in Attesa di Abilitazione"}
@@ -622,7 +624,7 @@ export default function ImpostazioniPage() {
                         value={profile.role}
                         onChange={(e) => handleUserChange(profile.id, "role", e.target.value)}
                         className={`rounded-xl border border-[#d9cdbf] bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#453e37] outline-none focus:border-[#aa9576] transition ${
-                          profile.role === "maestro"
+                          profile.role === "maestro" || profile.role === "responsabile"
                             ? "text-amber-800 bg-amber-50 border-amber-200"
                             : profile.role === "cantore"
                             ? "text-blue-800 bg-blue-50 border-blue-200"
@@ -632,6 +634,7 @@ export default function ImpostazioniPage() {
                         <option value="ospite">Ospite (Bloccato)</option>
                         <option value="cantore">Cantore</option>
                         <option value="maestro">Maestro</option>
+                        <option value="responsabile">Responsabile Liturgia</option>
                       </select>
                     </td>
                     <td className="px-4 py-3">

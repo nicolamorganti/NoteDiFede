@@ -50,7 +50,7 @@ export async function GET(
     });
   }
 
-  const { error: authError } = await verifyUserRole(token, ["cantore", "maestro"]);
+  const { error: authError } = await verifyUserRole(token, ["cantore", "maestro", "responsabile"]);
   if (authError) {
     return new Response(`Non autorizzato: ${authError}`, {
       status: 403,

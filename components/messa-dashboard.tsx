@@ -71,7 +71,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     };
   }, []);
 
-  const isAuthorizedForRestrictedContent = currentUser !== null && (userRole === "cantore" || userRole === "maestro");
+  const isAuthorizedForRestrictedContent = currentUser !== null && (userRole === "cantore" || userRole === "maestro" || userRole === "responsabile");
 
   // Stati PDF e Audio
   const [previewPdf, setPreviewPdf] = useState<{ title: string; url: string; fileName: string } | null>(null);

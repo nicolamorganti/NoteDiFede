@@ -70,8 +70,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
     { href: "/messe", label: "Messe & Liturgia", badge: "Attivo" },
   ];
 
-  // Mostra il link Impostazioni solo se è Cantore o Maestro
-  if (role === "cantore" || role === "maestro") {
+  // Mostra il link Impostazioni solo se è Cantore, Maestro o Responsabile
+  if (role === "cantore" || role === "maestro" || role === "responsabile") {
     navigation.push({ href: "/impostazioni", label: "Impostazioni", badge: "Gestisci" });
   }
 

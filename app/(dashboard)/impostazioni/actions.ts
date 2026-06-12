@@ -20,7 +20,7 @@ export async function updateUserProfile(
     return { error: "Il nome completo è obbligatorio.", success: null };
   }
 
-  const { user, error: authError } = await verifyUserRole(token, ["ospite", "cantore", "maestro"]);
+  const { user, error: authError } = await verifyUserRole(token, ["ospite", "cantore", "maestro", "responsabile"]);
   if (authError || !user) {
     return { error: authError || "Non autorizzato.", success: null };
   }
@@ -48,7 +48,7 @@ export async function updateLiturgicalMomentsOrder(
   token: string,
   moments: { id: string; sort_order: number; name: string }[],
 ): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro"]);
+  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -98,7 +98,7 @@ export async function addLiturgicalMoment(
     return { error: "Il nome del momento non può essere vuoto.", success: null };
   }
 
-  const { error: authError } = await verifyUserRole(token, ["maestro"]);
+  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -140,7 +140,7 @@ export async function deleteLiturgicalMoment(
   token: string,
   id: string,
 ): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro"]);
+  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -213,7 +213,7 @@ const DEFAULT_AMBROSIAN_MOMENTS = [
 export async function restoreDefaultMomentsAction(
   token: string,
 ): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro"]);
+  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -282,15 +282,15 @@ export async function restoreDefaultMomentsAction(
 export async function updateUserRoleAndRegister(
   token: string,
   targetUserId: string,
-  role: "ospite" | "cantore" | "maestro",
+  role: "ospite" | "cantore" | "maestro" | "responsabile",
   vocalRegister: string,
 ): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro"]);
+  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
 
-  if (role !== "ospite" && role !== "cantore" && role !== "maestro") {
+  if (role !== "ospite" && role !== "cantore" && role !== "maestro" && role !== "responsabile") {
     return { error: "Ruolo non valido.", success: null };
   }
 

@@ -13,7 +13,7 @@ export function createServerSupabaseClient() {
   });
 }
 
-export async function verifyUserRole(token: string, requiredRoles: ("ospite" | "cantore" | "maestro")[]) {
+export async function verifyUserRole(token: string, requiredRoles: ("ospite" | "cantore" | "maestro" | "responsabile")[]) {
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
   const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 
