@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { verifyUserRole } from "@/lib/supabase/server";
 import { PDFDocument } from "pdf-lib";
 
 type MassSongRecord = {
@@ -37,6 +38,26 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: massId } = await params;
+
+  // Verify auth header
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
+
+  if (!token) {
+    return new Response("Non autorizzato: sessione mancante o non valida.", {
+      status: 401,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  const { error: authError } = await verifyUserRole(token, ["cantore", "maestro"]);
+  if (authError) {
+    return new Response(`Non autorizzato: ${authError}`, {
+      status: 403,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
   const supabase = createAdminSupabaseClient();
 
   // 1. Fetch mass details

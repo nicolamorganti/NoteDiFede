@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { MassDetails } from "@/lib/masses";
 import { parseNotesAndLyrics } from "@/lib/songs";
+import { supabase } from "@/lib/supabase/client";
 
 type MessaDashboardProps = {
   massDetails: MassDetails;
@@ -24,6 +25,54 @@ type DashboardFile = {
 };
 
 export function MessaDashboard({ massDetails }: MessaDashboardProps) {
+  // Stati Auth
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      }
+      setAuthLoading(false);
+    }
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setCurrentUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      } else {
+        setCurrentUser(null);
+        setUserRole(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const isAuthorizedForRestrictedContent = currentUser !== null && (userRole === "cantore" || userRole === "maestro");
+
   // Stati PDF e Audio
   const [previewPdf, setPreviewPdf] = useState<{ title: string; url: string; fileName: string } | null>(null);
   const [activeTrack, setActiveTrack] = useState<ActiveAudioTrack | null>(null);
@@ -70,6 +119,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   };
 
   const handleTrackSelect = (songTitle: string, file: DashboardFile) => {
+    if (!isAuthorizedForRestrictedContent) return;
     const fileUrl = `/api/song-files/${file.id}?disposition=inline`;
     setActiveTrack({
       songTitle,
@@ -108,44 +158,24 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           
           // Risorse esterne
           song.links.forEach((link) => {
-            lines.push(`    • Link ${link.linkType} (${link.label}): ${link.url}`);
-          });
-
-          // File PDF
-          song.arrangements.forEach((arr) => {
-            arr.files.forEach((file: DashboardFile) => {
-              if (file.fileType.endsWith("_pdf")) {
-                const url = `${window.location.origin}${file.previewHref}`;
-                lines.push(`    • PDF ${file.fileLabel}: ${url}`);
-              }
-            });
+            lines.push(`    🔗 Youtube: ${link.url}`);
           });
         });
       });
-    } else {
-      lines.push(`📝 SCALETTA E TESTI CONCATENATI DEI CANTI:`);
+    } else if (reportFormat === "lyrics") {
+      lines.push(`📖 TESTI E NOTE DEI CANTI:`);
       massDetails.moments.forEach(({ moment, songs }) => {
         if (songs.length === 0) return;
-        lines.push(`\n📍 ${moment.sortOrder}. ${moment.name.toUpperCase()}`);
+        lines.push(`\n📍 ${moment.sortOrder}. ${moment.name.toUpperCase()}:`);
         songs.forEach(({ song }) => {
           const codePrefix = song.code ? `[${song.code}] ` : "";
-          lines.push(`\n✨ CANTO: ${codePrefix}${song.title.toUpperCase()}`);
-          
+          lines.push(`\n  --- ${codePrefix}${song.title} ---`);
           const { notes, lyrics } = parseNotesAndLyrics(song.notes);
-          if (notes) {
-            lines.push(`[Note]: ${notes}`);
-          }
-          if (lyrics) {
-            lines.push(`\n${lyrics}\n`);
-          } else {
-            lines.push(`(Testo non inserito nel database)\n`);
-          }
+          if (notes) lines.push(`  📝 Note: ${notes}`);
+          if (lyrics) lines.push(`  📖 Testo:\n${lyrics.split("\n").map(l => "    " + l).join("\n")}`);
         });
       });
     }
-
-    lines.push(`\n--------------------------------------------`);
-    lines.push(`Generato con Note di Fede - Workspace Coro.`);
     return lines.join("\n");
   };
 
@@ -161,7 +191,14 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     setIsGeneratingBinder(true);
     setBinderError(null);
     try {
-      const res = await fetch(`/api/masses/${massDetails.id}/binder`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+
+      const res = await fetch(`/api/masses/${massDetails.id}/binder`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || "Errore durante la generazione del binder.");
@@ -345,29 +382,55 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                       {audioFiles.length > 0 && (
                         <div className="space-y-2 border-t border-[#e4dcce]/30 pt-3">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576] block">Studio Parti (Voci Separate MP3):</span>
-                          <div className="flex flex-wrap gap-2">
-                            {audioFiles.map((file) => {
-                              const trackLabel = file.key ? `${file.fileName} (${file.key})` : file.fileName;
-                              const isActive = activeTrack?.url === `/api/song-files/${file.id}?disposition=inline`;
-                              return (
-                                <button
-                                  key={file.id}
-                                  onClick={() => handleTrackSelect(song.title, file)}
-                                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold shadow-sm transition border ${
-                                    isActive
-                                      ? "bg-[#5c4a37] text-[#fffdfa] border-[#5c4a37]"
-                                      : "bg-[#fffdfa] text-[#736555] border-[#d9cdbf] hover:bg-[#fdfbf7]"
-                                  }`}
-                                >
-                                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>{trackLabel}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {isAuthorizedForRestrictedContent ? (
+                            <div className="flex flex-wrap gap-2">
+                              {audioFiles.map((file) => {
+                                const trackLabel = file.key ? `${file.fileName} (${file.key})` : file.fileName;
+                                const isActive = activeTrack?.url === `/api/song-files/${file.id}?disposition=inline`;
+                                return (
+                                  <button
+                                    key={file.id}
+                                    onClick={() => handleTrackSelect(song.title, file)}
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold shadow-sm transition border ${
+                                      isActive
+                                        ? "bg-[#5c4a37] text-[#fffdfa] border-[#5c4a37]"
+                                        : "bg-[#fffdfa] text-[#736555] border-[#d9cdbf] hover:bg-[#fdfbf7]"
+                                    }`}
+                                  >
+                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>{trackLabel}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap gap-2 opacity-50">
+                                {audioFiles.map((file) => {
+                                  const trackLabel = file.key ? `${file.fileName} (${file.key})` : file.fileName;
+                                  return (
+                                    <div
+                                      key={file.id}
+                                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d9cdbf] bg-[#fffdfa] px-3.5 py-2 text-xs font-semibold text-[#736555] cursor-not-allowed"
+                                    >
+                                      <svg className="h-3.5 w-3.5 text-[#aa9576]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                      </svg>
+                                      <span>{trackLabel}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <p className="text-[10px] text-[#b35959] italic font-semibold">
+                                {currentUser
+                                  ? "🔒 Tracce riservate: il tuo account è in attesa di abilitazione come Cantore."
+                                  : "🔒 Tracce riservate: effettua l'accesso per sbloccare il materiale di studio."}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -737,6 +800,30 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                     rows={15}
                     className="w-full rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-4 text-xs font-mono text-[#4e4437] outline-none shadow-inner"
                   />
+                </div>
+              ) : !isAuthorizedForRestrictedContent ? (
+                <div className="rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-8 text-center space-y-4 shadow-inner">
+                  <div className="mx-auto w-16 h-16 bg-[#efe4d2] text-[#8a755d] rounded-full flex items-center justify-center shadow-inner">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h4 className="font-serif text-lg text-[#3f3933]">Generatore Binder Riservato</h4>
+                  <p className="text-xs text-[#736555] max-w-md mx-auto leading-relaxed">
+                    {currentUser
+                      ? "Il tuo account è registrato ma non ancora abilitato. Contatta il Maestro per essere promosso a 'Cantore' e sbloccare la generazione del fascicolo unico PDF (Binder)."
+                      : "La generazione e il download del fascicolo unico PDF (Binder) contenente tutti gli spartiti accorpati della celebrazione è riservato ai membri del coro abilitati."}
+                  </p>
+                  {!currentUser && (
+                    <div className="pt-2">
+                      <Link
+                        href="/"
+                        className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#4b3c2c]"
+                      >
+                        Accedi o Registrati per sbloccare
+                      </Link>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-8 text-center space-y-4 shadow-inner">

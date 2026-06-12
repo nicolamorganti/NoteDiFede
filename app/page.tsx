@@ -2,40 +2,74 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("maestro@notedifede.it");
-  const [password, setPassword] = useState("cantoliturgico");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const handleMockLogin = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    if (!email || !password) {
-      setError("Inserisci sia l'indirizzo email che la password.");
+    if (!email || !password || (isSignUp && !fullName)) {
+      setError("Compila tutti i campi obbligatori.");
       return;
     }
 
     setLoading(true);
-    
-    // Simulazione di un login con transizione dolce
-    setTimeout(() => {
+
+    try {
+      if (isSignUp) {
+        // Registrazione nuovo utente
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              username: email.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
+            },
+          },
+        });
+
+        if (signUpError) throw signUpError;
+
+        setSuccess("Registrazione completata con successo! Ora puoi accedere. Attendi che il Maestro ti promuova a 'Cantore' per consultare il materiale riservato.");
+        setIsSignUp(false);
+        setPassword("");
+      } else {
+        // Login utente
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) throw signInError;
+
+        setSuccess("Accesso consentito. Ingresso nel repertorio in corso...");
+        setTimeout(() => {
+          router.push("/canti");
+        }, 1000);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Si è verificato un errore durante l'autenticazione.");
+    } finally {
       setLoading(false);
-      setSuccess("Accesso consentito. Ingresso nel repertorio in corso...");
-      setTimeout(() => {
-        router.push("/canti");
-      }, 1000);
-    }, 1200);
+    }
   };
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(155,131,97,0.15),_transparent_50%),linear-gradient(180deg,_#fdfbf7_0%,_#f6eee0_60%,_#ebdcb9_100%)] px-4 py-12 text-[#3f3933] font-sans antialiased selection:bg-[#aa9576] selection:text-white">
-      {/* Sottile cornice decorativa, visibile solo su schermi medio-grandi */}
+      {/* Sottile cornice decorativa */}
       <div className="pointer-events-none absolute inset-4 hidden rounded-3xl border border-[#aa9576]/20 md:block" />
       <div className="pointer-events-none absolute inset-6 hidden rounded-[20px] border border-[#aa9576]/10 md:block" />
 
@@ -76,13 +110,58 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Card di Login */}
+        {/* Card di Login / Registrazione */}
         <div className="rounded-3xl border border-[#e4dcce] bg-[#fffdfa]/95 p-6 shadow-xl shadow-[#8a755d]/10 backdrop-blur-sm sm:p-8">
-          <h2 className="font-serif text-xl font-medium text-[#4b3c2c] text-center mb-6">
-            Accedi all&apos;archivio
-          </h2>
+          <div className="flex border-b border-[#e4dcce] mb-6">
+            <button
+              onClick={() => {
+                setIsSignUp(false);
+                setError("");
+                setSuccess("");
+              }}
+              className={`flex-1 pb-3 text-sm font-semibold uppercase tracking-wider transition ${
+                !isSignUp ? "border-b-2 border-[#5c4a37] text-[#5c4a37]" : "text-[#736555] hover:text-[#3f3933]"
+              }`}
+            >
+              Accedi
+            </button>
+            <button
+              onClick={() => {
+                setIsSignUp(true);
+                setError("");
+                setSuccess("");
+              }}
+              className={`flex-1 pb-3 text-sm font-semibold uppercase tracking-wider transition ${
+                isSignUp ? "border-b-2 border-[#5c4a37] text-[#5c4a37]" : "text-[#736555] hover:text-[#3f3933]"
+              }`}
+            >
+              Registrati
+            </button>
+          </div>
 
-          <form onSubmit={handleMockLogin} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Input Nome Completo (solo per registrazione) */}
+            {isSignUp && (
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="fullName"
+                  className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e]"
+                >
+                  Nome e Cognome
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Mario Rossi"
+                  className="w-full rounded-2xl border border-[#d9cdbf] bg-white/70 px-4 py-3 text-sm text-[#3f3933] placeholder-[#aa9e90] outline-none transition duration-300 focus:border-[#aa9576] focus:bg-white focus:ring-4 focus:ring-[#f6eee0]"
+                  disabled={loading}
+                />
+              </div>
+            )}
+
             {/* Input Email */}
             <div className="space-y-1.5">
               <label
@@ -91,42 +170,36 @@ export default function LoginPage() {
               >
                 Indirizzo Email
               </label>
-              <div className="relative">
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nome@notedifede.it"
-                  className="w-full rounded-2xl border border-[#d9cdbf] bg-white/70 px-4 py-3 text-sm text-[#3f3933] placeholder-[#aa9e90] outline-none transition duration-300 focus:border-[#aa9576] focus:bg-white focus:ring-4 focus:ring-[#f6eee0]"
-                  disabled={loading}
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nome@esempio.com"
+                className="w-full rounded-2xl border border-[#d9cdbf] bg-white/70 px-4 py-3 text-sm text-[#3f3933] placeholder-[#aa9e90] outline-none transition duration-300 focus:border-[#aa9576] focus:bg-white focus:ring-4 focus:ring-[#f6eee0]"
+                disabled={loading}
+              />
             </div>
 
             {/* Input Password */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="password"
-                  className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e]"
-                >
-                  Password
-                </label>
-              </div>
-              <div className="relative">
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-2xl border border-[#d9cdbf] bg-white/70 px-4 py-3 text-sm text-[#3f3933] placeholder-[#aa9e90] outline-none transition duration-300 focus:border-[#aa9576] focus:bg-white focus:ring-4 focus:ring-[#f6eee0]"
-                  disabled={loading}
-                />
-              </div>
+              <label
+                htmlFor="password"
+                className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e]"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-2xl border border-[#d9cdbf] bg-white/70 px-4 py-3 text-sm text-[#3f3933] placeholder-[#aa9e90] outline-none transition duration-300 focus:border-[#aa9576] focus:bg-white focus:ring-4 focus:ring-[#f6eee0]"
+                disabled={loading}
+              />
             </div>
 
             {/* Error Message */}
@@ -143,64 +216,36 @@ export default function LoginPage() {
 
             {/* Success Message */}
             {success && (
-              <div className="rounded-2xl border border-[#b9c7b9] bg-[#eef4ef] px-4 py-3 text-sm text-[#395e49] animate-fadeIn">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-sm text-emerald-700 animate-fadeIn">
                 <p className="flex items-center gap-2">
                   <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                   <span>{success}</span>
                 </p>
               </div>
             )}
 
-            {/* Bottone Accedi */}
+            {/* Submit Button */}
             <button
               type="submit"
+              className="w-full rounded-2xl bg-[#5c4a37] py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition duration-300 hover:bg-[#4b3c2c] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={loading}
-              className="relative flex w-full items-center justify-center rounded-full bg-[#5c4a37] px-5 py-3 text-sm font-semibold text-[#fffdfa] shadow-lg shadow-[#5c4a37]/15 transition duration-300 hover:bg-[#4b3c2c] hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#aa9576] focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Verifica delle credenziali...</span>
-                </span>
-              ) : (
-                <span>Accedi</span>
-              )}
+              {loading ? (isSignUp ? "Registrazione..." : "Accesso in corso...") : (isSignUp ? "Registrati" : "Accedi")}
             </button>
           </form>
-
-          {/* Helper Credentials Box */}
-          <div className="mt-8 rounded-2xl border border-[#e4dcce] bg-[#fdfbf7] p-4 text-xs">
-            <p className="font-semibold text-[#8a755d] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <svg className="h-4 w-4 text-[#aa9576]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Credenziali per test rapido
-            </p>
-            <div className="space-y-1 text-[#6b5d4e] font-mono select-all">
-              <div className="flex items-center justify-between">
-                <span>Email:</span>
-                <span className="font-semibold text-[#3f3933]">maestro@notedifede.it</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Password:</span>
-                <span className="font-semibold text-[#3f3933]">cantoliturgico</span>
-              </div>
-            </div>
-            <p className="mt-2 text-[10px] text-[#aa9e90] italic text-center">
-              Cliccando &ldquo;Accedi&rdquo; verrai indirizzato direttamente alla dashboard.
-            </p>
-          </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs tracking-wider text-[#8a755d] uppercase">
-          &copy; {new Date().getFullYear()} Note di Fede &bull; Archivio canti liturgici
-        </p>
+        {/* Public Access Link */}
+        <div className="text-center">
+          <button
+            onClick={() => router.push("/canti")}
+            className="text-xs font-semibold text-[#8a755d] hover:text-[#5c4a37] underline transition"
+          >
+            Accedi come ospite senza registrazione (solo lettura canti e spartiti)
+          </button>
+        </div>
       </div>
     </main>
   );

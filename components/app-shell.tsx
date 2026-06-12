@@ -1,19 +1,88 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
+"use client";
 
-const navigation = [
-  { href: "/canti", label: "Catalogo Canti", badge: "Attivo" },
-  { href: "/messe", label: "Messe & Liturgia", badge: "Attivo" },
-];
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/lib/supabase/client";
 
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState<any | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (profile) {
+          setRole(profile.role);
+          setFullName(profile.full_name);
+        }
+      }
+      setLoading(false);
+    }
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setUser(session.user);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          setRole(profile.role);
+          setFullName(profile.full_name);
+        }
+      } else {
+        setUser(null);
+        setRole(null);
+        setFullName(null);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
+  // Costruisce la navigazione dinamica
+  const navigation = [
+    { href: "/canti", label: "Catalogo Canti", badge: "Attivo" },
+    { href: "/messe", label: "Messe & Liturgia", badge: "Attivo" },
+  ];
+
+  // Mostra il link Impostazioni solo se è Cantore o Maestro
+  if (role === "cantore" || role === "maestro") {
+    navigation.push({ href: "/impostazioni", label: "Impostazioni", badge: "Gestisci" });
+  }
+
   return (
     <div className="min-h-screen bg-[#f6f1ea] text-[#3e3933]">
       <div className="mx-auto flex min-h-screen w-full max-w-screen-2xl flex-col lg:flex-row">
-        <aside className="border-b border-[#ddd2c2] bg-[#ede4d8] px-5 py-5 text-[#3f3933] lg:min-h-screen lg:w-80 lg:border-b-0 lg:border-r lg:px-6 lg:py-8">
+        {/* Sidebar */}
+        <aside className="flex flex-col justify-between border-b border-[#ddd2c2] bg-[#ede4d8] px-5 py-5 text-[#3f3933] lg:min-h-screen lg:w-80 lg:border-b-0 lg:border-r lg:px-6 lg:py-8">
           <div className="space-y-6">
             <div className="space-y-3">
-              <Link href="/" className="inline-flex items-center gap-3">
+              <Link href="/canti" className="inline-flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#6e5a45] font-semibold text-[#fbf7f2]">
                   NF
                 </span>
@@ -26,37 +95,28 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               </Link>
 
               <p className="max-w-xs text-sm leading-6 text-[#685d53]">
-                Dashboard amministrativa mobile-first per canti, messe, file e
-                momenti liturgici.
+                Dashboard amministrativa per canti, messe e materiali liturgici.
               </p>
             </div>
 
             <nav className="grid gap-2">
               {navigation.map((item) => {
-                const isDisabled = item.href === "#";
-
-                if (isDisabled) {
-                  return (
-                    <div
-                      key={item.label}
-                      className="flex items-center justify-between rounded-2xl border border-[#d6cabc] bg-[#f7f2ea] px-4 py-3 text-sm text-[#7d7164]"
-                    >
-                      <span>{item.label}</span>
-                      <span className="rounded-full bg-[#ede4d8] px-2 py-1 text-[11px] uppercase tracking-[0.18em]">
-                        {item.badge}
-                      </span>
-                    </div>
-                  );
-                }
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
 
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center justify-between rounded-2xl border border-[#d7c7b5] bg-[#f7f0e6] px-4 py-3 text-sm font-medium text-[#453e37] transition hover:bg-[#f2e8da]"
+                    className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                      isActive
+                        ? "border-[#aa9576] bg-[#f2e7d5] text-[#4a3e30]"
+                        : "border-[#d7c7b5] bg-[#f7f0e6] text-[#453e37] hover:bg-[#f2e8da]"
+                    }`}
                   >
                     <span>{item.label}</span>
-                    <span className="rounded-full bg-[#d9cab6] px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-[#4e443a]">
+                    <span className={`rounded-full px-2 py-1 text-[11px] uppercase tracking-[0.18em] ${
+                      isActive ? "bg-[#aa9576] text-white" : "bg-[#d9cab6] text-[#4e443a]"
+                    }`}>
                       {item.badge}
                     </span>
                   </Link>
@@ -64,8 +124,53 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               })}
             </nav>
           </div>
+
+          {/* Profilo utente in fondo alla sidebar */}
+          <div className="mt-8 border-t border-[#ddd2c2] pt-6 space-y-4">
+            {loading ? (
+              <p className="text-xs text-[#736555] italic">Caricamento utente...</p>
+            ) : user ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#8a755d]">
+                    Utente Collegato
+                  </p>
+                  <p className="text-sm font-bold text-[#3f3933] truncate">
+                    {fullName || user.email}
+                  </p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#736555]">
+                    Ruolo: <span className="text-[#8c7355]">{role || "ospite"}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full text-center rounded-2xl border border-red-200 bg-red-50/40 py-2.5 text-xs font-bold text-red-700 hover:bg-red-50 hover:text-red-800 transition"
+                >
+                  Disconnetti
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#8a755d]">
+                    Accesso Pubblico
+                  </p>
+                  <p className="text-xs text-[#736555]">
+                    Sei loggato come ospite generico. Il materiale audio è riservato.
+                  </p>
+                </div>
+                <Link
+                  href="/"
+                  className="block w-full text-center rounded-2xl bg-[#5c4a37] py-2.5 text-xs font-bold text-white hover:bg-[#4b3c2c] transition"
+                >
+                  Accedi o Registrati
+                </Link>
+              </div>
+            )}
+          </div>
         </aside>
 
+        {/* Contenuto Principale */}
         <div className="flex min-h-screen flex-1 flex-col">
           <header className="border-b border-[#ddd2c2] bg-[#f6f1ea]/90 px-5 py-4 backdrop-blur sm:px-6 lg:px-8">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
