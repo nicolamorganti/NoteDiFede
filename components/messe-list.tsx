@@ -4,7 +4,7 @@ import { useState, useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { MassListItem } from "@/lib/masses";
-import { createMassAction, deleteMassAction, updateMassAction } from "@/app/(dashboard)/messe/actions";
+import { createMassAction, deleteMassAction, updateMassAction, parseMassImageAction, saveImportedMassAction } from "@/app/(dashboard)/messe/actions";
 import { supabase } from "@/lib/supabase/client";
 
 type MesseListProps = {
@@ -56,8 +56,121 @@ export function MesseList({ initialMasses }: MesseListProps) {
   const [modalCreate, setModalCreate] = useState(false);
   const [modalEdit, setModalEdit] = useState<MassListItem | null>(null);
   
+  const [modalImport, setModalImport] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importedData, setImportedData] = useState<any | null>(null);
+  const [editableData, setEditableData] = useState<any | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [songCatalog, setSongCatalog] = useState<{ id: string; title: string; code: string | null }[]>([]);
+  const [saveLoading, setSaveLoading] = useState(false);
+  
   const createFormRef = useRef<HTMLFormElement | null>(null);
   const editFormRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    if (importedData) {
+      setEditableData(JSON.parse(JSON.stringify(importedData)));
+    } else {
+      setEditableData(null);
+    }
+  }, [importedData]);
+
+  useEffect(() => {
+    if (modalImport) {
+      async function fetchCatalog() {
+        const { data } = await supabase
+          .from("songs")
+          .select("id, title, code")
+          .order("title", { ascending: true });
+        if (data) {
+          setSongCatalog(data);
+        }
+      }
+      fetchCatalog();
+    }
+  }, [modalImport]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+      setImportError(null);
+    }
+  };
+
+  const handleParseImage = async () => {
+    if (!selectedFile) {
+      setImportError("Seleziona prima un file immagine.");
+      return;
+    }
+
+    setImportLoading(true);
+    setImportError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      const result = await parseMassImageAction(formData);
+      
+      if (result.error) {
+        setImportError(result.error);
+      } else if (result.data) {
+        setImportedData(result.data);
+      }
+    } catch (err: any) {
+      setImportError(err.message || "Errore durante l'analisi dell'immagine.");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleSaveImportedMass = async () => {
+    if (!editableData) return;
+
+    setSaveLoading(true);
+    setImportError(null);
+
+    try {
+      const result = await saveImportedMassAction(editableData);
+      if (result.error) {
+        setImportError(result.error);
+      } else {
+        alert(result.success);
+        setModalImport(false);
+        setImportedData(null);
+        setSelectedFile(null);
+        window.location.reload();
+      }
+    } catch (err: any) {
+      setImportError(err.message || "Errore nel salvataggio della celebrazione.");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleUpdateField = (field: string, value: any) => {
+    setEditableData((prev: any) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleUpdateSong = (momentIndex: number, songIndex: number, key: string, value: any) => {
+    setEditableData((prev: any) => {
+      if (!prev) return null;
+      const next = JSON.parse(JSON.stringify(prev));
+      const song = next.moments[momentIndex].songs[songIndex];
+      song[key] = value;
+      
+      if (key === "matchedSongId" && value !== null) {
+        song.createNew = false;
+      }
+      if (key === "createNew" && value === true) {
+        song.matchedSongId = null;
+      }
+      return next;
+    });
+  };
 
   // Stati Auth
   const [currentUser, setCurrentUser] = useState<any | null>(null);
@@ -144,15 +257,28 @@ export function MesseList({ initialMasses }: MesseListProps) {
         </div>
 
         {isAdmin && (
-          <button
-            onClick={() => setModalCreate(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-5 py-3 text-sm font-semibold text-[#fffdfa] shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] hover:shadow-xl active:scale-[0.98]"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Prepara Celebrazione</span>
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setModalImport(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#5c4a37] bg-transparent px-5 py-3 text-sm font-semibold text-[#5c4a37] shadow-sm transition hover:bg-[#5c4a37]/5 active:scale-[0.98]"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Importa da Foto (IA)</span>
+            </button>
+
+            <button
+              onClick={() => setModalCreate(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-5 py-3 text-sm font-semibold text-[#fffdfa] shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] hover:shadow-xl active:scale-[0.98]"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Prepara Celebrazione</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -456,6 +582,296 @@ export function MesseList({ initialMasses }: MesseListProps) {
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* MODALE: IMPORTA DA FOTO (IA) */}
+      {/* ========================================================================= */}
+      {modalImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-4xl rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-6 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setModalImport(false);
+                setImportedData(null);
+                setSelectedFile(null);
+                setImportError(null);
+              }}
+              className="absolute top-4 right-4 rounded-full bg-[#f4efe6] p-2 text-[#736555] hover:bg-[#eadcc8] transition"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="border-b border-[#e3d8c9] pb-3 mb-4">
+              <h3 className="text-xl font-serif text-[#3f3933]">Importa Celebrazione da Foto (IA)</h3>
+              <p className="text-xs text-[#736555]">
+                Carica una foto o una scansione del foglietto liturgico preparato. L'intelligenza artificiale estrarrà i dettagli e ti proporrà un'anteprima per abbinarli al catalogo.
+              </p>
+            </div>
+
+            {importError && (
+              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+                {importError}
+              </div>
+            )}
+
+            {/* FASE 1: CARICAMENTO FILE */}
+            {!importedData && !importLoading && (
+              <div className="space-y-6 py-4">
+                <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#d9cdbf] bg-white p-12 text-center transition hover:border-[#aa9576]">
+                  <svg className="mx-auto h-12 w-12 text-[#aa9576]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <div className="mt-4 flex text-sm text-[#736555] justify-center">
+                    <label className="relative cursor-pointer rounded-md bg-white font-semibold text-[#5c4a37] focus-within:outline-none focus-within:ring-2 focus-within:ring-[#5c4a37] focus-within:ring-offset-2 hover:text-[#4b3c2c]">
+                      <span>Seleziona un'immagine</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="sr-only"
+                      />
+                    </label>
+                    <p className="pl-1">o trascinala qui</p>
+                  </div>
+                  <p className="text-xs text-[#736555] mt-1">PNG, JPG, WEBP fino a 10MB</p>
+
+                  {selectedFile && (
+                    <div className="mt-4 p-2.5 bg-[#f4efe6] rounded-xl text-xs text-[#5c4a37] font-semibold flex items-center gap-2">
+                      <svg className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 border-t border-[#e3d8c9] pt-4">
+                  <button
+                    onClick={() => setModalImport(false)}
+                    className="rounded-full border border-[#d9cdbf] bg-white px-5 py-2.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#fdfbf7]"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    onClick={handleParseImage}
+                    disabled={!selectedFile}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] disabled:opacity-50"
+                  >
+                    <span>Inizia Lettura con IA</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* FASE 2: CARICAMENTO IN CORSO */}
+            {importLoading && (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <div className="relative flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#e4dcce] border-t-[#5c4a37]" />
+                  <span className="absolute text-xs font-bold text-[#5c4a37]">IA</span>
+                </div>
+                <h4 className="font-serif text-lg text-[#3f3933]">Lettura e interpretazione in corso...</h4>
+                <p className="text-xs text-[#736555] max-w-md text-center leading-relaxed">
+                  L'intelligenza artificiale sta estraendo i testi scritti a mano, i codici dei canti e sta tentando di abbinarli al catalogo della parrocchia. Potrebbero servire fino a 10-15 secondi.
+                </p>
+              </div>
+            )}
+
+            {/* FASE 3: ANTEPRIMA ED EDITING DEI DATI ESTRATTI */}
+            {editableData && !importLoading && (
+              <div className="space-y-6 py-2">
+                <div className="bg-[#f4efe6]/50 rounded-2xl p-4 border border-[#e4dcce] space-y-4">
+                  <h4 className="text-sm font-semibold text-[#5c4a37] border-b border-[#e4dcce] pb-1.5">Dati della Celebrazione</h4>
+                  
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <label className="grid gap-1">
+                      <span className="text-xs font-semibold text-[#5b5248]">Titolo Celebrazione</span>
+                      <input
+                        type="text"
+                        value={editableData.title || ""}
+                        onChange={(e) => handleUpdateField("title", e.target.value)}
+                        className="rounded-xl border border-[#d9cdbf] bg-white px-3 py-2 text-sm text-[#3f3933]"
+                      />
+                    </label>
+
+                    <label className="grid gap-1">
+                      <span className="text-xs font-semibold text-[#5b5248]">Anno Liturgico</span>
+                      <select
+                        value={editableData.liturgicalYear || "A"}
+                        onChange={(e) => handleUpdateField("liturgicalYear", e.target.value)}
+                        className="rounded-xl border border-[#d9cdbf] bg-white px-3 py-2 text-sm text-[#3f3933]"
+                      >
+                        <option value="A">Anno A</option>
+                        <option value="B">Anno B</option>
+                        <option value="C">Anno C</option>
+                      </select>
+                    </label>
+
+                    <label className="grid gap-1">
+                      <span className="text-xs font-semibold text-[#5b5248]">Data Celebrazione</span>
+                      <input
+                        type="date"
+                        value={editableData.celebrationDate || ""}
+                        onChange={(e) => handleUpdateField("celebrationDate", e.target.value)}
+                        className="rounded-xl border border-[#d9cdbf] bg-white px-3 py-2 text-sm text-[#3f3933]"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="grid gap-1">
+                    <span className="text-xs font-semibold text-[#5b5248]">Note Generali Celebrazione</span>
+                    <textarea
+                      value={editableData.notes || ""}
+                      onChange={(e) => handleUpdateField("notes", e.target.value)}
+                      rows={2}
+                      className="rounded-xl border border-[#d9cdbf] bg-white px-3 py-2 text-sm text-[#3f3933]"
+                    />
+                  </label>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-[#5c4a37] border-b border-[#e4dcce] pb-1.5">Programma Musicale Rilevato</h4>
+                  
+                  <div className="space-y-6 max-h-[40vh] overflow-y-auto pr-2">
+                    {editableData.moments.map((momentObj: any, momentIndex: number) => (
+                      <div key={momentObj.momentId} className="space-y-2.5 border-l-2 border-[#aa9576] pl-4">
+                        <div className="flex items-center justify-between">
+                          <span className="font-serif text-sm font-semibold text-[#3f3933]">{momentObj.momentName}</span>
+                          <span className="text-[10px] bg-[#efece6] px-2 py-0.5 rounded text-[#736555] font-bold uppercase tracking-wider">Momento</span>
+                        </div>
+
+                        {momentObj.songs.length === 0 ? (
+                          <p className="text-xs text-[#736555] italic">Nessun canto assegnato per questo momento</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {momentObj.songs.map((song: any, songIndex: number) => (
+                              <div key={songIndex} className="p-3 rounded-2xl border border-[#e4dcce] bg-[#fffdfa] space-y-3 shadow-sm">
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                  <label className="grid gap-1">
+                                    <span className="text-[10px] font-bold text-[#736555] uppercase">Titolo Canto Rilevato</span>
+                                    <input
+                                      type="text"
+                                      value={song.title || ""}
+                                      onChange={(e) => handleUpdateSong(momentIndex, songIndex, "title", e.target.value)}
+                                      className="rounded-lg border border-[#d9cdbf] bg-white px-2.5 py-1 text-xs text-[#3f3933]"
+                                    />
+                                  </label>
+                                  <label className="grid gap-1">
+                                    <span className="text-[10px] font-bold text-[#736555] uppercase">Codice Catalogo Rilevato</span>
+                                    <input
+                                      type="text"
+                                      value={song.code || ""}
+                                      onChange={(e) => handleUpdateSong(momentIndex, songIndex, "code", e.target.value)}
+                                      className="rounded-lg border border-[#d9cdbf] bg-white px-2.5 py-1 text-xs text-[#3f3933]"
+                                    />
+                                  </label>
+                                  <label className="grid gap-1">
+                                    <span className="text-[10px] font-bold text-[#736555] uppercase">Annotazioni specifiche</span>
+                                    <input
+                                      type="text"
+                                      value={song.notes || ""}
+                                      onChange={(e) => handleUpdateSong(momentIndex, songIndex, "notes", e.target.value)}
+                                      className="rounded-lg border border-[#d9cdbf] bg-white px-2.5 py-1 text-xs text-[#3f3933]"
+                                    />
+                                  </label>
+                                </div>
+
+                                <div className="flex flex-col gap-2 pt-2 border-t border-[#e4dcce]/20 sm:flex-row sm:items-center sm:justify-between">
+                                  {/* Stato dell'abbinamento */}
+                                  <div className="flex items-center gap-1.5">
+                                    {song.matchedSongId ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Catalogo: {song.matchedCode ? `[${song.matchedCode}] ` : ""}{song.matchedTitle}
+                                      </span>
+                                    ) : song.createNew ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
+                                        🆕 Verrà inserito come nuovo canto
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200">
+                                        ⚠️ Canto scollegato
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Azioni di riconciliazione */}
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <label className="flex items-center gap-1 text-xs text-[#736555] cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={!!song.createNew}
+                                        disabled={!!song.matchedSongId}
+                                        onChange={(e) => handleUpdateSong(momentIndex, songIndex, "createNew", e.target.checked)}
+                                        className="rounded text-[#5c4a37] focus:ring-[#5c4a37]/50 h-3.5 w-3.5"
+                                      />
+                                      <span>Crea nuovo</span>
+                                    </label>
+
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[9px] text-[#736555] uppercase">Collega canto:</span>
+                                      <select
+                                        value={song.matchedSongId || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          if (val) {
+                                            const found = songCatalog.find((c) => c.id === val);
+                                            handleUpdateSong(momentIndex, songIndex, "matchedSongId", val);
+                                            if (found) {
+                                              handleUpdateSong(momentIndex, songIndex, "matchedTitle", found.title);
+                                              handleUpdateSong(momentIndex, songIndex, "matchedCode", found.code);
+                                            }
+                                          } else {
+                                            handleUpdateSong(momentIndex, songIndex, "matchedSongId", null);
+                                          }
+                                        }}
+                                        className="rounded border border-[#d9cdbf] bg-white px-2 py-0.5 text-xs text-[#3f3933] max-w-[160px] outline-none"
+                                      >
+                                        <option value="">-- Seleziona --</option>
+                                        {songCatalog.map((catSong) => (
+                                          <option key={catSong.id} value={catSong.id}>
+                                            {catSong.code ? `[${catSong.code}] ` : ""}{catSong.title}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 border-t border-[#e3d8c9] pt-4">
+                  <button
+                    onClick={() => {
+                      setImportedData(null);
+                      setSelectedFile(null);
+                    }}
+                    className="rounded-full border border-[#d9cdbf] bg-white px-5 py-2.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#fdfbf7]"
+                  >
+                    Indietro
+                  </button>
+                  <button
+                    onClick={handleSaveImportedMass}
+                    disabled={saveLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] disabled:opacity-50"
+                  >
+                    {saveLoading ? "Salvataggio..." : "Salva Celebrazione"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

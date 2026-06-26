@@ -244,3 +244,298 @@ export async function removeSongFromMassAction(
     success: "Canto rimosso correttamente dalla celebrazione.",
   };
 }
+
+// 6. Analizza l'immagine di una celebrazione tramite Gemini API
+export async function parseMassImageAction(formData: FormData) {
+  const file = formData.get("file") as File;
+  if (!file) {
+    return { error: "Nessun file immagine caricato.", data: null };
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return { error: "Chiave API di Gemini non configurata. Aggiungi GEMINI_API_KEY in .env.local", data: null };
+  }
+
+  try {
+    // Leggi il file come arrayBuffer e converti in base64
+    const bytes = await file.arrayBuffer();
+    const base64 = Buffer.from(bytes).toString("base64");
+
+    const prompt = `Sei un esperto di liturgia cattolica (rito ambrosiano) e canti liturgici. Analizza questa immagine di un foglietto liturgico manoscritto o stampato.
+Estrai i dettagli della celebrazione nel seguente formato JSON:
+{
+  "title": "Titolo della celebrazione (es. IV dopo Pentecoste, Messa di Pasqua)",
+  "liturgicalYear": "A" o "B" o "C" (anno liturgico, se indicato o deducibile, default "A"),
+  "celebrationDate": "Data della celebrazione in formato YYYY-MM-DD (se indicata o deducibile, es. 2026-06-21)",
+  "notes": "Eventuali annotazioni generali o avvisi per la celebrazione",
+  "moments": [
+    {
+      "momentName": "Nome del momento liturgico standard",
+      "songs": [
+        {
+          "title": "Titolo del canto (es. Lo Spirito di Dio, Chiesa di Dio)",
+          "code": "Codice numerico associato se indicato (es. '207', '342', o null)",
+          "alternateCode": "Codice alternativo se indicato (es. '114', '190', o null)",
+          "notes": "Annotazioni specifiche sul canto per questo momento (es. '1^ strofa', 'come da foglietto', 'cantato inizio e fine')"
+        }
+      ]
+    }
+  ]
+}
+
+Regole importanti per i nomi dei momenti:
+Mappa i momenti liturgici esattamente ai seguenti nomi standard della tabella mass_moments:
+- 'Ingresso' (es. 'ALL\\'INGRESSO')
+- 'Atto Penitenziale'
+- 'Gloria'
+- 'Salmo'
+- 'Canto al Vangelo' (es. 'AL VANGELO')
+- 'Offertorio'
+- 'Santo'
+- 'Memoriale' (mappa qui 'Mistero della Fede' o 'Annunciamo')
+- 'Agnello di Dio' (mappa qui 'Spezzare del Pane')
+- 'Comunione'
+- 'Finale' (mappa qui 'Fine')
+
+Se ci sono canti alternativi o molteplici per lo stesso momento (es. 'oppure', 'o'), inseriscili tutti come elementi separati nell'array 'songs' di quel momento.
+Se un momento è vuoto o non ha canti, non includerlo oppure lascia l'array 'songs' vuoto.
+Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
+
+    const apiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    mimeType: file.type || "image/jpeg",
+                    data: base64,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        }),
+      }
+    );
+
+    if (!apiResponse.ok) {
+      const errText = await apiResponse.text();
+      console.error("Errore chiamata Gemini API:", errText);
+      return { error: `Errore dalle API di Gemini: ${apiResponse.statusText}`, data: null };
+    }
+
+    const resJson = await apiResponse.json();
+    const textOutput = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!textOutput) {
+      return { error: "Gemini non ha restituito alcun testo.", data: null };
+    }
+
+    const parsedData = JSON.parse(textOutput.trim());
+
+    // Riconciliamo i canti con il database
+    const adminSupabase = createAdminSupabaseClient();
+    
+    // Recuperiamo i momenti standard per validazione
+    const { data: dbMoments } = await adminSupabase
+      .from("mass_moments")
+      .select("id, name")
+      .order("sort_order", { ascending: true });
+
+    const momentsMap = new Map((dbMoments || []).map((m) => [m.name.toLowerCase(), m.id]));
+
+    const processedMoments = [];
+
+    if (parsedData.moments && Array.isArray(parsedData.moments)) {
+      for (const rawMoment of parsedData.moments) {
+        const momentName = rawMoment.momentName;
+        const momentId = momentsMap.get(momentName.toLowerCase()) || null;
+
+        if (!momentId) {
+          // Se non mappato a un momento standard del DB, saltiamo
+          continue;
+        }
+
+        const songsList = [];
+        if (rawMoment.songs && Array.isArray(rawMoment.songs)) {
+          for (const rawSong of rawMoment.songs) {
+            let matchedSong = null;
+
+            // 1. Cerca per codice
+            if (rawSong.code) {
+              const { data } = await adminSupabase
+                .from("songs")
+                .select("id, title, code")
+                .ilike("code", `%${rawSong.code}%`)
+                .limit(1);
+              if (data && data.length > 0) {
+                matchedSong = data[0];
+              }
+            }
+
+            // 2. Cerca per titolo se non trovato
+            if (!matchedSong && rawSong.title) {
+              const { data } = await adminSupabase
+                .from("songs")
+                .select("id, title, code")
+                .ilike("title", `%${rawSong.title}%`)
+                .limit(1);
+              if (data && data.length > 0) {
+                matchedSong = data[0];
+              }
+            }
+
+            // 3. Cerca per titolo alternativo se non trovato
+            if (!matchedSong && rawSong.title) {
+              const { data } = await adminSupabase
+                .from("songs")
+                .select("id, title, code")
+                .ilike("alternate_title", `%${rawSong.title}%`)
+                .limit(1);
+              if (data && data.length > 0) {
+                matchedSong = data[0];
+              }
+            }
+
+            songsList.push({
+              title: rawSong.title,
+              code: rawSong.code || null,
+              alternateCode: rawSong.alternateCode || null,
+              notes: rawSong.notes || null,
+              matchedSongId: matchedSong ? matchedSong.id : null,
+              matchedTitle: matchedSong ? matchedSong.title : null,
+              matchedCode: matchedSong ? matchedSong.code : null,
+            });
+          }
+        }
+
+        processedMoments.push({
+          momentId,
+          momentName,
+          songs: songsList,
+        });
+      }
+    }
+
+    return {
+      error: null,
+      data: {
+        title: parsedData.title || "Nuova Celebrazione da Foto",
+        liturgicalYear: parsedData.liturgicalYear || "A",
+        celebrationDate: parsedData.celebrationDate || new Date().toISOString().split("T")[0],
+        notes: parsedData.notes || null,
+        moments: processedMoments,
+      },
+    };
+  } catch (err: any) {
+    console.error("Errore durante parseMassImageAction:", err);
+    return { error: `Errore di elaborazione: ${err.message}`, data: null };
+  }
+}
+
+// 7. Salva definitivamente una messa importata e riconciliata
+export async function saveImportedMassAction(
+  massData: {
+    title: string;
+    liturgicalYear: "A" | "B" | "C";
+    celebrationDate: string;
+    notes: string | null;
+    moments: {
+      momentId: string;
+      songs: {
+        title: string;
+        code: string | null;
+        notes: string | null;
+        matchedSongId: string | null;
+        createNew?: boolean;
+      }[];
+    }[];
+  }
+) {
+  if (!massData.title || !massData.liturgicalYear || !massData.celebrationDate) {
+    return { error: "Titolo, anno liturgico e data della celebrazione sono richiesti." };
+  }
+
+  const adminSupabase = createAdminSupabaseClient();
+
+  try {
+    // 1. Crea la Messa
+    const { data: newMass, error: massErr } = await adminSupabase
+      .from("masses")
+      .insert({
+        title: massData.title,
+        liturgical_year: massData.liturgicalYear,
+        celebration_date: massData.celebrationDate,
+        notes: nullableString(massData.notes || ""),
+      })
+      .select("id")
+      .single();
+
+    if (massErr || !newMass) {
+      throw new Error(`Impossibile creare la celebrazione: ${massErr?.message}`);
+    }
+
+    const massId = newMass.id;
+
+    // 2. Loop sui momenti per inserire i canti
+    for (const moment of massData.moments) {
+      let position = 1;
+      for (const song of moment.songs) {
+        let songId = song.matchedSongId;
+
+        // Se l'utente ha scelto di creare il canto a catalogo
+        if (!songId && song.createNew) {
+          const { data: newSong, error: songErr } = await adminSupabase
+            .from("songs")
+            .insert({
+              title: song.title,
+              code: nullableString(song.code || ""),
+              notes: song.notes ? `[TESTO]\n${song.title}` : null,
+            })
+            .select("id")
+            .single();
+
+          if (songErr || !newSong) {
+            console.error(`Errore creazione canto "${song.title}":`, songErr);
+            // Continua con gli altri, non bloccare tutto
+            continue;
+          }
+          songId = newSong.id;
+        }
+
+        if (songId) {
+          // Inserisci l'associazione
+          const { error: linkErr } = await adminSupabase
+            .from("mass_songs")
+            .insert({
+              mass_id: massId,
+              song_id: songId,
+              moment_id: moment.momentId,
+              position: position++,
+            });
+
+          if (linkErr) {
+            console.error(`Errore associazione canto a messa:`, linkErr);
+          }
+        }
+      }
+    }
+
+    revalidatePath("/messe");
+    return { success: `Celebrazione "${massData.title}" importata con successo!` };
+  } catch (err: any) {
+    console.error("Errore durante saveImportedMassAction:", err);
+    return { error: err.message || "Errore nel salvataggio della celebrazione." };
+  }
+}
