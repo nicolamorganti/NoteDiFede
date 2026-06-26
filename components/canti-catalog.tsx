@@ -137,6 +137,26 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
   // State per l'espansione dei canti (accordion su mobile)
   const [expandedSongs, setExpandedSongs] = useState<Record<string, boolean>>({});
 
+  // Auto-espande e scrolla a un canto specifico se indicato nel query param ?cantoId=...
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const cantoId = params.get("cantoId");
+      if (cantoId) {
+        setExpandedSongs((prev) => ({
+          ...prev,
+          [cantoId]: true,
+        }));
+        setTimeout(() => {
+          const element = document.getElementById(`song-card-${cantoId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 150);
+      }
+    }
+  }, []);
+
   // Stati delle Modali/Drawers dei Form
   const [modalCreateSong, setModalCreateSong] = useState(false);
   const [modalManageMoments, setModalManageMoments] = useState(false);
@@ -495,6 +515,7 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
             return (
               <div
                 key={song.id}
+                id={`song-card-${song.id}`}
                 className="group rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-5 shadow-sm transition-all duration-300 hover:border-[#aa9576] hover:shadow-md md:p-6"
               >
                 {/* Header Canto */}

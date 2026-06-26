@@ -331,12 +331,27 @@ export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
                           </div>
                         </div>
 
-                        {/* Rimuovi canto */}
-                        <form action={removeAction}>
-                          <input type="hidden" name="massId" value={massDetails.id} />
-                          <input type="hidden" name="massSongId" value={massSong.id} />
-                          <RemoveButton />
-                        </form>
+                        <div className="flex items-center gap-2">
+                          {/* Modifica canto */}
+                          <a
+                            href={`/canti?cantoId=${song.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-full p-1.5 text-[#a89070] hover:text-[#5c4a37] hover:bg-[#f4efe6] transition"
+                            title="Modifica canto (apri in una nuova scheda per aggiornare spartiti, testi o audio)"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </a>
+
+                          {/* Rimuovi canto */}
+                          <form action={removeAction}>
+                            <input type="hidden" name="massId" value={massDetails.id} />
+                            <input type="hidden" name="massSongId" value={massSong.id} />
+                            <RemoveButton />
+                          </form>
+                        </div>
                       </div>
                     );
                   })}
