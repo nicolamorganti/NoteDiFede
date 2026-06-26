@@ -73,7 +73,12 @@ type PreviewPdf = {
 export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
   // Stati Auth
   const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nDF_user_role");
+    }
+    return null;
+  });
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
@@ -88,7 +93,11 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
           .single();
         if (profile) {
           setUserRole(profile.role);
+          localStorage.setItem("nDF_user_role", profile.role);
         }
+      } else {
+        setUserRole(null);
+        localStorage.removeItem("nDF_user_role");
       }
       setAuthLoading(false);
     }
@@ -104,16 +113,27 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
           .single();
         if (profile) {
           setUserRole(profile.role);
+          localStorage.setItem("nDF_user_role", profile.role);
         }
       } else {
         setCurrentUser(null);
         setUserRole(null);
+        localStorage.removeItem("nDF_user_role");
       }
       setAuthLoading(false);
     });
 
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "nDF_user_role") {
+        setUserRole(e.newValue);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 

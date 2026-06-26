@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { notifyNewRegistration } from "@/app/actions/notifications";
 
 export default function LoginPage() {
   const router = useRouter();
+  
+  // Reindirizzamento immediato se l'utente ha già una sessione attiva
+  useEffect(() => {
+    async function checkActiveSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.replace("/canti");
+      }
+    }
+    checkActiveSession();
+  }, [router]);
+
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,12 +67,25 @@ export default function LoginPage() {
         setPassword("");
       } else {
         // Login utente
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (signInError) throw signInError;
+
+        // Recupera e cachea immediatamente il profilo utente per renderlo robusto all'avvio
+        if (signInData.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, full_name")
+            .eq("id", signInData.user.id)
+            .single();
+          if (profile) {
+            localStorage.setItem("nDF_user_role", profile.role);
+            localStorage.setItem("nDF_user_fullname", profile.full_name || "");
+          }
+        }
 
         setSuccess("Accesso consentito. Ingresso nel repertorio in corso...");
         setTimeout(() => {

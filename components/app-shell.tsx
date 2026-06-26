@@ -9,8 +9,18 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<any | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [fullName, setFullName] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nDF_user_role");
+    }
+    return null;
+  });
+  const [fullName, setFullName] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nDF_user_fullname");
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +37,14 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         if (profile) {
           setRole(profile.role);
           setFullName(profile.full_name);
+          localStorage.setItem("nDF_user_role", profile.role);
+          localStorage.setItem("nDF_user_fullname", profile.full_name || "");
         }
+      } else {
+        localStorage.removeItem("nDF_user_role");
+        localStorage.removeItem("nDF_user_fullname");
+        setRole(null);
+        setFullName(null);
       }
       setLoading(false);
     }
@@ -45,23 +62,51 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         if (profile) {
           setRole(profile.role);
           setFullName(profile.full_name);
+          localStorage.setItem("nDF_user_role", profile.role);
+          localStorage.setItem("nDF_user_fullname", profile.full_name || "");
         }
       } else {
         setUser(null);
         setRole(null);
         setFullName(null);
+        localStorage.removeItem("nDF_user_role");
+        localStorage.removeItem("nDF_user_fullname");
       }
       setLoading(false);
     });
 
+    // Ascolto dei cambiamenti di localStorage tra le varie schede (tab) del browser
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "nDF_user_role") {
+        setRole(e.newValue);
+      }
+      if (e.key === "nDF_user_fullname") {
+        setFullName(e.newValue);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Errore durante il logout di Supabase:", err);
+    } finally {
+      // Pulisce lo stato locale e reindirizza in ogni caso (anche se la chiamata di rete fallisce)
+      setUser(null);
+      setRole(null);
+      setFullName(null);
+      localStorage.removeItem("nDF_user_role");
+      localStorage.removeItem("nDF_user_fullname");
+      router.push("/");
+    }
   };
 
   // Costruisce la navigazione dinamica
@@ -82,7 +127,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <aside className="flex flex-col justify-between border-b border-[#ddd2c2] bg-[#ede4d8] px-5 py-5 text-[#3f3933] lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:border-b-0 lg:border-r lg:px-6 lg:py-8 lg:overflow-y-auto">
           <div className="space-y-6">
             <div className="space-y-3">
-              <Link href="/canti" className="inline-flex items-center gap-3">
+              <Link href="/" className="inline-flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#6e5a45] font-semibold text-[#fbf7f2]">
                   NF
                 </span>
