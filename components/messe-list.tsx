@@ -64,9 +64,11 @@ export function MesseList({ initialMasses }: MesseListProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [songCatalog, setSongCatalog] = useState<{ id: string; title: string; code: string | null }[]>([]);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   
   const createFormRef = useRef<HTMLFormElement | null>(null);
   const editFormRef = useRef<HTMLFormElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (importedData) {
@@ -90,6 +92,33 @@ export function MesseList({ initialMasses }: MesseListProps) {
       fetchCatalog();
     }
   }, [modalImport]);
+
+  // Gestione incolla (Ctrl+V) da appunti
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!modalImport || importedData || importLoading) return;
+      
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf("image") !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              setSelectedFile(file);
+              setImportError(null);
+              e.preventDefault();
+              break;
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => {
+      window.removeEventListener("paste", handlePaste);
+    };
+  }, [modalImport, importedData, importLoading]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -618,26 +647,48 @@ export function MesseList({ initialMasses }: MesseListProps) {
             {/* FASE 1: CARICAMENTO FILE */}
             {!importedData && !importLoading && (
               <div className="space-y-6 py-4">
-                <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#d9cdbf] bg-white p-12 text-center transition hover:border-[#aa9576]">
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      setSelectedFile(e.dataTransfer.files[0]);
+                      setImportError(null);
+                    }
+                  }}
+                  className={`cursor-pointer flex flex-col items-center justify-center rounded-3xl border-2 border-dashed p-12 text-center transition-all ${
+                    isDragging
+                      ? "border-[#5c4a37] bg-[#5c4a37]/5 scale-[1.01]"
+                      : "border-[#d9cdbf] bg-white hover:border-[#aa9576] hover:bg-[#5c4a37]/5"
+                  }`}
+                >
                   <svg className="mx-auto h-12 w-12 text-[#aa9576]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <div className="mt-4 flex text-sm text-[#736555] justify-center">
-                    <label className="relative cursor-pointer rounded-md bg-white font-semibold text-[#5c4a37] focus-within:outline-none focus-within:ring-2 focus-within:ring-[#5c4a37] focus-within:ring-offset-2 hover:text-[#4b3c2c]">
-                      <span>Seleziona un'immagine</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="sr-only"
-                      />
-                    </label>
-                    <p className="pl-1">o trascinala qui</p>
+                  <div className="mt-4 flex text-sm text-[#736555] justify-center font-semibold">
+                    <span className="text-[#5c4a37] hover:text-[#4b3c2c]">Seleziona un'immagine</span>
+                    <p className="pl-1 text-[#736555] font-normal">o trascinala qui (o incollala con Ctrl+V)</p>
                   </div>
-                  <p className="text-xs text-[#736555] mt-1">PNG, JPG, WEBP fino a 10MB</p>
+                  <p className="text-xs text-[#736555] mt-1 font-normal">PNG, JPG, WEBP fino a 10MB</p>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="sr-only"
+                  />
 
                   {selectedFile && (
-                    <div className="mt-4 p-2.5 bg-[#f4efe6] rounded-xl text-xs text-[#5c4a37] font-semibold flex items-center gap-2">
+                    <div className="mt-4 p-2.5 bg-[#f4efe6] rounded-xl text-xs text-[#5c4a37] font-semibold flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <svg className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
