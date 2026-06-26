@@ -14,6 +14,7 @@ import { SongLinkForm } from "./song-link-form";
 import { SongArrangementEditForm } from "./song-arrangement-edit-form";
 import { SongLinkEditForm } from "./song-link-edit-form";
 import { SongFileDeleteForm } from "./song-file-delete-form";
+import { PsalmCollectionsManager } from "./psalm-collections-manager";
 
 // Bottone di eliminazione con stato pending per la form
 function DeleteButton() {
@@ -180,6 +181,7 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
   // Stati delle Modali/Drawers dei Form
   const [modalCreateSong, setModalCreateSong] = useState(false);
   const [modalManageMoments, setModalManageMoments] = useState(false);
+  const [modalManageSalmi, setModalManageSalmi] = useState(false);
   const [modalEditSong, setModalEditSong] = useState<SongListItem | null>(null);
   const [modalCreateArrangement, setModalCreateArrangement] = useState<SongListItem | null>(null);
   const [modalEditArrangement, setModalEditArrangement] = useState<SongArrangementListItem | null>(null);
@@ -394,6 +396,16 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
 
         {isAdmin && (
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setModalManageSalmi(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#d9cdbf] bg-white px-5 py-3 text-sm font-semibold text-[#5c4a37] shadow-sm transition hover:bg-[#fdfbf7] hover:border-[#aa9576] active:scale-[0.98]"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Gestione Raccolte Salmi</span>
+            </button>
+
             <button
               onClick={() => setModalManageMoments(true)}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-[#d9cdbf] bg-white px-5 py-3 text-sm font-semibold text-[#5c4a37] shadow-sm transition hover:bg-[#fdfbf7] hover:border-[#aa9576] active:scale-[0.98]"
@@ -1430,6 +1442,20 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* MODALE: GESTIONE RACCOLTE SALMI */}
+      {/* ========================================================================= */}
+      <PsalmCollectionsManager
+        isOpen={modalManageSalmi}
+        onClose={() => setModalManageSalmi(false)}
+        songs={initialSongs}
+        onRefreshCatalog={() => {
+          if (typeof window !== "undefined") {
+            window.location.reload();
+          }
+        }}
+      />
 
     </div>
   );

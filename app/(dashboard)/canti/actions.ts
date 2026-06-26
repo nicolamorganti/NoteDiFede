@@ -107,6 +107,11 @@ export async function createSongAction(
     };
   }
 
+  // Associazione automatica dell'eventuale raccolta salmi
+  if (newSong) {
+    await autoLinkPsalmFile(newSong.id, title, notes, code);
+  }
+
   // Aggiunta dei momenti associati
   const momentIds = formData.getAll("momentIds") as string[];
   if (newSong && momentIds && momentIds.length > 0) {
@@ -484,6 +489,9 @@ export async function updateSongAction(
       success: null,
     };
   }
+
+  // Associazione automatica dell'eventuale raccolta salmi
+  await autoLinkPsalmFile(songId, title, notes, code);
 
   // Aggiornamento momenti associati
   const momentIds = formData.getAll("momentIds") as string[];
@@ -973,4 +981,100 @@ export async function deleteMassMomentAction(
     error: null,
     success: "Momento liturgico eliminato correttamente.",
   };
+}
+
+export async function autoLinkPsalmFile(
+  songId: string,
+  title: string,
+  notes: string | null,
+  code: string | null
+): Promise<boolean> {
+  const combinedText = `${title || ""} ${notes || ""} ${code || ""}`;
+  // Cerca la stringa "salmi" o "salmo" seguita da spazi, trattini o underscore ed un numero
+  const match = combinedText.match(/(?:salmi|salmo)[\s_-]*(\d+)/i);
+  if (!match) {
+    return false;
+  }
+
+  const num = match[1];
+  const targetFilename = num === "3" ? "Salmi_3.pdf" : `Salmi ${num}.pdf`;
+  const storagePath = `salmi_raccolte/${targetFilename}`;
+
+  const adminSupabase = createAdminSupabaseClient();
+
+  try {
+    // 1. Verifica se il file è già associato a questo canto
+    const { data: existingFile, error: checkError } = await adminSupabase
+      .from("song_files")
+      .select("id")
+      .eq("song_id", songId)
+      .eq("storage_path", storagePath)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Errore verifica file esistente:", checkError);
+      return false;
+    }
+
+    if (existingFile) {
+      return true;
+    }
+
+    // 2. Trova o crea una variante (arrangement) per questo canto
+    let arrangementId: string | null = null;
+    const { data: arrangements, error: arrError } = await adminSupabase
+      .from("song_arrangements")
+      .select("id")
+      .eq("song_id", songId)
+      .order("created_at", { ascending: true });
+
+    if (arrError) {
+      console.error("Errore recupero varianti:", arrError);
+      return false;
+    }
+
+    if (arrangements && arrangements.length > 0) {
+      arrangementId = arrangements[0].id;
+    } else {
+      // Crea una variante di default "Originale"
+      const { data: newArr, error: createArrError } = await adminSupabase
+        .from("song_arrangements")
+        .insert({
+          song_id: songId,
+          arrangement_name: "Originale",
+        })
+        .select("id")
+        .single();
+
+      if (createArrError || !newArr) {
+        console.error("Errore creazione variante default:", createArrError);
+        return false;
+      }
+      arrangementId = newArr.id;
+    }
+
+    // 3. Associa il file
+    const { error: insertError } = await adminSupabase
+      .from("song_files")
+      .insert({
+        song_id: songId,
+        arrangement_id: arrangementId,
+        file_type: "spartito_pdf",
+        storage_bucket: "note-di-fede",
+        storage_path: storagePath,
+        file_name: targetFilename,
+        mime_type: "application/pdf",
+      });
+
+    if (insertError) {
+      console.error("Errore associazione file salmo:", insertError);
+      return false;
+    }
+
+    console.log(`Associato automaticamente il file ${targetFilename} al canto ${songId}`);
+    return true;
+  } catch (err) {
+    console.error("Errore in autoLinkPsalmFile:", err);
+    return false;
+  }
 }

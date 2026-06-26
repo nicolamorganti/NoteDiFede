@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { autoLinkPsalmFile } from "@/app/(dashboard)/canti/actions";
 
 export type MassFormState = {
   error: string | null;
@@ -512,6 +513,9 @@ export async function saveImportedMassAction(
             continue;
           }
           songId = newSong.id;
+
+          // Associazione automatica dell'eventuale raccolta salmi
+          await autoLinkPsalmFile(newSong.id, song.title, song.notes, song.code);
         }
 
         if (songId) {
