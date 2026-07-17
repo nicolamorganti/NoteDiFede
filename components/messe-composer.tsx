@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { MassDetails } from "@/lib/masses";
 import type { SongListItem } from "@/lib/songs";
-import { addSongToMassAction, removeSongFromMassAction } from "@/app/(dashboard)/messe/actions";
+import { addSongToMassAction, removeSongFromMassAction, updateMassSongNoteAction } from "@/app/(dashboard)/messe/actions";
 
 type MesseComposerProps = {
   massDetails: MassDetails;
@@ -61,6 +61,77 @@ function RemoveButton() {
         </svg>
       )}
     </button>
+  );
+}
+
+function MassSongNoteEditor({ massSongId, initialNotes }: { massSongId: string; initialNotes: string | null }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [notes, setNotes] = useState(initialNotes || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateMassSongNoteAction(massSongId, notes.trim() === "" ? null : notes.trim());
+      setIsEditing(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isEditing) {
+    return (
+      <div 
+        className="mt-3 flex items-center justify-between rounded-xl bg-white/50 px-3 py-2 border border-transparent hover:border-[#e4dcce] hover:bg-white transition cursor-text group"
+        onClick={() => setIsEditing(true)}
+      >
+        <div className="flex gap-2 items-start">
+          <svg className="h-4 w-4 text-[#aa9576] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <span className={`text-xs ${initialNotes ? "text-[#5c4a37] italic" : "text-[#a89070]"}`}>
+            {initialNotes || "Aggiungi nota per questa celebrazione (es. Suonare in Sol, solo ritornello...)"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2 rounded-xl bg-white p-1 border border-[#9b8361] shadow-sm">
+      <input
+        type="text"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSave();
+          if (e.key === "Escape") setIsEditing(false);
+        }}
+        autoFocus
+        placeholder="Scrivi una nota..."
+        className="flex-1 px-3 py-1.5 text-xs text-[#3f3933] outline-none bg-transparent"
+        disabled={isSaving}
+      />
+      <button
+        onClick={handleSave}
+        disabled={isSaving}
+        className="rounded-lg bg-[#5c4a37] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4b3c2c] disabled:opacity-50"
+      >
+        {isSaving ? "..." : "Salva"}
+      </button>
+      <button
+        onClick={() => {
+          setNotes(initialNotes || "");
+          setIsEditing(false);
+        }}
+        disabled={isSaving}
+        className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#736555] transition hover:bg-[#f4efe6] disabled:opacity-50"
+      >
+        Annulla
+      </button>
+    </div>
   );
 }
 
@@ -301,49 +372,49 @@ export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
                   {songs.map((massSong) => {
                     const song = massSong.song;
                     return (
-                      <div
-                        key={massSong.id}
-                        className="flex items-center justify-between rounded-2xl border border-[#e4dcce]/50 bg-[#fdfbf7] px-4 py-3 shadow-inner hover:bg-[#fbf9f5] transition"
-                      >
-                        <div className="min-w-0 flex items-center gap-3">
-                          {song.code && (
-                            <span className="rounded-lg bg-[#efe4d2] px-2 py-0.5 text-[10px] font-bold text-[#8c7a65]">
-                              {song.code}
-                            </span>
-                          )}
-                          <div className="min-w-0">
-                            <h4 className="text-sm font-semibold text-[#3f3933] truncate">
-                              {song.title}
-                            </h4>
-                            {song.alternateTitle && (
-                              <p className="text-xs text-[#736555] truncate italic">
-                                {song.alternateTitle}
-                              </p>
+                      <div key={massSong.id} className="rounded-2xl border border-[#e4dcce]/50 bg-[#fdfbf7] px-4 py-3 shadow-inner hover:bg-[#fbf9f5] transition">
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0 flex items-center gap-3">
+                            {song.code && (
+                              <span className="rounded-lg bg-[#efe4d2] px-2 py-0.5 text-[10px] font-bold text-[#8c7a65]">
+                                {song.code}
+                              </span>
                             )}
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-semibold text-[#3f3933] truncate">
+                                {song.title}
+                              </h4>
+                              {song.alternateTitle && (
+                                <p className="text-xs text-[#736555] truncate italic">
+                                  {song.alternateTitle}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Modifica canto */}
+                            <a
+                              href={`/canti?cantoId=${song.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-full p-1.5 text-[#a89070] hover:text-[#5c4a37] hover:bg-[#f4efe6] transition"
+                              title="Modifica canto (apri in una nuova scheda per aggiornare spartiti, testi o audio)"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </a>
+
+                            {/* Rimuovi canto */}
+                            <form action={removeAction}>
+                              <input type="hidden" name="massId" value={massDetails.id} />
+                              <input type="hidden" name="massSongId" value={massSong.id} />
+                              <RemoveButton />
+                            </form>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          {/* Modifica canto */}
-                          <a
-                            href={`/canti?cantoId=${song.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded-full p-1.5 text-[#a89070] hover:text-[#5c4a37] hover:bg-[#f4efe6] transition"
-                            title="Modifica canto (apri in una nuova scheda per aggiornare spartiti, testi o audio)"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </a>
-
-                          {/* Rimuovi canto */}
-                          <form action={removeAction}>
-                            <input type="hidden" name="massId" value={massDetails.id} />
-                            <input type="hidden" name="massSongId" value={massSong.id} />
-                            <RemoveButton />
-                          </form>
-                        </div>
+                        <MassSongNoteEditor massSongId={massSong.id} initialNotes={massSong.notes} />
                       </div>
                     );
                   })}

@@ -79,6 +79,7 @@ export async function GET(
       song_id,
       moment_id,
       position,
+      notes,
       mass_moments (
         sort_order
       ),

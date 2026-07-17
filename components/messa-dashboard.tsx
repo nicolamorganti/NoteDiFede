@@ -749,6 +749,21 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                         </div>
                       </div>
 
+                      {/* Nota "Una Tantum" specifica della celebrazione */}
+                      {massSong.notes && (
+                        <div className="mt-3 flex gap-2 rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 shadow-sm">
+                          <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div className="flex-1">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-amber-800/70 mb-0.5">Nota per questa messa</span>
+                            <p className="text-sm font-medium text-amber-900 italic">
+                              {massSong.notes}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Spartiti / Accordi PDF */}
                       {song.arrangements.length > 0 && (
                         <div className="space-y-2 border-t border-[#e4dcce]/30 pt-3">

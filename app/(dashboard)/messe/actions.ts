@@ -543,3 +543,29 @@ export async function saveImportedMassAction(
     return { error: err.message || "Errore nel salvataggio della celebrazione." };
   }
 }
+
+// Aggiorna la nota specifica di un canto in una messa
+export async function updateMassSongNoteAction(
+  massSongId: string,
+  notes: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  if (!massSongId) {
+    return { success: false, error: "ID Associazione mancante." };
+  }
+
+  const adminSupabase = createAdminSupabaseClient();
+  const { error } = await adminSupabase
+    .from("mass_songs")
+    .update({ notes })
+    .eq("id", massSongId);
+
+  if (error) {
+    console.error("Errore aggiornamento nota canto:", error);
+    return { success: false, error: "Errore durante il salvataggio della nota." };
+  }
+
+  revalidatePath("/messe");
+  revalidatePath(`/messe/[id]/modifica`, "page");
+  
+  return { success: true };
+}

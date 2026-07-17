@@ -16,6 +16,7 @@ export type MassSongItem = {
   songId: string;
   momentId: string;
   position: number;
+  notes: string | null;
   song: SongListItem;
 };
 
@@ -38,6 +39,7 @@ export type MassSongRow = {
   song_id: string;
   moment_id: string;
   position: number;
+  notes: string | null;
   songs: {
     id: string;
     code: string | null;
@@ -135,6 +137,7 @@ export async function getMass(id: string): Promise<MassDetails | null> {
       song_id,
       moment_id,
       position,
+      notes,
       songs (
         id,
         code,
@@ -281,6 +284,7 @@ export async function getMass(id: string): Promise<MassDetails | null> {
       songId: ms.song_id,
       momentId: ms.moment_id,
       position: ms.position,
+      notes: ms.notes,
       song: {
         id: songRow.id,
         code: songRow.code,
