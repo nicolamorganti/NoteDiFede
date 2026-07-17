@@ -399,161 +399,155 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   };
 
   const handlePrintTableReport = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    import("jspdf").then(({ jsPDF }) => {
+      const doc = new jsPDF({ orientation: "landscape" });
+      
+      let y = 15;
+      const margin = 15;
+      const pageHeight = 210;
+      const pageWidth = 297;
+      const docWidth = pageWidth - (margin * 2);
 
-    const dateStr = new Intl.DateTimeFormat("it-IT", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit"
-    }).format(new Date(massDetails.celebrationDate));
-    const title = `${massDetails.title} (foglietto ${formattedDate.replace(/^[a-z]+ /, "")})`;
+      const col1Width = 45; // Moment
+      const col2Width = 140; // Song + Notes
+      const col3Width = docWidth - col1Width - col2Width; // Links ~82
+      
+      const col1X = margin;
+      const col2X = margin + col1Width;
+      const col3X = margin + col1Width + col2Width;
 
-    let htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${massDetails.title}</title>
-        <meta charset="utf-8">
-        <style>
-          @page {
-            size: landscape;
-            margin: 10mm;
-          }
-          body {
-            font-family: Arial, sans-serif;
-            color: #000;
-            font-size: 11px;
-            margin: 0;
-            padding: 0;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-          }
-          .header-table th, .header-table td {
-            border: 1px solid #000;
-            padding: 4px 6px;
-            font-weight: bold;
-          }
-          .header-title {
-            width: 70%;
-            font-size: 13px;
-          }
-          .header-meta {
-            text-align: left;
-          }
-          .content-table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .content-table th, .content-table td {
-            border: 1px solid #000;
-            padding: 6px;
-            vertical-align: top;
-          }
-          .col-moment {
-            width: 18%;
-            font-style: italic;
-            text-transform: uppercase;
-          }
-          .col-song {
-            width: 52%;
-          }
-          .col-link {
-            width: 30%;
-          }
-          .song-title {
-            text-transform: uppercase;
-          }
-          .yt-link {
-            display: inline-flex;
-            align-items: center;
-            background: #eee;
-            padding: 2px 6px;
-            border-radius: 12px;
-            text-decoration: none;
-            color: #000;
-            font-size: 10px;
-          }
-          .yt-icon {
-            color: #cc0000;
-            font-weight: bold;
-            margin-right: 4px;
-          }
-          .notes {
-            margin-top: 4px;
-            font-style: italic;
-            font-size: 10px;
-          }
-        </style>
-      </head>
-      <body>
-        <table class="header-table">
-          <tr>
-            <td rowspan="2" class="header-title">${title}</td>
-            <td class="header-meta">${dateStr}</td>
-          </tr>
-          <tr>
-            <td class="header-meta">ANNO ${massDetails.liturgicalYear}</td>
-          </tr>
-        </table>
-
-        <table class="content-table">
-          <tbody>
-    `;
-
-    massDetails.moments.forEach(({ moment, songs }) => {
-      if (songs.length === 0) return;
-
-      songs.forEach(({ song }) => {
-        const { notes } = parseNotesAndLyrics(song.notes);
-        
-        // Find first youtube link or first link
-        let linkHtml = "";
-        const ytLink = song.links.find(l => l.provider === "youtube") || song.links[0];
-        if (ytLink) {
-          const icon = ytLink.provider === "youtube" ? '<span class="yt-icon">▶</span>' : '🔗';
-          linkHtml = `<span class="yt-link">${icon}${ytLink.label}</span>`;
+      const checkPageSpace = (heightNeeded: number) => {
+        if (y + heightNeeded > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
         }
+      };
 
-        const codePart = song.code ? ` (${song.code})` : "";
-        
-        let notesHtml = "";
-        if (notes) {
-          notesHtml = `<div class="notes">${notes.replace(/\n/g, " ")}</div>`;
-        }
-        
-        // Format as requested: Title (CODE)
-        const songDisplay = `<span class="song-title">${song.title}${codePart}</span>${notesHtml}`;
+      // 1. Title
+      const dateStr = new Intl.DateTimeFormat("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit"
+      }).format(new Date(massDetails.celebrationDate));
+      
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(50, 50, 50);
+      doc.text(massDetails.title, margin, y);
+      
+      doc.setFont("Helvetica", "italic");
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Domenica ${dateStr}  |  Anno ${massDetails.liturgicalYear}`, margin + doc.getTextWidth(massDetails.title) + 5, y);
+      
+      y += 8;
+      
+      // Draw Table Header
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, y, docWidth, 8, "FD");
+      
+      doc.text("Momento", col1X + 2, y + 5);
+      doc.text("Canto", col2X + 2, y + 5);
+      doc.text("YouTube", col3X + 2, y + 5);
+      
+      y += 8;
 
-        htmlContent += `
-          <tr>
-            <td class="col-moment">${moment.name}</td>
-            <td class="col-song">${songDisplay}</td>
-            <td class="col-link">${linkHtml}</td>
-          </tr>
-        `;
+      massDetails.moments.forEach(({ moment, songs }) => {
+        if (songs.length === 0) return;
+
+        songs.forEach(({ song }) => {
+          const { notes } = parseNotesAndLyrics(song.notes);
+          
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(10);
+          
+          const codePart = song.code ? ` (${song.code})` : "";
+          const titleText = `${song.title}${codePart}`;
+          
+          // Calculate row height based on the text wraps
+          doc.setFont("Helvetica", "bold");
+          const titleLines = doc.splitTextToSize(titleText, col2Width - 4);
+          
+          doc.setFont("Helvetica", "italic");
+          doc.setFontSize(9);
+          const notesLines = notes ? doc.splitTextToSize(notes.replace(/\n/g, " "), col2Width - 4) : [];
+          
+          const ytLink = song.links.find(l => l.provider === "youtube") || song.links[0];
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(9);
+          const linkLines = ytLink ? doc.splitTextToSize(ytLink.label, col3Width - 10) : []; // leave space for icon
+
+          // Calculate height
+          const titleHeight = titleLines.length * 4.5;
+          const notesHeight = notesLines.length > 0 ? (notesLines.length * 4) + 2 : 0;
+          const contentCol2Height = titleHeight + notesHeight;
+          
+          const linkHeight = linkLines.length * 4;
+          
+          const rowHeight = Math.max(8, contentCol2Height + 4, linkHeight + 4);
+          
+          checkPageSpace(rowHeight);
+          
+          // Draw Row Border
+          doc.setDrawColor(200, 200, 200);
+          doc.rect(margin, y, docWidth, rowHeight, "S");
+          // Draw Column lines
+          doc.line(col2X, y, col2X, y + rowHeight);
+          doc.line(col3X, y, col3X, y + rowHeight);
+          
+          // Col 1: Moment
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(80, 80, 80);
+          const momentLines = doc.splitTextToSize(moment.name.toUpperCase(), col1Width - 4);
+          doc.text(momentLines, col1X + 2, y + 5);
+          
+          // Col 2: Title & Notes
+          let currentY = y + 5;
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(40, 40, 40);
+          doc.text(titleLines, col2X + 2, currentY);
+          
+          if (notesLines.length > 0) {
+            currentY += titleHeight;
+            doc.setFont("Helvetica", "italic");
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.text(notesLines, col2X + 2, currentY);
+          }
+          
+          // Col 3: Link
+          if (ytLink) {
+            const linkY = y + 5;
+            // Draw fake YouTube icon
+            doc.setFillColor(204, 0, 0); // YouTube red
+            doc.roundedRect(col3X + 2, linkY - 3, 6, 4, 1, 1, "F");
+            doc.setFillColor(255, 255, 255);
+            doc.triangle(col3X + 4, linkY - 2, col3X + 4, linkY, col3X + 6, linkY - 1, "F"); // Play button
+            
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 238);
+            
+            doc.text(linkLines, col3X + 10, linkY);
+            
+            // Add clickable link over the icon and text
+            const textWidth = doc.getTextWidth(linkLines[0] || "");
+            doc.link(col3X + 2, linkY - 4, 8 + textWidth, linkLines.length * 4, { url: ytLink.url });
+          }
+          
+          y += rowHeight;
+        });
       });
+
+      // Save PDF
+      const safeTitle = massDetails.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      doc.save(`Tabella_${safeTitle}.pdf`);
     });
-
-    htmlContent += `
-          </tbody>
-        </table>
-      </body>
-      <script>
-        window.onload = function() {
-          window.print();
-        }
-      </script>
-      </html>
-    `;
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
   };
 
   const handleCopyShareLink = () => {
@@ -1362,13 +1356,12 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                 <div className="rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-8 text-center space-y-4 shadow-inner">
                   <div className="mx-auto w-16 h-16 bg-[#efe4d2] text-[#8a755d] rounded-full flex items-center justify-center">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                   </div>
                   <h4 className="font-serif text-lg text-[#3f3933]">Stampa Tabellare Orizzontale</h4>
                   <p className="text-xs text-[#736555] max-w-md mx-auto leading-relaxed">
-                    Verrà aperta una nuova finestra pronta per essere stampata o salvata come PDF. 
-                    Il formato è ottimizzato per fogli A4 in orientamento orizzontale (Landscape).
+                    Verrà generato e scaricato un file PDF con link cliccabili e layout compatto orizzontale.
                   </p>
                   <div className="pt-2">
                     <button
@@ -1376,9 +1369,9 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                       className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#4b3c2c]"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      Apri Finestra di Stampa
+                      Scarica PDF Tabella
                     </button>
                   </div>
                 </div>
