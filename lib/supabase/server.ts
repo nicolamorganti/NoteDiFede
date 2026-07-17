@@ -31,6 +31,18 @@ export async function createServerSupabaseClient() {
   });
 }
 
+export function createAdminSupabaseClient() {
+  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+  return createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
 export async function verifyUserRole(requiredRoles: ("ospite" | "cantore" | "maestro" | "responsabile")[]) {
   // Ora verifica la sessione automaticamente dai cookie
   const supabase = await createServerSupabaseClient();
@@ -40,17 +52,9 @@ export async function verifyUserRole(requiredRoles: ("ospite" | "cantore" | "mae
     return { user: null, role: null, profile: null, error: "Non autorizzato: sessione non valida o scaduta." };
   }
 
+  const adminClient = createAdminSupabaseClient();
+
   // Usa il service role per recuperare i dettagli protetti del profilo
-  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  const adminClient = createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
     .select("id, username, full_name, role, vocal_register")

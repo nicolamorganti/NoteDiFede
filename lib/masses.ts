@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createAdminSupabaseClient } from "@/lib/supabase/server";
 import type { SongListItem, MassMomentItem, SongArrangementListItem, SongFileListItem, SongLinkListItem } from "@/lib/songs";
 
 export type MassListItem = {
@@ -58,7 +58,7 @@ function formatMassDate(value: string) {
 
 // 1. Ottiene la lista di tutte le messe con il conteggio dei canti associati
 export async function getMasses(): Promise<MassListItem[]> {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createAdminSupabaseClient();
 
   // Seleziona messe e unisci i conteggi dei canti
   const { data: massesData, error: massesError } = await supabase
@@ -104,7 +104,7 @@ export async function getMasses(): Promise<MassListItem[]> {
 
 // 2. Ottiene i dettagli completi di una singola messa con tutti i canti associati per momento liturgico
 export async function getMass(id: string): Promise<MassDetails | null> {
-  const supabase = await createServerSupabaseClient();
+  const supabase = createAdminSupabaseClient();
 
   // Recupera i dettagli della messa
   const { data: massData, error: massError } = await supabase
