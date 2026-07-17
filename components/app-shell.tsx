@@ -24,65 +24,79 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function checkAuth() {
+    let isMounted = true;
+
+    async function loadAuth() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (session && isMounted) {
           setUser(session.user);
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role, full_name")
-            .eq("id", session.user.id)
-            .single();
           
-          if (profile) {
-            setRole(profile.role);
-            setFullName(profile.full_name);
-            localStorage.setItem("nDF_user_role", profile.role);
-            localStorage.setItem("nDF_user_fullname", profile.full_name || "");
+          // Se abbiamo già i dati in localStorage, usiamo quelli senza fare un'altra query
+          const cachedRole = localStorage.getItem("nDF_user_role");
+          const cachedName = localStorage.getItem("nDF_user_fullname");
+          
+          if (cachedRole) {
+            setRole(cachedRole);
+            setFullName(cachedName);
+          } else {
+            // Altrimenti, facciamo la query a Supabase
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role, full_name")
+              .eq("id", session.user.id)
+              .single();
+              
+            if (profile && isMounted) {
+              setRole(profile.role);
+              setFullName(profile.full_name);
+              localStorage.setItem("nDF_user_role", profile.role);
+              localStorage.setItem("nDF_user_fullname", profile.full_name || "");
+            }
           }
-        } else {
-          localStorage.removeItem("nDF_user_role");
-          localStorage.removeItem("nDF_user_fullname");
-          setRole(null);
-          setFullName(null);
+        } else if (!session && isMounted) {
+          // Se non c'è nessuna sessione, assicuriamoci che lo stato sia pulito
+          // ma evitiamo di forzare la pulizia del localStorage qui per evitare
+          // bug in navigazioni transienti
           setUser(null);
         }
       } catch (err) {
-        console.error("Errore in checkAuth di AppShell:", err);
+        console.error("Errore in loadAuth di AppShell:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
 
-    checkAuth();
+    loadAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (session) {
-          setUser(session.user);
+      if (!isMounted) return;
+      
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setRole(null);
+        setFullName(null);
+        localStorage.removeItem("nDF_user_role");
+        localStorage.removeItem("nDF_user_fullname");
+      } else if (event === "SIGNED_IN" && session) {
+        setUser(session.user);
+        try {
           const { data: profile } = await supabase
             .from("profiles")
             .select("role, full_name")
             .eq("id", session.user.id)
             .single();
-          if (profile) {
+          if (profile && isMounted) {
             setRole(profile.role);
             setFullName(profile.full_name);
             localStorage.setItem("nDF_user_role", profile.role);
             localStorage.setItem("nDF_user_fullname", profile.full_name || "");
           }
-        } else {
-          setUser(null);
-          setRole(null);
-          setFullName(null);
-          localStorage.removeItem("nDF_user_role");
-          localStorage.removeItem("nDF_user_fullname");
+        } catch (err) {
+          console.error("Errore recupero profilo in SIGNED_IN:", err);
         }
-      } catch (err) {
-        console.error("Errore in onAuthStateChange di AppShell:", err);
-      } finally {
-        setLoading(false);
       }
     });
 
@@ -99,6 +113,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
     window.addEventListener("storage", handleStorageChange);
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
       window.removeEventListener("storage", handleStorageChange);
     };
