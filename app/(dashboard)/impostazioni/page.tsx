@@ -32,7 +32,6 @@ type Moment = {
 
 export default function ImpostazioniPage() {
   const router = useRouter();
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
   const [activeTab, setActiveTab] = useState<"profilo" | "liturgia" | "coristi">("profilo");
@@ -65,7 +64,7 @@ export default function ImpostazioniPage() {
           return;
         }
 
-        setSessionToken(session.access_token);
+        // Nessun token manuale necessario grazie a SSR
         setCurrentUser(session.user);
 
         // Fetch my profile
@@ -123,12 +122,12 @@ export default function ImpostazioniPage() {
   // --- Profile actions ---
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionToken) return;
+    if (!currentUser) return;
     setProfileMessage(null);
     setProfileUpdating(true);
 
     try {
-      const res = await updateUserProfile(sessionToken, fullNameInput, vocalRegisterInput);
+      const res = await updateUserProfile(fullNameInput, vocalRegisterInput);
       if (res.error) {
         setProfileMessage({ error: res.error });
       } else {
@@ -173,12 +172,12 @@ export default function ImpostazioniPage() {
   };
 
   const handleSaveMomentsOrder = async () => {
-    if (!sessionToken) return;
+    if (!currentUser) return;
     setMomentsMessage(null);
     setMomentsUpdating(true);
 
     try {
-      const res = await updateLiturgicalMomentsOrder(sessionToken, moments);
+      const res = await updateLiturgicalMomentsOrder(moments);
       if (res.error) {
         setMomentsMessage({ error: res.error });
       } else {
@@ -194,11 +193,11 @@ export default function ImpostazioniPage() {
 
   const handleAddMoment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionToken || !newMomentName.trim()) return;
+    if (!currentUser || !newMomentName.trim()) return;
     setMomentsMessage(null);
 
     try {
-      const res = await addLiturgicalMoment(sessionToken, newMomentName);
+      const res = await addLiturgicalMoment(newMomentName);
       if (res.error) {
         setMomentsMessage({ error: res.error });
       } else {
@@ -212,12 +211,12 @@ export default function ImpostazioniPage() {
   };
 
   const handleDeleteMoment = async (id: string) => {
-    if (!sessionToken) return;
+    if (!currentUser) return;
     if (!confirm("Sei sicuro di voler eliminare questo momento liturgico? L'operazione non può essere annullata.")) return;
     setMomentsMessage(null);
 
     try {
-      const res = await deleteLiturgicalMoment(sessionToken, id);
+      const res = await deleteLiturgicalMoment(id);
       if (res.error) {
         setMomentsMessage({ error: res.error });
       } else {
@@ -230,12 +229,12 @@ export default function ImpostazioniPage() {
   };
 
   const handleRestoreDefaults = async () => {
-    if (!sessionToken) return;
+    if (!currentUser) return;
     if (!confirm("Attenzione: questo eliminerà TUTTI i momenti liturgici correnti e ripristinerà i 15 momenti standard Ambrosiani. Questa azione fallirà se vi sono canti associati alle celebrazioni. Vuoi procedere?")) return;
     setMomentsMessage(null);
 
     try {
-      const res = await restoreDefaultMomentsAction(sessionToken);
+      const res = await restoreDefaultMomentsAction();
       if (res.error) {
         setMomentsMessage({ error: res.error });
       } else {
@@ -249,7 +248,7 @@ export default function ImpostazioniPage() {
 
   // --- Members actions ---
   const handleUserChange = async (targetUserId: string, field: "role" | "register", value: string) => {
-    if (!sessionToken) return;
+    if (!currentUser) return;
     setMembersMessage(null);
 
     const targetUser = allProfiles.find((p) => p.id === targetUserId);
@@ -268,7 +267,7 @@ export default function ImpostazioniPage() {
     );
 
     try {
-      const res = await updateUserRoleAndRegister(sessionToken, targetUserId, updatedRole, updatedRegister);
+      const res = await updateUserRoleAndRegister(targetUserId, updatedRole, updatedRegister);
       if (res.error) {
         setMembersMessage({ error: res.error });
         // Ripristina stato precedente ricaricando i dati

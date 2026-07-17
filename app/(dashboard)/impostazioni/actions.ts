@@ -12,7 +12,6 @@ export type SettingsActionState<T = any> = {
 
 // 1. Aggiorna il profilo personale (visibile a Cantori e Maestri)
 export async function updateUserProfile(
-  token: string,
   fullName: string,
   vocalRegister: string,
 ): Promise<SettingsActionState> {
@@ -20,7 +19,7 @@ export async function updateUserProfile(
     return { error: "Il nome completo è obbligatorio.", success: null };
   }
 
-  const { user, error: authError } = await verifyUserRole(token, ["ospite", "cantore", "maestro", "responsabile"]);
+  const { user, error: authError } = await verifyUserRole(["ospite", "cantore", "maestro", "responsabile"]);
   if (authError || !user) {
     return { error: authError || "Non autorizzato.", success: null };
   }
@@ -45,10 +44,9 @@ export async function updateUserProfile(
 
 // 2. Modifica/riordina l'elenco dei momenti liturgici (visibile solo ai Maestri)
 export async function updateLiturgicalMomentsOrder(
-  token: string,
   moments: { id: string; sort_order: number; name: string }[],
 ): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -91,14 +89,13 @@ export async function updateLiturgicalMomentsOrder(
 
 // 3. Aggiunge un momento liturgico (Maestro)
 export async function addLiturgicalMoment(
-  token: string,
   name: string,
 ): Promise<SettingsActionState> {
   if (!name || name.trim().length === 0) {
     return { error: "Il nome del momento non può essere vuoto.", success: null };
   }
 
-  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -137,10 +134,9 @@ export async function addLiturgicalMoment(
 
 // 4. Elimina un momento liturgico (Maestro)
 export async function deleteLiturgicalMoment(
-  token: string,
   id: string,
 ): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -210,10 +206,8 @@ const DEFAULT_AMBROSIAN_MOMENTS = [
   { name: "Finale", sort_order: 15 },
 ];
 
-export async function restoreDefaultMomentsAction(
-  token: string,
-): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
+export async function restoreDefaultMomentsAction(): Promise<SettingsActionState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }
@@ -280,12 +274,11 @@ export async function restoreDefaultMomentsAction(
 
 // 6. Aggiorna il ruolo e registro di un corista (Maestro)
 export async function updateUserRoleAndRegister(
-  token: string,
   targetUserId: string,
   role: "ospite" | "cantore" | "maestro" | "responsabile",
   vocalRegister: string,
 ): Promise<SettingsActionState> {
-  const { error: authError } = await verifyUserRole(token, ["maestro", "responsabile"]);
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
   if (authError) {
     return { error: authError, success: null };
   }

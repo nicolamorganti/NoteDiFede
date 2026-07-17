@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { MassDetails } from "@/lib/masses";
-import { parseNotesAndLyrics } from "@/lib/songs";
+import { parseNotesAndLyrics } from "@/lib/song-utils";
 import { supabase } from "@/lib/supabase/client";
 
 type MessaDashboardProps = {

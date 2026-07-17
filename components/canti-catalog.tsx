@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { SongListItem, SongArrangementListItem, SongLinkListItem, MassMomentItem } from "@/lib/songs";
-import { parseNotesAndLyrics } from "@/lib/songs";
+import { parseNotesAndLyrics } from "@/lib/song-utils";
 import { createMassMomentAction, deleteMassMomentAction } from "@/app/(dashboard)/canti/actions";
 import { SongCreateForm } from "./song-create-form";
 import { supabase } from "@/lib/supabase/client";

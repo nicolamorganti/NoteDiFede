@@ -41,16 +41,16 @@ export async function GET(
 
   // Verify auth header
   const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
 
-  if (!token) {
+  if (!authHeader) {
     return new Response("Non autorizzato: sessione mancante o non valida.", {
       status: 401,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }
 
-  const { error: authError } = await verifyUserRole(token, ["cantore", "maestro", "responsabile"]);
+  // Verifica che l'utente abbia un ruolo adeguato
+  const { error: authError } = await verifyUserRole(["cantore", "maestro", "responsabile"]);
   if (authError) {
     return new Response(`Non autorizzato: ${authError}`, {
       status: 403,

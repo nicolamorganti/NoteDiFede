@@ -5,71 +5,25 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
 
-export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
+export function AppShell({ 
+  children,
+  initialUser = null,
+  initialRole = null,
+  initialFullName = null,
+}: Readonly<{ 
+  children: ReactNode;
+  initialUser?: any;
+  initialRole?: string | null;
+  initialFullName?: string | null;
+}>) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<any | null>(null);
-  const [role, setRole] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nDF_user_role");
-    }
-    return null;
-  });
-  const [fullName, setFullName] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nDF_user_fullname");
-    }
-    return null;
-  });
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any | null>(initialUser);
+  const [role, setRole] = useState<string | null>(initialRole);
+  const [fullName, setFullName] = useState<string | null>(initialFullName);
 
   useEffect(() => {
     let isMounted = true;
-
-    async function loadAuth() {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-
-        if (session && isMounted) {
-          setUser(session.user);
-          
-          // Se abbiamo già i dati in localStorage, usiamo quelli senza fare un'altra query
-          const cachedRole = localStorage.getItem("nDF_user_role");
-          const cachedName = localStorage.getItem("nDF_user_fullname");
-          
-          if (cachedRole) {
-            setRole(cachedRole);
-            setFullName(cachedName);
-          } else {
-            // Altrimenti, facciamo la query a Supabase
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("role, full_name")
-              .eq("id", session.user.id)
-              .single();
-              
-            if (profile && isMounted) {
-              setRole(profile.role);
-              setFullName(profile.full_name);
-              localStorage.setItem("nDF_user_role", profile.role);
-              localStorage.setItem("nDF_user_fullname", profile.full_name || "");
-            }
-          }
-        } else if (!session && isMounted) {
-          // Se non c'è nessuna sessione, assicuriamoci che lo stato sia pulito
-          // ma evitiamo di forzare la pulizia del localStorage qui per evitare
-          // bug in navigazioni transienti
-          setUser(null);
-        }
-      } catch (err) {
-        console.error("Errore in loadAuth di AppShell:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    loadAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
@@ -78,8 +32,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         setUser(null);
         setRole(null);
         setFullName(null);
-        localStorage.removeItem("nDF_user_role");
-        localStorage.removeItem("nDF_user_fullname");
+        router.push("/");
       } else if (event === "SIGNED_IN" && session) {
         setUser(session.user);
         try {
@@ -91,8 +44,6 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           if (profile && isMounted) {
             setRole(profile.role);
             setFullName(profile.full_name);
-            localStorage.setItem("nDF_user_role", profile.role);
-            localStorage.setItem("nDF_user_fullname", profile.full_name || "");
           }
         } catch (err) {
           console.error("Errore recupero profilo in SIGNED_IN:", err);
@@ -100,24 +51,11 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
       }
     });
 
-    // Ascolto dei cambiamenti di localStorage tra le varie schede (tab) del browser
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "nDF_user_role") {
-        setRole(e.newValue);
-      }
-      if (e.key === "nDF_user_fullname") {
-        setFullName(e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      window.removeEventListener("storage", handleStorageChange);
     };
-  }, []);
+  }, [router]);
 
   const handleSignOut = async () => {
     try {
@@ -125,12 +63,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
     } catch (err) {
       console.error("Errore durante il logout di Supabase:", err);
     } finally {
-      // Pulisce lo stato locale e reindirizza in ogni caso (anche se la chiamata di rete fallisce)
       setUser(null);
       setRole(null);
       setFullName(null);
-      localStorage.removeItem("nDF_user_role");
-      localStorage.removeItem("nDF_user_fullname");
       router.push("/");
     }
   };
@@ -198,9 +133,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
 
           {/* Profilo utente in fondo alla sidebar */}
           <div className="mt-8 border-t border-[#ddd2c2] pt-6 space-y-4">
-            {loading ? (
-              <p className="text-xs text-[#736555] italic">Caricamento utente...</p>
-            ) : user ? (
+            {user ? (
               <div className="space-y-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-[#8a755d]">

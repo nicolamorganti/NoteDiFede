@@ -8,7 +8,7 @@ import {
   updateSongAction,
 } from "@/app/(dashboard)/canti/actions";
 import type { SongListItem, MassMomentItem } from "@/lib/songs";
-import { parseNotesAndLyrics } from "@/lib/songs";
+import { parseNotesAndLyrics } from "@/lib/song-utils";
 
 const initialCatalogMutationFormState: CatalogMutationFormState = {
   error: null,

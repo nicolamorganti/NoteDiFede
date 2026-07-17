@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { serializeNotesAndLyrics } from "@/lib/songs";
+import { serializeNotesAndLyrics } from "@/lib/song-utils";
 
 export type CreateSongFormState = {
   error: string | null;
@@ -79,7 +79,7 @@ export async function createSongAction(
     };
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const payload = {
     code: nullableString(code),
     title,
@@ -187,7 +187,7 @@ export async function createArrangementAction(
     };
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const payload = {
     song_id: songId,
     arrangement_name: nullableString(arrangementName),
@@ -419,7 +419,7 @@ export async function createSongLinkAction(
     };
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("song_links").insert({
     song_id: songId,
     label,

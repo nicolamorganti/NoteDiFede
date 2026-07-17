@@ -8,20 +8,7 @@ import { notifyNewRegistration } from "@/app/actions/notifications";
 export default function LoginPage() {
   const router = useRouter();
   
-  // Reindirizzamento immediato se l'utente ha già una sessione attiva
-  useEffect(() => {
-    async function checkActiveSession() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          router.replace("/canti");
-        }
-      } catch (err) {
-        console.error("Errore in checkActiveSession:", err);
-      }
-    }
-    checkActiveSession();
-  }, [router]);
+// Il reindirizzamento se l'utente è già loggato ora è gestito in modo robusto dal middleware (lato server).
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -78,18 +65,8 @@ export default function LoginPage() {
 
         if (signInError) throw signInError;
 
-        // Recupera e cachea immediatamente il profilo utente per renderlo robusto all'avvio
-        if (signInData.user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role, full_name")
-            .eq("id", signInData.user.id)
-            .single();
-          if (profile) {
-            localStorage.setItem("nDF_user_role", profile.role);
-            localStorage.setItem("nDF_user_fullname", profile.full_name || "");
-          }
-        }
+        // Il middleware si occuperà di aggiornare il cookie.
+        // Possiamo fare direttamente il push alla dashboard.
 
         setSuccess("Accesso consentito. Ingresso nel repertorio in corso...");
         setTimeout(() => {
