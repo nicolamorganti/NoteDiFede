@@ -40,9 +40,6 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             setFullName(profile.full_name);
             localStorage.setItem("nDF_user_role", profile.role);
             localStorage.setItem("nDF_user_fullname", profile.full_name || "");
-          } else {
-            setRole(null);
-            setFullName(null);
           }
         } else {
           localStorage.removeItem("nDF_user_role");
@@ -74,9 +71,6 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             setFullName(profile.full_name);
             localStorage.setItem("nDF_user_role", profile.role);
             localStorage.setItem("nDF_user_fullname", profile.full_name || "");
-          } else {
-            setRole(null);
-            setFullName(null);
           }
         } else {
           setUser(null);
