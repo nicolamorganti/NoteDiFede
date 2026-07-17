@@ -152,7 +152,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           lines.push(`  - ${codePrefix}${song.title}`);
           
           if (specificNotes) {
-            lines.push(`    [Nota Messa]: ${specificNotes}`);
+            lines.push(`    📝 ${specificNotes}`);
           }
           
           // Risorse esterne
@@ -177,7 +177,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           });
 
           const { notes, lyrics } = parseNotesAndLyrics(song.notes);
-          if (specificNotes) lines.push(`  📝 Nota Messa: ${specificNotes}`);
+          if (specificNotes) lines.push(`  📝 ${specificNotes}`);
           if (notes) lines.push(`  📝 Nota Canto: ${notes}`);
           if (lyrics) lines.push(`  📖 Testo:\n${lyrics.split("\n").map(l => "    " + l).join("\n")}`);
         });
@@ -375,7 +375,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
 
         if (reportFormat === "lyrics") {
           if (specificNotes) {
-            htmlContent += `<div class="notes"><strong>Nota Messa:</strong> ${specificNotes}</div>`;
+            htmlContent += `<div class="notes">${specificNotes}</div>`;
           }
           if (notes) {
             htmlContent += `<div class="notes"><strong>Nota Canto:</strong> ${notes}</div>`;
@@ -500,7 +500,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           const { notes: generalNotes } = parseNotesAndLyrics(song.notes);
           
           const notesArr = [];
-          if (specificNotes) notesArr.push(`Messa: ${specificNotes}`);
+          if (specificNotes) notesArr.push(specificNotes);
           if (generalNotes) notesArr.push(`Canto: ${generalNotes.replace(/\n/g, " ")}`);
           const notes = notesArr.join(" | ");
           
@@ -719,7 +719,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
             if (specificNotes) {
               doc.setFont("Helvetica", "italic");
               doc.setFontSize(9);
-              const songNoteLines = doc.splitTextToSize(`Nota Messa: ${specificNotes}`, docWidth - 5);
+              const songNoteLines = doc.splitTextToSize(specificNotes, docWidth - 5);
               const noteHeight = songNoteLines.length * 4.5;
               
               checkPageSpace(noteHeight + 2);
