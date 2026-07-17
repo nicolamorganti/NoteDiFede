@@ -146,9 +146,14 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       massDetails.moments.forEach(({ moment, songs }) => {
         if (songs.length === 0) return;
         lines.push(`\n📍 ${moment.sortOrder}. ${moment.name.toUpperCase()}:`);
-        songs.forEach(({ song }) => {
+        songs.forEach((massSong) => {
+          const { song, notes: specificNotes } = massSong;
           const codePrefix = song.code ? `[${song.code}] ` : "";
           lines.push(`  - ${codePrefix}${song.title}`);
+          
+          if (specificNotes) {
+            lines.push(`    [Nota Messa]: ${specificNotes}`);
+          }
           
           // Risorse esterne
           song.links.forEach((link) => {
@@ -161,7 +166,8 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       massDetails.moments.forEach(({ moment, songs }) => {
         if (songs.length === 0) return;
         lines.push(`\n📍 ${moment.sortOrder}. ${moment.name.toUpperCase()}:`);
-        songs.forEach(({ song }) => {
+        songs.forEach((massSong) => {
+          const { song, notes: specificNotes } = massSong;
           const codePrefix = song.code ? `[${song.code}] ` : "";
           lines.push(`\n  --- ${codePrefix}${song.title} ---`);
           
@@ -171,7 +177,8 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           });
 
           const { notes, lyrics } = parseNotesAndLyrics(song.notes);
-          if (notes) lines.push(`  📝 Note: ${notes}`);
+          if (specificNotes) lines.push(`  📝 Nota Messa: ${specificNotes}`);
+          if (notes) lines.push(`  📝 Nota Canto: ${notes}`);
           if (lyrics) lines.push(`  📖 Testo:\n${lyrics.split("\n").map(l => "    " + l).join("\n")}`);
         });
       });
@@ -339,7 +346,8 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           <div class="moment-title">${moment.sortOrder}. ${moment.name}</div>
       `;
 
-      songs.forEach(({ song }) => {
+      songs.forEach((massSong) => {
+        const { song, notes: specificNotes } = massSong;
         const { notes, lyrics } = parseNotesAndLyrics(song.notes);
         const codeSpan = song.code ? `<span class="song-code">${song.code}</span>` : "";
         
@@ -366,6 +374,9 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
         }
 
         if (reportFormat === "lyrics") {
+          if (specificNotes) {
+            htmlContent += `<div class="notes"><strong>Nota Messa:</strong> ${specificNotes}</div>`;
+          }
           if (notes) {
             htmlContent += `<div class="notes"><strong>Nota Canto:</strong> ${notes}</div>`;
           }
@@ -484,8 +495,14 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       massDetails.moments.forEach(({ moment, songs }) => {
         if (songs.length === 0) return;
 
-        songs.forEach(({ song }) => {
-          const { notes } = parseNotesAndLyrics(song.notes);
+        songs.forEach((massSong) => {
+          const { song, notes: specificNotes } = massSong;
+          const { notes: generalNotes } = parseNotesAndLyrics(song.notes);
+          
+          const notesArr = [];
+          if (specificNotes) notesArr.push(`Messa: ${specificNotes}`);
+          if (generalNotes) notesArr.push(`Canto: ${generalNotes.replace(/\n/g, " ")}`);
+          const notes = notesArr.join(" | ");
           
           doc.setFont("Helvetica", "normal");
           doc.setFontSize(10);
@@ -666,7 +683,8 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
         printText(`${moment.sortOrder}. ${moment.name.toUpperCase()}`, 11, "bold", [138, 117, 93]);
         y += 1;
 
-        songs.forEach(({ song }) => {
+        songs.forEach((massSong) => {
+          const { song, notes: specificNotes } = massSong;
           checkPageSpace(12);
           const codePrefix = song.code ? `[${song.code}] ` : "";
           printText(`${codePrefix}${song.title}`, 12, "bold", [63, 57, 51]);
@@ -696,12 +714,24 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
 
           // Lyrics & notes
           if (reportFormat === "lyrics") {
-            const { notes, lyrics } = parseNotesAndLyrics(song.notes);
+            const { notes: generalNotes, lyrics } = parseNotesAndLyrics(song.notes);
             
-            if (notes) {
+            if (specificNotes) {
               doc.setFont("Helvetica", "italic");
               doc.setFontSize(9);
-              const songNoteLines = doc.splitTextToSize(`Nota: ${notes}`, docWidth - 5);
+              const songNoteLines = doc.splitTextToSize(`Nota Messa: ${specificNotes}`, docWidth - 5);
+              const noteHeight = songNoteLines.length * 4.5;
+              
+              checkPageSpace(noteHeight + 2);
+              doc.setTextColor(80, 80, 80);
+              doc.text(songNoteLines, margin + 5, y);
+              y += noteHeight + 2;
+            }
+
+            if (generalNotes) {
+              doc.setFont("Helvetica", "italic");
+              doc.setFontSize(9);
+              const songNoteLines = doc.splitTextToSize(`Nota Canto: ${generalNotes}`, docWidth - 5);
               const noteHeight = songNoteLines.length * 4.5;
               
               checkPageSpace(noteHeight + 2);
