@@ -33,6 +33,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${mass.title} - Note di Fede`,
       description: `Celebrazione liturgica del ${dateStr} (Anno ${mass.liturgicalYear}). Visualizza la scaletta dei canti, scarica gli spartiti ed esercitati con le tracce vocali.`,
+      url: `/messe/${id}`,
       type: "website",
     },
   };

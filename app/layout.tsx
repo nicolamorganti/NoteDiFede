@@ -13,9 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app"),
   title: "Note di Fede - Nuova Versione",
-  description:
-    "Web app moderna per la gestione di canti, messe e materiali liturgici.",
+  description: "Web app moderna per la gestione di canti, messe e materiali liturgici.",
+  openGraph: {
+    title: "Note di Fede",
+    description: "Web app moderna per la gestione di canti, messe e materiali liturgici.",
+    siteName: "Note di Fede",
+  }
 };
 
 export default function RootLayout({
