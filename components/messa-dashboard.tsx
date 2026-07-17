@@ -77,7 +77,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
 
   // Stato Modale Report
   const [modalReport, setModalReport] = useState(false);
-  const [reportFormat, setReportFormat] = useState<"links" | "lyrics" | "binder">("binder");
+  const [reportFormat, setReportFormat] = useState<"links" | "lyrics" | "table" | "binder">("binder");
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [isGeneratingBinder, setIsGeneratingBinder] = useState(false);
@@ -385,6 +385,164 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     });
 
     htmlContent += `
+      </body>
+      <script>
+        window.onload = function() {
+          window.print();
+        }
+      </script>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handlePrintTableReport = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const dateStr = new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit"
+    }).format(new Date(massDetails.celebrationDate));
+    const title = `${massDetails.title} (foglietto ${formattedDate.replace(/^[a-z]+ /, "")})`;
+
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${massDetails.title}</title>
+        <meta charset="utf-8">
+        <style>
+          @page {
+            size: landscape;
+            margin: 10mm;
+          }
+          body {
+            font-family: Arial, sans-serif;
+            color: #000;
+            font-size: 11px;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+          }
+          .header-table th, .header-table td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            font-weight: bold;
+          }
+          .header-title {
+            width: 70%;
+            font-size: 13px;
+          }
+          .header-meta {
+            text-align: left;
+          }
+          .content-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          .content-table th, .content-table td {
+            border: 1px solid #000;
+            padding: 6px;
+            vertical-align: top;
+          }
+          .col-moment {
+            width: 18%;
+            font-style: italic;
+            text-transform: uppercase;
+          }
+          .col-song {
+            width: 52%;
+          }
+          .col-link {
+            width: 30%;
+          }
+          .song-title {
+            text-transform: uppercase;
+          }
+          .yt-link {
+            display: inline-flex;
+            align-items: center;
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #000;
+            font-size: 10px;
+          }
+          .yt-icon {
+            color: #cc0000;
+            font-weight: bold;
+            margin-right: 4px;
+          }
+          .notes {
+            margin-top: 4px;
+            font-style: italic;
+            font-size: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <table class="header-table">
+          <tr>
+            <td rowspan="2" class="header-title">${title}</td>
+            <td class="header-meta">${dateStr}</td>
+          </tr>
+          <tr>
+            <td class="header-meta">ANNO ${massDetails.liturgicalYear}</td>
+          </tr>
+        </table>
+
+        <table class="content-table">
+          <tbody>
+    `;
+
+    massDetails.moments.forEach(({ moment, songs }) => {
+      if (songs.length === 0) return;
+
+      songs.forEach(({ song }) => {
+        const { notes } = parseNotesAndLyrics(song.notes);
+        
+        // Find first youtube link or first link
+        let linkHtml = "";
+        const ytLink = song.links.find(l => l.provider === "youtube") || song.links[0];
+        if (ytLink) {
+          const icon = ytLink.provider === "youtube" ? '<span class="yt-icon">▶</span>' : '🔗';
+          linkHtml = `<span class="yt-link">${icon}${ytLink.label}</span>`;
+        }
+
+        const codePart = song.code ? ` (${song.code})` : "";
+        
+        let notesHtml = "";
+        if (notes) {
+          notesHtml = `<div class="notes">${notes.replace(/\n/g, " ")}</div>`;
+        }
+        
+        // Format as requested: Title (CODE)
+        const songDisplay = `<span class="song-title">${song.title}${codePart}</span>${notesHtml}`;
+
+        htmlContent += `
+          <tr>
+            <td class="col-moment">${moment.name}</td>
+            <td class="col-song">${songDisplay}</td>
+            <td class="col-link">${linkHtml}</td>
+          </tr>
+        `;
+      });
+    });
+
+    htmlContent += `
+          </tbody>
+        </table>
       </body>
       <script>
         window.onload = function() {
@@ -1187,10 +1345,44 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                 >
                   Testi Concatenati (Foglietto)
                 </button>
+                <button
+                  onClick={() => setReportFormat("table")}
+                  className={`flex-1 min-w-[120px] text-center py-2.5 rounded-xl text-xs font-semibold transition ${
+                    reportFormat === "table"
+                      ? "bg-white text-[#5c4a37] shadow-sm"
+                      : "text-[#736555] hover:text-[#3f3933]"
+                  }`}
+                >
+                  Tabella Compatta (Landscape)
+                </button>
               </div>
 
               {/* Area di Visualizzazione/Copia */}
-              {reportFormat !== "binder" ? (
+              {reportFormat === "table" ? (
+                <div className="rounded-2xl border border-[#d9cdbf] bg-[#fdfbf7] p-8 text-center space-y-4 shadow-inner">
+                  <div className="mx-auto w-16 h-16 bg-[#efe4d2] text-[#8a755d] rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h4 className="font-serif text-lg text-[#3f3933]">Stampa Tabellare Orizzontale</h4>
+                  <p className="text-xs text-[#736555] max-w-md mx-auto leading-relaxed">
+                    Verrà aperta una nuova finestra pronta per essere stampata o salvata come PDF. 
+                    Il formato è ottimizzato per fogli A4 in orientamento orizzontale (Landscape).
+                  </p>
+                  <div className="pt-2">
+                    <button
+                      onClick={handlePrintTableReport}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#4b3c2c]"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Apri Finestra di Stampa
+                    </button>
+                  </div>
+                </div>
+              ) : reportFormat !== "binder" ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Anteprima Testo Esportato:</span>
