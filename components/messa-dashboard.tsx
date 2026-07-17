@@ -435,10 +435,12 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       doc.setTextColor(50, 50, 50);
       doc.text(massDetails.title, margin, y);
       
+      const titleWidth = doc.getTextWidth(massDetails.title);
+      
       doc.setFont("Helvetica", "italic");
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Domenica ${dateStr}  |  Anno ${massDetails.liturgicalYear}`, margin + doc.getTextWidth(massDetails.title) + 5, y);
+      doc.text(`Domenica ${dateStr}  |  Anno ${massDetails.liturgicalYear}`, margin + titleWidth + 5, y);
       
       y += 8;
       
