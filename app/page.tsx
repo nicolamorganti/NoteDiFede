@@ -11,9 +11,13 @@ export default function LoginPage() {
   // Reindirizzamento immediato se l'utente ha già una sessione attiva
   useEffect(() => {
     async function checkActiveSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.replace("/canti");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.replace("/canti");
+        }
+      } catch (err) {
+        console.error("Errore in checkActiveSession:", err);
       }
     }
     checkActiveSession();

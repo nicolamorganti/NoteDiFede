@@ -213,44 +213,54 @@ export function MesseList({ initialMasses }: MesseListProps) {
 
   useEffect(() => {
     async function checkUser() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setCurrentUser(session.user);
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-        if (profile) {
-          setUserRole(profile.role);
-          localStorage.setItem("nDF_user_role", profile.role);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setCurrentUser(session.user);
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+          if (profile) {
+            setUserRole(profile.role);
+            localStorage.setItem("nDF_user_role", profile.role);
+          }
+        } else {
+          setUserRole(null);
+          localStorage.removeItem("nDF_user_role");
         }
-      } else {
-        setUserRole(null);
-        localStorage.removeItem("nDF_user_role");
+      } catch (err) {
+        console.error("Errore in checkUser di MesseList:", err);
+      } finally {
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     }
     checkUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        setCurrentUser(session.user);
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-        if (profile) {
-          setUserRole(profile.role);
-          localStorage.setItem("nDF_user_role", profile.role);
+      try {
+        if (session) {
+          setCurrentUser(session.user);
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+          if (profile) {
+            setUserRole(profile.role);
+            localStorage.setItem("nDF_user_role", profile.role);
+          }
+        } else {
+          setCurrentUser(null);
+          setUserRole(null);
+          localStorage.removeItem("nDF_user_role");
         }
-      } else {
-        setCurrentUser(null);
-        setUserRole(null);
-        localStorage.removeItem("nDF_user_role");
+      } catch (err) {
+        console.error("Errore in onAuthStateChange di MesseList:", err);
+      } finally {
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     });
 
     const handleStorageChange = (e: StorageEvent) => {
