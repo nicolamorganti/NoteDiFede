@@ -12,31 +12,38 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const mass = await getMass(id);
+  try {
+    const { id } = await params;
+    const mass = await getMass(id);
 
-  if (!mass) {
+    if (!mass) {
+      return {
+        title: "Messa non trovata - Note di Fede",
+      };
+    }
+
+    const dateStr = new Intl.DateTimeFormat("it-IT", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(mass.celebrationDate));
+
     return {
-      title: "Messa non trovata - Note di Fede",
-    };
-  }
-
-  const dateStr = new Intl.DateTimeFormat("it-IT", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(mass.celebrationDate));
-
-  return {
-    title: `${mass.title} - Note di Fede`,
-    description: `Celebrazione liturgica del ${dateStr} (Anno ${mass.liturgicalYear}). Visualizza la scaletta dei canti, scarica gli spartiti ed esercitati con le tracce vocali.`,
-    openGraph: {
       title: `${mass.title} - Note di Fede`,
       description: `Celebrazione liturgica del ${dateStr} (Anno ${mass.liturgicalYear}). Visualizza la scaletta dei canti, scarica gli spartiti ed esercitati con le tracce vocali.`,
-      url: `/messe/${id}`,
-      type: "website",
-    },
-  };
+      openGraph: {
+        title: `${mass.title} - Note di Fede`,
+        description: `Celebrazione liturgica del ${dateStr} (Anno ${mass.liturgicalYear}). Visualizza la scaletta dei canti, scarica gli spartiti ed esercitati con le tracce vocali.`,
+        url: `/messe/${id}`,
+        type: "website",
+      },
+    };
+  } catch (err) {
+    console.error("Error in generateMetadata:", err);
+    return {
+      title: "Errore Metadati - Note di Fede",
+    };
+  }
 }
 
 export default async function MassDashboardPage({ params }: Props) {
