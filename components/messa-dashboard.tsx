@@ -495,7 +495,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       massDetails.moments.forEach(({ moment, songs }) => {
         if (songs.length === 0) return;
 
-        songs.forEach((massSong) => {
+        songs.forEach((massSong, index) => {
           const { song, notes: specificNotes } = massSong;
           const { notes: generalNotes } = parseNotesAndLyrics(song.notes);
           
@@ -533,20 +533,41 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           const rowHeight = Math.max(8, contentCol2Height + 4, linkHeight + 4);
           
           checkPageSpace(rowHeight);
+          const isNewPage = y === margin;
           
-          // Draw Row Border
           doc.setDrawColor(200, 200, 200);
-          doc.rect(margin, y, docWidth, rowHeight, "S");
-          // Draw Column lines
+          
+          // Draw left and right outer borders
+          doc.line(margin, y, margin, y + rowHeight);
+          doc.line(margin + docWidth, y, margin + docWidth, y + rowHeight);
+          
+          // Draw inner column dividers
           doc.line(col2X, y, col2X, y + rowHeight);
           doc.line(col3X, y, col3X, y + rowHeight);
           
+          // Top border if it's a new page
+          if (isNewPage) {
+            doc.line(margin, y, margin + docWidth, y);
+          }
+          
+          // Bottom border:
+          // If it's the last song of the moment, draw full bottom border.
+          // Otherwise, draw bottom border only for col2 and col3.
+          const isLastSong = index === songs.length - 1;
+          if (isLastSong) {
+            doc.line(margin, y + rowHeight, margin + docWidth, y + rowHeight);
+          } else {
+            doc.line(col2X, y + rowHeight, margin + docWidth, y + rowHeight);
+          }
+          
           // Col 1: Moment
-          doc.setFont("Helvetica", "normal");
-          doc.setFontSize(9);
-          doc.setTextColor(80, 80, 80);
-          const momentLines = doc.splitTextToSize(moment.name.toUpperCase(), col1Width - 4);
-          doc.text(momentLines, col1X + 2, y + 5);
+          if (index === 0 || isNewPage) {
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(80, 80, 80);
+            const momentLines = doc.splitTextToSize(moment.name.toUpperCase(), col1Width - 4);
+            doc.text(momentLines, col1X + 2, y + 5);
+          }
           
           // Col 2: Title & Notes
           let currentY = y + 5;
