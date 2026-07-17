@@ -442,7 +442,31 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       doc.setTextColor(100, 100, 100);
       doc.text(`Domenica ${dateStr}  |  Anno ${massDetails.liturgicalYear}`, margin + titleWidth + 5, y);
       
-      y += 8;
+      y += 6;
+
+      if (massDetails.notes) {
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(9);
+        const noteLines = doc.splitTextToSize(`Indicazioni: ${massDetails.notes}`, docWidth - 4);
+        const noteHeight = noteLines.length * 4.5 + 4;
+        
+        doc.setFillColor(251, 249, 245);
+        doc.rect(margin, y, docWidth, noteHeight, "F");
+        
+        doc.setDrawColor(235, 220, 203);
+        doc.setLineWidth(1.5);
+        doc.line(margin, y, margin, y + noteHeight);
+        
+        doc.setTextColor(92, 74, 55);
+        doc.text(noteLines, margin + 4, y + 4.5);
+        
+        y += noteHeight + 4;
+        
+        // Reset line width for table
+        doc.setLineWidth(0.2);
+      } else {
+        y += 2;
+      }
       
       // Draw Table Header
       doc.setFont("Helvetica", "bold");
