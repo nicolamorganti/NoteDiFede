@@ -120,19 +120,19 @@ export async function GET(
     return new Response("Impossibile caricare i file dei canti", { status: 500 });
   }
 
-  // Select one file per song (spartito_pdf takes priority over accordi_pdf)
+  // Select all files per song (spartiti and accordi)
   const filesToMerge: SongFileRecord[] = [];
   const typedFiles = filesData as SongFileRecord[];
 
   for (const ms of sortedMassSongs) {
     const songFiles = typedFiles.filter((f) => f.song_id === ms.song_id);
-    let targetFile = songFiles.find((f) => f.file_type === "spartito_pdf");
-    if (!targetFile) {
-      targetFile = songFiles.find((f) => f.file_type === "accordi_pdf");
-    }
-    if (targetFile) {
-      filesToMerge.push(targetFile);
-    }
+    
+    // Seleziona tutti gli spartiti e tutti gli accordi
+    const spartiti = songFiles.filter((f) => f.file_type === "spartito_pdf");
+    const accordi = songFiles.filter((f) => f.file_type === "accordi_pdf");
+    
+    // Aggiungi tutti i file trovati per questo canto al PDF finale
+    filesToMerge.push(...spartiti, ...accordi);
   }
 
   if (filesToMerge.length === 0) {
