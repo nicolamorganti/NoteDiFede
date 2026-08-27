@@ -13,6 +13,78 @@ function sanitizeHtml(html: string): string {
     .replace(/<hr\s*\/?>/gi, "<hr class='my-6 border-[#e2d5c4]' />");
 }
 
+function cleanInfoText(raw: string): string {
+  if (!raw) return "";
+  return raw
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatAmbrosianoHtml(raw: string): string {
+  let html = raw;
+
+  // Rimuovi tag wrapper <p style="..."> inline sostituendoli con div semantici
+  html = html
+    .replace(/<p style='[^']*'>/gi, "<div class='liturgia-paragrafo mb-4'>")
+    .replace(/<\/p>/gi, "</div>");
+
+  // Normalizza rubriche in rosso
+  html = html.replace(
+    /<span style=['"]color:\s*#cc0000[^'"]*['"]>([\s\S]*?)<\/span>/gi,
+    "<span class='rubrica font-serif italic text-red-700 dark:text-red-400'>$1</span>"
+  );
+
+  // Formatta le sezioni liturgiche principali
+  const headings = [
+    "RITO DELLA LUCE",
+    "INNO",
+    "NOTIZIA DEL SANTO",
+    "SALMODIA",
+    "Salmi Laudativi",
+    "Salmo diretto",
+    "PRIMA ORAZIONE",
+    "SECONDA ORAZIONE",
+    "TERZA ORAZIONE",
+    "CANTICO DI ZACCARIA",
+    "CANTICO DELLA BEATA VERGINE",
+    "CANTICO DEI TRE GIOVANI",
+    "CANTICO",
+    "COMMEMORAZIONE DEL BATTESIMO",
+    "ACCLAMAZIONI A CRISTO SIGNORE",
+    "INTERCESSIONI",
+    "INVOCAZIONI",
+    "CONCLUSIONE",
+    "LETTURA BREVE",
+    "RESPONSORIO",
+    "Orazione",
+  ];
+
+  for (const h of headings) {
+    const reg = new RegExp(`<b>\\s*${h}\\s*<\\/b>`, "gi");
+    html = html.replace(reg, `<h3 class="sezione-titolo">${h}</h3>`);
+  }
+
+  // Formatta titoli di salmi e cantici
+  html = html.replace(/<b>\s*(Salmo\s+\d+[^<]*)<\/b>/gi, `<h4 class="salmo-titolo">$1</h4>`);
+  html = html.replace(/<b>\s*(Cantico\s+[^<]*)<\/b>/gi, `<h4 class="salmo-titolo">$1</h4>`);
+
+  // Antifone in grassetto/evidenza
+  html = html.replace(/<b>\s*(Ant\.\s*\d*)\s*<\/b>/gi, `<span class="antifona-badge">$1</span> `);
+
+  // Padre Nostro
+  html = html.replace(/<b>\s*(Padre\s+Nostro\.?)\s*<\/b>/gi, `<h4 class="preghiera-titolo">$1</h4>`);
+  
+  // Kyrie Eleison
+  html = html.replace(
+    /<b>\s*(Kyrie\s+eleison,\s*Kyrie\s+eleison,\s*Kyrie\s+eleison\.?)\s*<\/b>/gi,
+    `<div class="kyrie-block my-2 font-bold text-stone-800 dark:text-stone-200">$1</div>`
+  );
+
+  return html;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const rite = searchParams.get("rite") || "ambrosiano";
@@ -56,17 +128,23 @@ export async function GET(request: NextRequest) {
       }
 
       const rawHtml = await textRes.text();
-      let infoText = "";
+      let infoText = "Rito Ambrosiano - Diocesi di Milano";
       if (infoRes && infoRes.ok) {
-        infoText = await infoRes.text();
+        const rawInfo = await infoRes.text();
+        const cleaned = cleanInfoText(rawInfo);
+        if (cleaned) {
+          infoText = `${cleaned} (Rito Ambrosiano)`;
+        }
       }
+
+      const formattedHtml = formatAmbrosianoHtml(rawHtml);
 
       return NextResponse.json({
         rite: "ambrosiano",
         moment,
         date: `${year}-${month}-${day}`,
-        liturgicalInfo: infoText.trim(),
-        contentHtml: rawHtml,
+        liturgicalInfo: infoText,
+        contentHtml: formattedHtml,
       }, {
         headers: {
           "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",

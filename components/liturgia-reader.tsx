@@ -416,14 +416,19 @@ export function LiturgiaReader() {
       {/* Stili CSS dedicati per la formattazione dei testi liturgici */}
       <style jsx global>{`
         .liturgia-content {
-          line-height: 1.75;
+          line-height: 1.8;
+          white-space: pre-line;
+          word-break: break-word;
         }
-        .liturgia-content p {
-          margin-bottom: 1.15em;
+        .liturgia-content p,
+        .liturgia-content .liturgia-paragrafo {
+          margin-bottom: 1.25em;
+          display: block;
         }
         .liturgia-content b,
         .liturgia-content strong {
           font-weight: 700;
+          color: ${isChurchMode ? "#f5f5f4" : "#1c1917"};
         }
         .liturgia-content .rubrica,
         .liturgia-content [style*="color:#cc0000"],
@@ -434,8 +439,10 @@ export function LiturgiaReader() {
         .liturgia-content [style*="color: red"] {
           color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
           font-style: italic;
+          display: inline;
         }
         .liturgia-content .sezione,
+        .liturgia-content .sezione-titolo,
         .liturgia-content .titolo,
         .liturgia-content h1,
         .liturgia-content h2,
@@ -443,11 +450,30 @@ export function LiturgiaReader() {
           display: block;
           font-family: inherit;
           font-weight: 700;
+          font-size: 1.15em;
           text-transform: uppercase;
           letter-spacing: 0.05em;
           color: ${isChurchMode ? "#fbbf24" : "#6e5a45"};
-          margin-top: 1.5em;
-          margin-bottom: 0.5em;
+          margin-top: 1.8em;
+          margin-bottom: 0.6em;
+          border-bottom: 1px solid ${isChurchMode ? "#292524" : "#f0e6d8"};
+          padding-bottom: 0.3em;
+        }
+        .liturgia-content .salmo-titolo,
+        .liturgia-content .preghiera-titolo,
+        .liturgia-content h4 {
+          display: block;
+          font-family: inherit;
+          font-weight: 700;
+          font-size: 1.05em;
+          color: ${isChurchMode ? "#fde047" : "#5c4a37"};
+          margin-top: 1.4em;
+          margin-bottom: 0.4em;
+        }
+        .liturgia-content .antifona-badge {
+          display: inline-block;
+          font-weight: bold;
+          color: ${isChurchMode ? "#f87171" : "#b91c1c"};
         }
         .liturgia-content .capolettera_grande,
         .liturgia-content .capolettera_piccolo {
@@ -459,6 +485,7 @@ export function LiturgiaReader() {
           margin: 2em 0;
         }
       `}</style>
+
     </div>
   );
 }
