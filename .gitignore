@@ -39,3 +39,5 @@ next-env.d.ts
 
 # scratch files
 scratch/
+client_secret*.json
+*.secret.json
