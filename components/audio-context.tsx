@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 
@@ -12,12 +12,14 @@ export type AudioTrack = {
 type AudioContextType = {
   activeTrack: AudioTrack | null;
   isPlaying: boolean;
+  isLooping: boolean;
   currentTime: number;
   duration: number;
   volume: number;
   playbackRate: number;
   playTrack: (track: AudioTrack) => void;
   togglePlay: () => void;
+  toggleLoop: () => void;
   pause: () => void;
   resume: () => void;
   seek: (time: number) => void;
@@ -31,6 +33,7 @@ const AudioContext = createContext<AudioContextType | null>(null);
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [activeTrack, setActiveTrack] = useState<AudioTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.8);
@@ -38,12 +41,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Inizializza o aggiorna l'elemento audio
+  // Inizializza l'elemento audio
   useEffect(() => {
     if (!audioRef.current && typeof window !== "undefined") {
       const audio = new Audio();
       audio.volume = volume;
       audio.playbackRate = playbackRate;
+      audio.loop = isLooping;
 
       audio.addEventListener("timeupdate", () => {
         setCurrentTime(audio.currentTime);
@@ -54,8 +58,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       });
 
       audio.addEventListener("ended", () => {
-        setIsPlaying(false);
-        setCurrentTime(0);
+        if (!audio.loop) {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }
       });
 
       audio.addEventListener("error", (e) => {
@@ -72,6 +78,81 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, []);
+
+  // Sincronizza loop
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.loop = isLooping;
+    }
+  }, [isLooping]);
+
+  // Sincronizza MediaSession API (controlli lockscreen nativi Android / iOS / Bluetooth)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
+
+    if (activeTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: activeTrack.songTitle,
+        artist: activeTrack.partLabel || "Coro",
+        album: "Note di Fede",
+        artwork: [
+          { src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+        ],
+      });
+
+      navigator.mediaSession.setActionHandler("play", () => {
+        audioRef.current?.play().catch(console.error);
+        setIsPlaying(true);
+      });
+
+      navigator.mediaSession.setActionHandler("pause", () => {
+        audioRef.current?.pause();
+        setIsPlaying(false);
+      });
+
+      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+        const skip = details.seekOffset || 10;
+        seek(Math.max(0, (audioRef.current?.currentTime || 0) - skip));
+      });
+
+      navigator.mediaSession.setActionHandler("seekforward", (details) => {
+        const skip = details.seekOffset || 10;
+        seek(Math.min(duration, (audioRef.current?.currentTime || 0) + skip));
+      });
+
+      navigator.mediaSession.setActionHandler("seekto", (details) => {
+        if (details.seekTime !== undefined && details.seekTime !== null) {
+          seek(details.seekTime);
+        }
+      });
+
+      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    } else {
+      navigator.mediaSession.playbackState = "none";
+    }
+  }, [activeTrack, isPlaying, duration]);
+
+  // Sincronizza posizione con MediaSession
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      "mediaSession" in navigator &&
+      "setPositionState" in navigator.mediaSession &&
+      duration > 0 &&
+      !isNaN(duration)
+    ) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: Math.max(0, duration),
+          playbackRate: playbackRate,
+          position: Math.max(0, Math.min(currentTime, duration)),
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [currentTime, duration, playbackRate]);
 
   const playTrack = (track: AudioTrack) => {
     if (!audioRef.current) return;
@@ -91,6 +172,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audioRef.current.src = track.url;
     audioRef.current.playbackRate = playbackRate;
     audioRef.current.volume = volume;
+    audioRef.current.loop = isLooping;
     audioRef.current.currentTime = 0;
     setCurrentTime(0);
     setActiveTrack(track);
@@ -113,6 +195,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audioRef.current.play().catch(console.error);
       setIsPlaying(true);
     }
+  };
+
+  const toggleLoop = () => {
+    setIsLooping((prev) => !prev);
   };
 
   const pause = () => {
@@ -167,12 +253,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       value={{
         activeTrack,
         isPlaying,
+        isLooping,
         currentTime,
         duration,
         volume,
         playbackRate,
         playTrack,
         togglePlay,
+        toggleLoop,
         pause,
         resume,
         seek,
@@ -185,6 +273,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     </AudioContext.Provider>
   );
 }
+
 
 export function useAudio() {
   const context = useContext(AudioContext);

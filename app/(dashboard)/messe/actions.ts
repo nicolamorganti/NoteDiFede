@@ -613,3 +613,77 @@ export async function updateMassSongNoteAction(
   return { success: true };
 }
 
+// 7. Duplica una celebrazione esistente con tutti i suoi canti
+export async function duplicateMassAction(
+  sourceMassId: string,
+  newTitle: string,
+  newCelebrationDate: string,
+): Promise<{ success: boolean; newMassId?: string; error?: string }> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { success: false, error: authError };
+  }
+
+  if (!sourceMassId || !newTitle || !newCelebrationDate) {
+    return { success: false, error: "Tutti i campi obbligatori devono essere compilati." };
+  }
+
+  const adminSupabase = createAdminSupabaseClient();
+
+  // 1. Recupera la messa originale
+  const { data: sourceMass, error: sourceMassError } = await adminSupabase
+    .from("masses")
+    .select("title, liturgical_year, notes")
+    .eq("id", sourceMassId)
+    .single();
+
+  if (sourceMassError || !sourceMass) {
+    return { success: false, error: "Celebrazione originale non trovata." };
+  }
+
+  // 2. Crea la nuova messa
+  const { data: newMass, error: newMassError } = await adminSupabase
+    .from("masses")
+    .insert({
+      title: newTitle,
+      liturgical_year: sourceMass.liturgical_year,
+      celebration_date: newCelebrationDate,
+      notes: sourceMass.notes,
+    })
+    .select("id")
+    .single();
+
+  if (newMassError || !newMass) {
+    console.error("Errore creazione messa duplicata:", newMassError);
+    return { success: false, error: "Impossibile creare la celebrazione duplicata." };
+  }
+
+  // 3. Recupera tutti i canti associati alla messa originale
+  const { data: sourceSongs } = await adminSupabase
+    .from("mass_songs")
+    .select("song_id, moment_id, position, notes")
+    .eq("mass_id", sourceMassId);
+
+  if (sourceSongs && sourceSongs.length > 0) {
+    const songsToInsert = sourceSongs.map((s) => ({
+      mass_id: newMass.id,
+      song_id: s.song_id,
+      moment_id: s.moment_id,
+      position: s.position,
+      notes: s.notes,
+    }));
+
+    const { error: insertSongsError } = await adminSupabase
+      .from("mass_songs")
+      .insert(songsToInsert);
+
+    if (insertSongsError) {
+      console.error("Errore inserimento canti duplicati:", insertSongsError);
+    }
+  }
+
+  revalidatePath("/messe");
+  return { success: true, newMassId: newMass.id };
+}
+
+

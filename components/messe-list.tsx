@@ -4,7 +4,14 @@ import { useState, useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { MassListItem } from "@/lib/masses";
-import { createMassAction, deleteMassAction, updateMassAction, parseMassImageAction, saveImportedMassAction } from "@/app/(dashboard)/messe/actions";
+import {
+  createMassAction,
+  deleteMassAction,
+  updateMassAction,
+  parseMassImageAction,
+  saveImportedMassAction,
+  duplicateMassAction,
+} from "@/app/(dashboard)/messe/actions";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-context";
 
@@ -58,6 +65,13 @@ export function MesseList({ initialMasses }: MesseListProps) {
   const [modalCreate, setModalCreate] = useState(false);
   const [modalEdit, setModalEdit] = useState<MassListItem | null>(null);
   
+  // Stato Modale Duplica
+  const [modalDuplicate, setModalDuplicate] = useState<MassListItem | null>(null);
+  const [duplicateTitle, setDuplicateTitle] = useState("");
+  const [duplicateDate, setDuplicateDate] = useState("");
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
   const [modalImport, setModalImport] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -71,6 +85,7 @@ export function MesseList({ initialMasses }: MesseListProps) {
   const createFormRef = useRef<HTMLFormElement | null>(null);
   const editFormRef = useRef<HTMLFormElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   useEffect(() => {
     if (importedData) {
@@ -230,6 +245,44 @@ export function MesseList({ initialMasses }: MesseListProps) {
     }
   }, [updateState]);
 
+  const openDuplicateModal = (mass: MassListItem) => {
+    setModalDuplicate(mass);
+    setDuplicateTitle(`Copia di ${mass.title}`);
+    setDuplicateError(null);
+
+    // Calcola 7 giorni dopo rispetto alla data originale o data odierna
+    const originalDate = new Date(mass.celebrationDate);
+    if (!isNaN(originalDate.getTime())) {
+      originalDate.setDate(originalDate.getDate() + 7);
+      setDuplicateDate(originalDate.toISOString().split("T")[0]);
+    } else {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      setDuplicateDate(d.toISOString().split("T")[0]);
+    }
+  };
+
+  const handleDuplicate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalDuplicate) return;
+    setDuplicateLoading(true);
+    setDuplicateError(null);
+    try {
+      const res = await duplicateMassAction(modalDuplicate.id, duplicateTitle, duplicateDate);
+      if (res.success && res.newMassId) {
+        setModalDuplicate(null);
+        window.location.href = `/messe/${res.newMassId}/modifica`;
+      } else {
+        setDuplicateError(res.error || "Impossibile duplicare la celebrazione.");
+      }
+    } catch (err: any) {
+      setDuplicateError(err.message || "Errore imprevisto.");
+    } finally {
+      setDuplicateLoading(false);
+    }
+  };
+
+
   return (
     <div className="space-y-8 pb-32">
       {/* Intestazione */}
@@ -354,6 +407,16 @@ export function MesseList({ initialMasses }: MesseListProps) {
                 {isAdmin && (
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => openDuplicateModal(mass)}
+                      className="rounded-full bg-white border border-[#d9cdbf] p-2 text-[#736555] hover:bg-[#f4efe6] transition"
+                      title="Duplica Celebrazione (clona scaletta canti)"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+
+                    <button
                       onClick={() => setModalEdit(mass)}
                       className="rounded-full bg-white border border-[#d9cdbf] p-2 text-[#736555] hover:bg-[#f4efe6] transition"
                       title="Modifica Celebrazione"
@@ -362,6 +425,7 @@ export function MesseList({ initialMasses }: MesseListProps) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                       </svg>
                     </button>
+
 
                     <form
                       action={deleteAction}
@@ -881,6 +945,95 @@ export function MesseList({ initialMasses }: MesseListProps) {
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* MODALE: DUPLICA CELEBRAZIONE */}
+      {/* ========================================================================= */}
+      {modalDuplicate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-6 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-[#e4dcce] pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-2xl bg-[#efe4d2] text-[#6e5a45] flex items-center justify-center">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg text-[#3f3933]">Duplica Celebrazione</h3>
+                  <p className="text-xs text-[#736555]">Crea una nuova celebrazione clonando l&apos;intera scaletta dei canti</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalDuplicate(null)}
+                className="rounded-full p-2 text-[#736555] hover:bg-[#f4efe6] transition"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {duplicateError && (
+              <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700 font-medium">
+                {duplicateError}
+              </p>
+            )}
+
+            <form onSubmit={handleDuplicate} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e]">
+                  Titolo Nuova Celebrazione
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={duplicateTitle}
+                  onChange={(e) => setDuplicateTitle(e.target.value)}
+                  className="w-full rounded-2xl border border-[#d9cdbf] bg-white px-4 py-2.5 text-sm text-[#3f3933] outline-none transition focus:border-[#aa9576]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e]">
+                  Data Celebrazione
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={duplicateDate}
+                  onChange={(e) => setDuplicateDate(e.target.value)}
+                  className="w-full rounded-2xl border border-[#d9cdbf] bg-white px-4 py-2.5 text-sm text-[#3f3933] outline-none transition focus:border-[#aa9576]"
+                />
+              </div>
+
+              <div className="rounded-2xl bg-[#fdfbf7] border border-[#e8ded0] p-3 text-xs text-[#736555] space-y-1">
+                <p className="font-semibold text-[#5c4a37]">ℹ️ Verranno copiati automaticamente:</p>
+                <p>• Tutti i canti assegnati con le rispettive posizioni liturgiche.</p>
+                <p>• Le annotazioni per gli esecutori e l&apos;anno liturgico.</p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#e4dcce]">
+                <button
+                  type="button"
+                  onClick={() => setModalDuplicate(null)}
+                  className="rounded-full border border-[#d9cdbf] bg-white px-5 py-2.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#fdfbf7] transition"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  disabled={duplicateLoading}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-[#5c4a37]/10 transition hover:bg-[#4b3c2c] disabled:opacity-60"
+                >
+                  {duplicateLoading ? "Duplicazione in corso..." : "Duplica e Componi"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useAudio } from "@/components/audio-context";
 import { useState } from "react";
@@ -16,11 +16,13 @@ export function GlobalAudioPlayer() {
   const {
     activeTrack,
     isPlaying,
+    isLooping,
     currentTime,
     duration,
     volume,
     playbackRate,
     togglePlay,
+    toggleLoop,
     seek,
     setVolume,
     setPlaybackRate,
@@ -80,40 +82,60 @@ export function GlobalAudioPlayer() {
             </div>
           </div>
 
-          {/* Selettore Velocità (Playback Rate) */}
-          <div className="relative">
+          {/* Controlli Studio: Loop & Velocità */}
+          <div className="flex items-center gap-2">
+            {/* Pulsante Loop Continuo */}
             <button
-              onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-              className="flex items-center gap-1 rounded-xl bg-[#ede3d4] hover:bg-[#e2d5c2] border border-[#d9caa9] px-2.5 py-1 text-xs font-mono font-bold text-[#5c4a37] transition"
-              title="Velocità di riproduzione"
+              onClick={toggleLoop}
+              className={`flex items-center gap-1 rounded-xl border px-2 py-1 text-xs font-semibold transition ${
+                isLooping
+                  ? "bg-[#6e5a45] border-[#5c4a37] text-white shadow-sm"
+                  : "bg-[#ede3d4] hover:bg-[#e2d5c2] border-[#d9caa9] text-[#7a6b5c]"
+              }`}
+              title={isLooping ? "Loop attivo: la traccia si ripeterà continuamente" : "Attiva ripetizione continua (Loop per studio)"}
             >
-              <span>{playbackRate}x</span>
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
+              <span className="hidden sm:inline text-[11px]">{isLooping ? "Loop ON" : "Loop"}</span>
             </button>
 
-            {showSpeedMenu && (
-              <div className="absolute right-0 bottom-full mb-2 flex flex-col gap-1 rounded-2xl border border-[#d8c8b4] bg-[#fffdfa] p-1.5 shadow-lg z-50 min-w-[70px]">
-                {SPEED_OPTIONS.map((rate) => (
-                  <button
-                    key={rate}
-                    onClick={() => {
-                      setPlaybackRate(rate);
-                      setShowSpeedMenu(false);
-                    }}
-                    className={`rounded-xl px-2.5 py-1 text-xs font-mono font-semibold text-left transition ${
-                      playbackRate === rate
-                        ? "bg-[#6e5a45] text-white"
-                        : "text-[#5c4a37] hover:bg-[#f4ebe1]"
-                    }`}
-                  >
-                    {rate}x
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Selettore Velocità (Playback Rate) */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                className="flex items-center gap-1 rounded-xl bg-[#ede3d4] hover:bg-[#e2d5c2] border border-[#d9caa9] px-2.5 py-1 text-xs font-mono font-bold text-[#5c4a37] transition"
+                title="Velocità di riproduzione"
+              >
+                <span>{playbackRate}x</span>
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showSpeedMenu && (
+                <div className="absolute right-0 bottom-full mb-2 flex flex-col gap-1 rounded-2xl border border-[#d8c8b4] bg-[#fffdfa] p-1.5 shadow-lg z-50 min-w-[70px]">
+                  {SPEED_OPTIONS.map((rate) => (
+                    <button
+                      key={rate}
+                      onClick={() => {
+                        setPlaybackRate(rate);
+                        setShowSpeedMenu(false);
+                      }}
+                      className={`rounded-xl px-2.5 py-1 text-xs font-mono font-semibold text-left transition ${
+                        playbackRate === rate
+                          ? "bg-[#6e5a45] text-white"
+                          : "text-[#5c4a37] hover:bg-[#f4ebe1]"
+                      }`}
+                    >
+                      {rate}x
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
 
           {/* Controllo Volume (Desktop) */}
           <div className="hidden md:flex items-center gap-1.5 text-[#6e5a45]">
