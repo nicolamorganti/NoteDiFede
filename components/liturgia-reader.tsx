@@ -431,6 +431,9 @@ export function LiturgiaReader() {
           color: ${isChurchMode ? "#f5f5f4" : "#1c1917"};
         }
         .liturgia-content .rubrica,
+        .liturgia-content .lo_nota,
+        .liturgia-content [style*="color:#c42b25"],
+        .liturgia-content [style*="color: #c42b25"],
         .liturgia-content [style*="color:#cc0000"],
         .liturgia-content [style*="color: #cc0000"],
         .liturgia-content [style*="color:#990000"],
@@ -439,8 +442,11 @@ export function LiturgiaReader() {
         .liturgia-content [style*="color: red"] {
           color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
           font-style: italic;
-          display: inline;
+          display: block;
+          margin-top: 0.5em;
+          margin-bottom: 0.5em;
         }
+
         .liturgia-content .sezione,
         .liturgia-content .sezione-titolo,
         .liturgia-content .titolo,

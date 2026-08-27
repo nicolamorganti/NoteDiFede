@@ -22,67 +22,97 @@ function cleanInfoText(raw: string): string {
     .trim();
 }
 
-function formatAmbrosianoHtml(raw: string): string {
-  let html = raw;
+/**
+ * Recupera la Liturgia Ambrosiana direttamente dalla REST API ufficiale di chiesadimilano.it
+ */
+async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string) {
+  const after = `${dateStr}T00:00:00`;
+  const before = `${dateStr}T23:59:59`;
+  const url = `https://www.chiesadimilano.it/wp-json/wp/v2/giorno_liturgia_ore?after=${after}&before=${before}`;
 
-  // Rimuovi tag wrapper <p style="..."> inline sostituendoli con div semantici
-  html = html
-    .replace(/<p style='[^']*'>/gi, "<div class='liturgia-paragrafo mb-4'>")
-    .replace(/<\/p>/gi, "</div>");
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.5.2",
+      Accept: "application/json",
+    },
+    next: { revalidate: 1800 },
+  });
 
-  // Normalizza rubriche in rosso
-  html = html.replace(
-    /<span style=['"]color:\s*#cc0000[^'"]*['"]>([\s\S]*?)<\/span>/gi,
-    "<span class='rubrica font-serif italic text-red-700 dark:text-red-400'>$1</span>"
-  );
-
-  // Formatta le sezioni liturgiche principali
-  const headings = [
-    "RITO DELLA LUCE",
-    "INNO",
-    "NOTIZIA DEL SANTO",
-    "SALMODIA",
-    "Salmi Laudativi",
-    "Salmo diretto",
-    "PRIMA ORAZIONE",
-    "SECONDA ORAZIONE",
-    "TERZA ORAZIONE",
-    "CANTICO DI ZACCARIA",
-    "CANTICO DELLA BEATA VERGINE",
-    "CANTICO DEI TRE GIOVANI",
-    "CANTICO",
-    "COMMEMORAZIONE DEL BATTESIMO",
-    "ACCLAMAZIONI A CRISTO SIGNORE",
-    "INTERCESSIONI",
-    "INVOCAZIONI",
-    "CONCLUSIONE",
-    "LETTURA BREVE",
-    "RESPONSORIO",
-    "Orazione",
-  ];
-
-  for (const h of headings) {
-    const reg = new RegExp(`<b>\\s*${h}\\s*<\\/b>`, "gi");
-    html = html.replace(reg, `<h3 class="sezione-titolo">${h}</h3>`);
+  if (!res.ok) {
+    throw new Error(`Errore HTTP ${res.status} da chiesadimilano.it`);
   }
 
-  // Formatta titoli di salmi e cantici
-  html = html.replace(/<b>\s*(Salmo\s+\d+[^<]*)<\/b>/gi, `<h4 class="salmo-titolo">$1</h4>`);
-  html = html.replace(/<b>\s*(Cantico\s+[^<]*)<\/b>/gi, `<h4 class="salmo-titolo">$1</h4>`);
+  const items = await res.json();
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Nessun post liturgico trovato su chiesadimilano.it per la data richiesta");
+  }
 
-  // Antifone in grassetto/evidenza
-  html = html.replace(/<b>\s*(Ant\.\s*\d*)\s*<\/b>/gi, `<span class="antifona-badge">$1</span> `);
+  const post = items[0];
+  const title = cleanInfoText(post.title?.rendered || "");
+  const summary = cleanInfoText(post.acf?.summary || "");
+  const overtitle = cleanInfoText(post.acf?.overtitle || "");
 
-  // Padre Nostro
-  html = html.replace(/<b>\s*(Padre\s+Nostro\.?)\s*<\/b>/gi, `<h4 class="preghiera-titolo">$1</h4>`);
-  
-  // Kyrie Eleison
-  html = html.replace(
-    /<b>\s*(Kyrie\s+eleison,\s*Kyrie\s+eleison,\s*Kyrie\s+eleison\.?)\s*<\/b>/gi,
-    `<div class="kyrie-block my-2 font-bold text-stone-800 dark:text-stone-200">$1</div>`
-  );
+  let liturgicalInfo = "Rito Ambrosiano (Diocesi di Milano)";
+  if (title) {
+    liturgicalInfo = `${title}${summary ? ` · ${summary}` : ""}${overtitle ? ` (${overtitle})` : ""} - Rito Ambrosiano`;
+  }
 
-  return html;
+  let contentHtml = "";
+  if (moment === "ufficio") contentHtml = post.acf?.udl || "";
+  else if (moment === "lodi") contentHtml = post.acf?.lm || "";
+  else if (moment === "ora_media") contentHtml = post.acf?.om || "";
+  else if (moment === "vespri") contentHtml = post.acf?.vespri || "";
+  else if (moment === "compieta") contentHtml = post.acf?.compieta || "";
+  else if (moment === "messa") contentHtml = post.acf?.lm || "";
+
+  if (!contentHtml) {
+    throw new Error(`Momento ${moment} non disponibile nei dati di chiesadimilano.it`);
+  }
+
+  return {
+    liturgicalInfo,
+    contentHtml: sanitizeHtml(contentHtml),
+  };
+}
+
+/**
+ * Fallback via Google Apps Script Feed
+ */
+async function fetchAmbrosianoFromGas(formattedDateItalian: string, moment: string) {
+  let scelta = "LODI";
+  if (moment === "ufficio") scelta = "UFFICIO";
+  else if (moment === "lodi") scelta = "LODI";
+  else if (moment === "ora_media") scelta = "ORA MEDIA";
+  else if (moment === "vespri") scelta = "VESPRI";
+  else if (moment === "compieta") scelta = "COMPIETA";
+  else if (moment === "messa") scelta = "LODI";
+
+  const gasUrl = `https://script.google.com/macros/s/AKfycbzNphScBgkoBHVTaW7oFbEPDpFFZCnv4BB_rVLB1ozRUDeu0Us7UfJtDwJxlKPTmmawRA/exec?scelta=${encodeURIComponent(scelta)}&data=${formattedDateItalian}`;
+  const infoUrl = `https://script.google.com/macros/s/AKfycbzNphScBgkoBHVTaW7oFbEPDpFFZCnv4BB_rVLB1ozRUDeu0Us7UfJtDwJxlKPTmmawRA/exec?scelta=INFO&data=${formattedDateItalian}`;
+
+  const [textRes, infoRes] = await Promise.all([
+    fetch(gasUrl, { next: { revalidate: 1800 } }),
+    fetch(infoUrl, { next: { revalidate: 1800 } }).catch(() => null),
+  ]);
+
+  if (!textRes.ok) {
+    throw new Error(`Errore dal server ambrosiano (${textRes.status})`);
+  }
+
+  const rawHtml = await textRes.text();
+  let infoText = "Rito Ambrosiano - Diocesi di Milano";
+  if (infoRes && infoRes.ok) {
+    const rawInfo = await infoRes.text();
+    const cleaned = cleanInfoText(rawInfo);
+    if (cleaned) {
+      infoText = `${cleaned} (Rito Ambrosiano)`;
+    }
+  }
+
+  return {
+    liturgicalInfo: infoText,
+    contentHtml: sanitizeHtml(rawHtml),
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -102,54 +132,42 @@ export async function GET(request: NextRequest) {
   const day = String(targetDate.getDate()).padStart(2, "0");
   const month = String(targetDate.getMonth() + 1).padStart(2, "0");
   const year = targetDate.getFullYear();
+  const isoDate = `${year}-${month}-${day}`;
   const formattedDateItalian = `${day}/${month}/${year}`;
 
   try {
     if (rite === "ambrosiano") {
-      // 1. RITO AMBROSIANO via Google Apps Script Feed
-      let scelta = "LODI";
-      if (moment === "ufficio") scelta = "UFFICIO";
-      else if (moment === "lodi") scelta = "LODI";
-      else if (moment === "ora_media") scelta = "ORA MEDIA";
-      else if (moment === "vespri") scelta = "VESPRI";
-      else if (moment === "compieta") scelta = "COMPIETA";
-      else if (moment === "messa") scelta = "LODI";
-
-      const gasUrl = `https://script.google.com/macros/s/AKfycbzNphScBgkoBHVTaW7oFbEPDpFFZCnv4BB_rVLB1ozRUDeu0Us7UfJtDwJxlKPTmmawRA/exec?scelta=${encodeURIComponent(scelta)}&data=${formattedDateItalian}`;
-      const infoUrl = `https://script.google.com/macros/s/AKfycbzNphScBgkoBHVTaW7oFbEPDpFFZCnv4BB_rVLB1ozRUDeu0Us7UfJtDwJxlKPTmmawRA/exec?scelta=INFO&data=${formattedDateItalian}`;
-
-      const [textRes, infoRes] = await Promise.all([
-        fetch(gasUrl, { next: { revalidate: 1800 } }),
-        fetch(infoUrl, { next: { revalidate: 1800 } }).catch(() => null),
-      ]);
-
-      if (!textRes.ok) {
-        throw new Error(`Errore dal server ambrosiano (${textRes.status})`);
+      // 1. RITO AMBROSIANO: Prova prima la REST API ufficiale di chiesadimilano.it
+      try {
+        const cdmData = await fetchAmbrosianoFromChiesaDiMilano(isoDate, moment);
+        return NextResponse.json({
+          rite: "ambrosiano",
+          moment,
+          date: isoDate,
+          liturgicalInfo: cdmData.liturgicalInfo,
+          contentHtml: cdmData.contentHtml,
+          source: "chiesadimilano.it (Ufficiale)",
+        }, {
+          headers: {
+            "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          },
+        });
+      } catch (cdmErr) {
+        console.warn("Fallback su Google Apps Script per Rito Ambrosiano:", cdmErr);
+        const gasData = await fetchAmbrosianoFromGas(formattedDateItalian, moment);
+        return NextResponse.json({
+          rite: "ambrosiano",
+          moment,
+          date: isoDate,
+          liturgicalInfo: gasData.liturgicalInfo,
+          contentHtml: gasData.contentHtml,
+          source: "gas-fallback",
+        }, {
+          headers: {
+            "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          },
+        });
       }
-
-      const rawHtml = await textRes.text();
-      let infoText = "Rito Ambrosiano - Diocesi di Milano";
-      if (infoRes && infoRes.ok) {
-        const rawInfo = await infoRes.text();
-        const cleaned = cleanInfoText(rawInfo);
-        if (cleaned) {
-          infoText = `${cleaned} (Rito Ambrosiano)`;
-        }
-      }
-
-      const formattedHtml = formatAmbrosianoHtml(rawHtml);
-
-      return NextResponse.json({
-        rite: "ambrosiano",
-        moment,
-        date: `${year}-${month}-${day}`,
-        liturgicalInfo: infoText,
-        contentHtml: formattedHtml,
-      }, {
-        headers: {
-          "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
-        },
-      });
     } else {
       // 2. RITO ROMANO via iBreviary
       let url = "";
@@ -194,7 +212,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         rite: "romano",
         moment,
-        date: `${year}-${month}-${day}`,
+        date: isoDate,
         liturgicalInfo: "Rito Romano Ufficiale (CEI)",
         contentHtml: sanitized,
       }, {
