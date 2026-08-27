@@ -11,7 +11,7 @@ export function MinistriInfermiReader() {
   const [isChurchMode, setIsChurchMode] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Tab per la scelta rapida delle letture e orazioni
+  // Tab per la scelta rapida delle formule, letture e orazioni
   const [penitentialFormula, setPenitentialFormula] = useState<number>(1);
   const [selectedGospel, setSelectedGospel] = useState<number>(0);
   const [selectedPrayer, setSelectedPrayer] = useState<number>(0);
@@ -81,6 +81,17 @@ export function MinistriInfermiReader() {
   const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
   const paragraphMarginValue = lineSpacing === "compact" ? "0.5em" : lineSpacing === "normal" ? "0.85em" : "1.25em";
   const spacingLabel = lineSpacing === "compact" ? "Compatta" : lineSpacing === "normal" ? "Normale" : "Ampia";
+
+  // Classi dinamiche basate sullo stato isChurchMode (senza dark: che confligge con le impostazioni OS)
+  const boxBgClass = isChurchMode
+    ? "bg-[#25201d] border-[#443e38] text-[#ece8e2]"
+    : "bg-[#fdfbf7] border-[#e6dcce] text-[#2c2621]";
+
+  const tabInactiveBtnClass = isChurchMode
+    ? "bg-[#2c2622] text-[#d6cbbe] hover:bg-[#38312c]"
+    : "bg-[#ede4d8] text-[#5c4a37] hover:bg-[#dfd4c5]";
+
+  const dividerClass = isChurchMode ? "border-[#3f3a36]" : "border-[#e4dcce]";
 
   return (
     <div className="space-y-6 pb-24 max-w-4xl mx-auto">
@@ -214,7 +225,7 @@ export function MinistriInfermiReader() {
             </p>
 
             {/* Antifone Adorazione */}
-            <div className="space-y-4 pl-4 border-l-2 border-[#d6c5b0] dark:border-[#443e38]">
+            <div className={`space-y-4 pl-4 border-l-2 ${isChurchMode ? "border-[#443e38]" : "border-[#d6c5b0]"}`}>
               <div className="space-y-1">
                 <span className="opzione-label">Opzione A:</span>
                 <p>
@@ -283,7 +294,7 @@ export function MinistriInfermiReader() {
                     className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                       penitentialFormula === f
                         ? "bg-[#5c4a37] text-white shadow-sm"
-                        : "bg-[#ede4d8] text-[#5c4a37] hover:bg-[#dfd4c5] dark:bg-[#2c2825] dark:text-[#d6cbbe]"
+                        : tabInactiveBtnClass
                     }`}
                   >
                     {f}ª Formula
@@ -292,8 +303,8 @@ export function MinistriInfermiReader() {
               </div>
 
               {penitentialFormula === 1 && (
-                <div className="p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#1f1c1a] border border-[#e6dcce] dark:border-[#38332f] space-y-2">
-                  <span className="rubrica">1ª Formula (Confesso a Dio):</span>
+                <div className={`p-4 rounded-2xl border space-y-2 ${boxBgClass}`}>
+                  <span className="rubrica font-bold">1ª Formula (Confesso a Dio):</span>
                   <p>
                     <b>Confesso a Dio onnipotente e a voi, fratelli,</b><br />
                     <b>che ho molto peccato in pensieri, parole, opere e omissioni,</b>
@@ -312,8 +323,8 @@ export function MinistriInfermiReader() {
               )}
 
               {penitentialFormula === 2 && (
-                <div className="p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#1f1c1a] border border-[#e6dcce] dark:border-[#38332f] space-y-2">
-                  <span className="rubrica">2ª Formula:</span>
+                <div className={`p-4 rounded-2xl border space-y-2 ${boxBgClass}`}>
+                  <span className="rubrica font-bold">2ª Formula:</span>
                   <p>
                     <span className="rubrica font-sans">℣.</span> <b>Pietà di noi, Signore.</b><br />
                     <span className="rubrica font-sans">℟.</span> <b>Contro di te abbiamo peccato.</b><br />
@@ -324,19 +335,19 @@ export function MinistriInfermiReader() {
               )}
 
               {penitentialFormula === 3 && (
-                <div className="p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#1f1c1a] border border-[#e6dcce] dark:border-[#38332f] space-y-2">
-                  <span className="rubrica">3ª Formula (Invocazioni a Cristo):</span>
+                <div className={`p-4 rounded-2xl border space-y-2 ${boxBgClass}`}>
+                  <span className="rubrica font-bold">3ª Formula (Invocazioni a Cristo):</span>
                   <p>
                     Signore, che nel tuo mistero pasquale ci hai meritato la salvezza, abbi pietà di noi.<br />
-                    <b className="text-amber-700 dark:text-amber-400">Kýrie, eléison.</b>
+                    <b className={isChurchMode ? "text-amber-400" : "text-amber-800"}>Kýrie, eléison.</b>
                   </p>
                   <p>
                     Signore, che nelle nostre sofferenze rinnovi sempre le meraviglie della tua beata passione, abbi pietà di noi.<br />
-                    <b className="text-amber-700 dark:text-amber-400">Kýrie, eléison.</b>
+                    <b className={isChurchMode ? "text-amber-400" : "text-amber-800"}>Kýrie, eléison.</b>
                   </p>
                   <p>
                     Signore, che con la comunione al tuo corpo ci rendi partecipi del tuo sacrificio, abbi pietà di noi.<br />
-                    <b className="text-amber-700 dark:text-amber-400">Kýrie, eléison.</b>
+                    <b className={isChurchMode ? "text-amber-400" : "text-amber-800"}>Kýrie, eléison.</b>
                   </p>
                 </div>
               )}
@@ -352,7 +363,7 @@ export function MinistriInfermiReader() {
             </div>
           </section>
 
-          <hr className="border-[#e4dcce] dark:border-[#38332f]" />
+          <hr className={dividerClass} />
 
           {/* ========================================================================= */}
           {/* 2. LETTURA DELLA PAROLA DI DIO */}
@@ -382,7 +393,7 @@ export function MinistriInfermiReader() {
                   className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                     selectedGospel === idx
                       ? "bg-[#5c4a37] text-white shadow-sm"
-                      : "bg-[#ede4d8] text-[#5c4a37] hover:bg-[#dfd4c5] dark:bg-[#2c2825] dark:text-[#d6cbbe]"
+                      : tabInactiveBtnClass
                   }`}
                 >
                   {g.title}
@@ -390,7 +401,7 @@ export function MinistriInfermiReader() {
               ))}
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#1f1c1a] border border-[#e6dcce] dark:border-[#38332f] space-y-2">
+            <div className={`p-4 rounded-2xl border space-y-2 ${boxBgClass}`}>
               {selectedGospel === 0 && (
                 <div>
                   <span className="rubrica text-xs">Dal Vangelo secondo Giovanni (6, 51):</span>
@@ -468,7 +479,7 @@ export function MinistriInfermiReader() {
             </div>
           </section>
 
-          <hr className="border-[#e4dcce] dark:border-[#38332f]" />
+          <hr className={dividerClass} />
 
           {/* ========================================================================= */}
           {/* 3. RITI DI COMUNIONE */}
@@ -484,7 +495,7 @@ export function MinistriInfermiReader() {
             </p>
 
             {/* Padre Nostro */}
-            <div className="p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#1f1c1a] border border-[#e6dcce] dark:border-[#38332f]">
+            <div className={`p-4 rounded-2xl border ${boxBgClass}`}>
               <p className="font-bold">
                 Padre nostro, che sei nei cieli,<br />
                 sia santificato il tuo nome,<br />
@@ -553,7 +564,7 @@ export function MinistriInfermiReader() {
                     className={`rounded-xl px-3 py-1 text-xs font-bold transition ${
                       selectedPrayer === idx
                         ? "bg-[#5c4a37] text-white shadow-sm"
-                        : "bg-[#ede4d8] text-[#5c4a37] hover:bg-[#dfd4c5] dark:bg-[#2c2825] dark:text-[#d6cbbe]"
+                        : tabInactiveBtnClass
                     }`}
                   >
                     {name}
@@ -561,7 +572,7 @@ export function MinistriInfermiReader() {
                 ))}
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#1f1c1a] border border-[#e6dcce] dark:border-[#38332f] space-y-2">
+              <div className={`p-4 rounded-2xl border space-y-2 ${boxBgClass}`}>
                 {selectedPrayer === 0 && (
                   <p>
                     Signore, Padre santo,<br />
@@ -607,7 +618,7 @@ export function MinistriInfermiReader() {
             </div>
           </section>
 
-          <hr className="border-[#e4dcce] dark:border-[#38332f]" />
+          <hr className={dividerClass} />
 
           {/* ========================================================================= */}
           {/* 4. RITO DI CONCLUSIONE */}
@@ -619,7 +630,7 @@ export function MinistriInfermiReader() {
               Il ministro, invocando la benedizione di Dio e facendo su se stesso il segno della croce, dice:
             </p>
 
-            <div className="p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#1f1c1a] border border-[#e6dcce] dark:border-[#38332f] space-y-3">
+            <div className={`p-4 rounded-2xl border space-y-3 ${boxBgClass}`}>
               <div>
                 <p>
                   <b>Il Signore ci benedica, ci preservi da ogni male, e ci conduca alla vita eterna.</b><br />
@@ -627,7 +638,7 @@ export function MinistriInfermiReader() {
                 </p>
               </div>
 
-              <div className="pt-2 border-t border-[#ebdcc8] dark:border-[#38332f]">
+              <div className={`pt-2 border-t ${isChurchMode ? "border-[#38332f]" : "border-[#ebdcc8]"}`}>
                 <span className="rubrica text-xs">Oppure:</span>
                 <p className="mt-1">
                   <b>Ci benedica e ci custodisca il Signore onnipotente e misericordioso, Padre e Figlio e Spirito Santo.</b><br />

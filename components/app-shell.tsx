@@ -29,9 +29,9 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const navigation = [
     { href: "/canti", label: "Catalogo Canti", badge: "Attivo" },
     { href: "/messe", label: "Messe & Celebrazioni", badge: "Attivo" },
-    { href: "/liturgia", label: "Liturgia delle Ore", badge: "Preghiera" },
-    { href: "/preghiera/infermi", label: "Comunione agli Infermi", badge: "Ministri" },
+    { href: "/liturgia", label: "Preghiera & Liturgia", badge: "Preghiera" },
   ];
+
 
 
 
@@ -77,7 +77,12 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
             <nav className="grid gap-2">
               {navigation.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/") ||
+                  (item.href === "/liturgia" && pathname.startsWith("/preghiera"));
+
+
 
                 return (
                   <Link
