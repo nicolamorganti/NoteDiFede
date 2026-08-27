@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,16 +12,37 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#5c4a37",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app"),
-  title: "Note di Fede - Nuova Versione",
-  description: "Web app moderna per la gestione di canti, messe e materiali liturgici.",
+  title: "Note di Fede - Portale Coro",
+  description: "Archivio e gestione canti, celebrazioni e spartiti liturgici.",
+  applicationName: "Note di Fede",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Note di Fede",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icons/apple-touch-icon.png",
+  },
   openGraph: {
     title: "Note di Fede",
-    description: "Web app moderna per la gestione di canti, messe e materiali liturgici.",
+    description: "Archivio e gestione canti, celebrazioni e spartiti liturgici.",
     siteName: "Note di Fede",
-  }
+  },
 };
+
 
 export default function RootLayout({
   children,

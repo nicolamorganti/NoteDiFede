@@ -45,9 +45,12 @@ function AppShellInner({ children }: { children: ReactNode }) {
           <div className="space-y-6">
             <div className="space-y-3">
               <Link href="/" className="inline-flex items-center gap-3 group">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6e5a45] font-semibold text-[#fbf7f2] shadow-sm">
-                  NF
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6e5a45] text-[#fbf7f2] shadow-sm">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M12 4v16 M7 9.5h10" />
+                  </svg>
                 </span>
+
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#887865]">

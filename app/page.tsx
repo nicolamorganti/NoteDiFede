@@ -122,7 +122,7 @@ export default function LoginPage() {
         {/* Intestazione Liturgica */}
         <div className="text-center space-y-4">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#5c4a37] shadow-xl shadow-[#5c4a37]/10">
-            {/* Icona SVG elegante: Croce stilizzata con onde sonore/armonia */}
+            {/* Icona SVG elegante: Croce latina minimale */}
             <svg
               className="h-10 w-10 text-[#f6eee0]"
               fill="none"
@@ -133,11 +133,12 @@ export default function LoginPage() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M12 3v18M8 8h8M6 12h12M9 16h6"
+                strokeWidth={1.8}
+                d="M12 4v16 M7 9.5h10"
               />
             </svg>
           </div>
+
 
           <div className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#8a755d]">
