@@ -1,10 +1,11 @@
-const CACHE_NAME = "notedifede-v1.6.0";
+const CACHE_NAME = "notedifede-v1.7.0";
 
 // Asset statici principali pre-memorizzati in cache all'installazione
 const PRECACHE_ASSETS = [
   "/",
   "/liturgia",
   "/preghiera/infermi",
+  "/preghiera/bibbia",
   "/manifest.webmanifest",
   "/icon.svg",
   "/icons/icon-192x192.png",
@@ -12,6 +13,7 @@ const PRECACHE_ASSETS = [
   "/icons/icon-maskable-512x512.png",
   "/apple-touch-icon.png",
 ];
+
 
 
 // Installazione Service Worker
@@ -63,12 +65,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 2. File spartiti, audio e testi Liturgia (/api/song-files/*, /api/liturgia*, Supabase storage) -> Stale-While-Revalidate
+  // 2. File spartiti, audio e testi Liturgia/Bibbia (/api/song-files/*, /api/liturgia*, /api/bibbia*, Supabase storage) -> Stale-While-Revalidate
   if (
     url.pathname.startsWith("/api/song-files/") ||
     url.pathname.startsWith("/api/liturgia") ||
+    url.pathname.startsWith("/api/bibbia") ||
     url.hostname.includes("supabase.co")
   ) {
+
 
     event.respondWith(
       caches.match(request).then((cachedResponse) => {

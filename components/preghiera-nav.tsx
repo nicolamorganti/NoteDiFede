@@ -19,6 +19,12 @@ export function PreghieraNav() {
       icon: "🕊️",
       description: "Rito per i Ministri Straordinari dell'Eucaristia",
     },
+    {
+      href: "/preghiera/bibbia",
+      label: "Sacra Bibbia (CEI 2008)",
+      icon: "📜",
+      description: "Antico e Nuovo Testamento - Testo Ufficiale CEI 2008",
+    },
   ];
 
   return (

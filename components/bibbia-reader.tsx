@@ -1,0 +1,557 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { PreghieraNav } from "@/components/preghiera-nav";
+import { BIBLE_BOOKS, BibleBook } from "@/lib/bibbia-books";
+import { BibleApiResponse, BibleVerse } from "@/app/api/bibbia/route";
+
+export type LineSpacingOption = "compact" | "normal" | "relaxed";
+
+export function BibbiaReader() {
+  // Stato Libro e Capitolo
+  const [selectedBookId, setSelectedBookId] = useState<string>("Gv");
+  const [chapter, setChapter] = useState<number>(1);
+  const [testamentFilter, setTestamentFilter] = useState<"all" | "nt" | "at">("nt");
+  const [searchFilter, setSearchFilter] = useState<string>("");
+
+  // Preferenze di lettura
+  const [fontSize, setFontSize] = useState<number>(18);
+  const [lineSpacing, setLineSpacing] = useState<LineSpacingOption>("compact");
+  const [isChurchMode, setIsChurchMode] = useState<boolean>(false);
+
+  // Dati e caricamento
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [chapterData, setChapterData] = useState<BibleApiResponse | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [selectedVerseNum, setSelectedVerseNum] = useState<number | null>(null);
+
+  const readerContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const currentBook = BIBLE_BOOKS.find((b) => b.id === selectedBookId) || BIBLE_BOOKS[0];
+
+  // Inizializza preferenze da localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedBook = localStorage.getItem("bibbia_last_book");
+      const savedChapter = localStorage.getItem("bibbia_last_chapter");
+      if (savedBook && BIBLE_BOOKS.some((b) => b.id === savedBook)) {
+        setSelectedBookId(savedBook);
+        const bookObj = BIBLE_BOOKS.find((b) => b.id === savedBook);
+        if (bookObj) {
+          setTestamentFilter(bookObj.testament);
+        }
+      }
+      if (savedChapter) {
+        const num = parseInt(savedChapter, 10);
+        if (!isNaN(num) && num >= 1) {
+          setChapter(num);
+        }
+      }
+
+      const savedSize = localStorage.getItem("liturgia_font_size");
+      if (savedSize) {
+        const num = parseInt(savedSize, 10);
+        if (!isNaN(num) && num >= 14 && num <= 28) setFontSize(num);
+      }
+      const savedSpacing = localStorage.getItem("liturgia_line_spacing") as LineSpacingOption;
+      if (savedSpacing === "compact" || savedSpacing === "normal" || savedSpacing === "relaxed") {
+        setLineSpacing(savedSpacing);
+      }
+      const savedChurchMode = localStorage.getItem("liturgia_church_mode");
+      if (savedChurchMode === "true") setIsChurchMode(true);
+    }
+  }, []);
+
+  // Fetch del capitolo
+  const fetchChapter = async (bId: string, chapNum: number) => {
+    setLoading(true);
+    setError(null);
+    setSelectedVerseNum(null);
+    try {
+      const res = await fetch(`/api/bibbia?book=${encodeURIComponent(bId)}&chapter=${chapNum}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Errore HTTP ${res.status}`);
+      }
+      const data: BibleApiResponse = await res.json();
+      setChapterData(data);
+
+      // Salva progresso di lettura
+      if (typeof window !== "undefined") {
+        localStorage.setItem("bibbia_last_book", bId);
+        localStorage.setItem("bibbia_last_chapter", String(chapNum));
+      }
+
+      if (readerContainerRef.current) {
+        readerContainerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    } catch (err: any) {
+      console.error("Errore fetch capitolo bibbia:", err);
+      setError(err.message || "Impossibile caricare il capitolo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChapter(selectedBookId, chapter);
+  }, [selectedBookId, chapter]);
+
+  // Gestione cambio libro
+  const handleSelectBook = (book: BibleBook) => {
+    setSelectedBookId(book.id);
+    setChapter(1);
+  };
+
+  // Navigazione capitoli
+  const handlePrevChapter = () => {
+    if (chapter > 1) {
+      setChapter((c) => c - 1);
+    } else {
+      // Passa al libro precedente se esiste
+      const currentIndex = BIBLE_BOOKS.findIndex((b) => b.id === selectedBookId);
+      if (currentIndex > 0) {
+        const prevBook = BIBLE_BOOKS[currentIndex - 1];
+        setSelectedBookId(prevBook.id);
+        setChapter(prevBook.chaptersCount);
+      }
+    }
+  };
+
+  const handleNextChapter = () => {
+    if (chapter < currentBook.chaptersCount) {
+      setChapter((c) => c + 1);
+    } else {
+      // Passa al libro successivo se esiste
+      const currentIndex = BIBLE_BOOKS.findIndex((b) => b.id === selectedBookId);
+      if (currentIndex < BIBLE_BOOKS.length - 1) {
+        const nextBook = BIBLE_BOOKS[currentIndex + 1];
+        setSelectedBookId(nextBook.id);
+        setChapter(1);
+      }
+    }
+  };
+
+  // Preferenze UI
+  const handleFontSizeChange = (delta: number) => {
+    setFontSize((prev) => {
+      const next = Math.max(14, Math.min(26, prev + delta));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("liturgia_font_size", String(next));
+      }
+      return next;
+    });
+  };
+
+  const cycleLineSpacing = () => {
+    setLineSpacing((prev) => {
+      let next: LineSpacingOption = "compact";
+      if (prev === "compact") next = "normal";
+      else if (prev === "normal") next = "relaxed";
+      else next = "compact";
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("liturgia_line_spacing", next);
+      }
+      return next;
+    });
+  };
+
+  const toggleChurchMode = () => {
+    setIsChurchMode((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("liturgia_church_mode", String(next));
+      }
+      return next;
+    });
+  };
+
+  const handleCopyChapter = async () => {
+    if (!chapterData || !chapterData.verses.length) return;
+    try {
+      const formatted = `${chapterData.bookName}, Capitolo ${chapterData.chapter} (CEI 2008)\n\n` +
+        chapterData.verses.map((v) => `[${v.num}] ${v.text}`).join("\n\n");
+      await navigator.clipboard.writeText(formatted);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (e) {
+      console.error("Errore copia:", e);
+    }
+  };
+
+  // Libri filtrati
+  const filteredBooks = BIBLE_BOOKS.filter((b) => {
+    if (testamentFilter === "nt" && b.testament !== "nt") return false;
+    if (testamentFilter === "at" && b.testament !== "at") return false;
+    if (searchFilter.trim()) {
+      const q = searchFilter.toLowerCase();
+      return (
+        b.name.toLowerCase().includes(q) ||
+        b.shortName.toLowerCase().includes(q) ||
+        b.id.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
+  const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
+  const spacingLabel = lineSpacing === "compact" ? "Compatta" : lineSpacing === "normal" ? "Normale" : "Ampia";
+
+  return (
+    <div className="space-y-6 pb-24 max-w-5xl mx-auto">
+      {/* Sottomenu di Navigazione Sezione Preghiera */}
+      <PreghieraNav />
+
+      {/* Intestazione */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e4dcce] pb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#5c4a37] text-white shadow-sm">
+              📜
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#aa9576]">
+              Testo Ufficiale CEI 2008
+            </span>
+          </div>
+          <h2 className="font-serif text-3xl font-normal text-[#3f3933] mt-1">
+            La Sacra Bibbia (CEI 2008)
+          </h2>
+          <p className="text-sm text-[#736555]">
+            Antico e Nuovo Testamento · Traduzione Ufficiale della Conferenza Episcopale Italiana
+          </p>
+        </div>
+
+        {/* Badge Canone Cattolico */}
+        <div className="inline-flex items-center gap-2 rounded-2xl bg-[#ebe3d5] border border-[#dacbb8] px-4 py-2 text-xs font-bold text-[#5c4a37]">
+          <span>Canone Cattolico Ufficiale (73 Libri)</span>
+        </div>
+      </div>
+
+      {/* Filtri Testamento & Ricerca Libro */}
+      <div className="rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-4 sm:p-5 shadow-sm space-y-4">
+        {/* Filtri Testamento */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center p-1 rounded-2xl bg-[#ede4d8] border border-[#dacbb8]">
+            <button
+              onClick={() => setTestamentFilter("nt")}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                testamentFilter === "nt"
+                  ? "bg-[#5c4a37] text-white shadow-md"
+                  : "text-[#6b5d4e] hover:text-[#3f3933]"
+              }`}
+            >
+              Nuovo Testamento (27)
+            </button>
+            <button
+              onClick={() => setTestamentFilter("at")}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                testamentFilter === "at"
+                  ? "bg-[#5c4a37] text-white shadow-md"
+                  : "text-[#6b5d4e] hover:text-[#3f3933]"
+              }`}
+            >
+              Antico Testamento (46)
+            </button>
+            <button
+              onClick={() => setTestamentFilter("all")}
+              className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                testamentFilter === "all"
+                  ? "bg-[#5c4a37] text-white shadow-md"
+                  : "text-[#6b5d4e] hover:text-[#3f3933]"
+              }`}
+            >
+              Tutti (73)
+            </button>
+          </div>
+
+          {/* Ricerca Libro */}
+          <div className="relative min-w-[220px]">
+            <input
+              type="text"
+              placeholder="Cerca libro (es. Giovanni, Salmi)..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="w-full rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3.5 py-1.5 text-xs text-[#3f3933] placeholder-[#9c8974] outline-none transition focus:border-[#aa9576]"
+            />
+            {searchFilter && (
+              <button
+                onClick={() => setSearchFilter("")}
+                className="absolute right-2.5 top-1.5 text-xs text-[#8a755d] hover:text-[#3f3933]"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Griglia Selezione Libri */}
+        <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1 py-1">
+          {filteredBooks.map((b) => {
+            const isSelected = b.id === selectedBookId;
+            return (
+              <button
+                key={b.id}
+                onClick={() => handleSelectBook(b)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                  isSelected
+                    ? "bg-[#5c4a37] text-white font-bold shadow-sm"
+                    : "bg-[#f4efe6] text-[#5c4a37] hover:bg-[#ebdcc8] border border-[#e4d7c7]"
+                }`}
+              >
+                {b.shortName}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Selettore Capitoli a Griglia */}
+        <div className="border-t border-[#ebdcc8] pt-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#5c4a37]">
+              Capitoli di {currentBook.name} ({currentBook.chaptersCount}):
+            </span>
+            <span className="text-xs text-[#8a755d]">
+              Capitolo selezionato: <b>{chapter}</b>
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-1 py-1">
+            {Array.from({ length: currentBook.chaptersCount }, (_, i) => i + 1).map((c) => {
+              const isSelected = c === chapter;
+              return (
+                <button
+                  key={c}
+                  onClick={() => setChapter(c)}
+                  className={`h-8 w-8 rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                    isSelected
+                      ? "bg-[#aa9576] text-white shadow-md scale-105"
+                      : "bg-[#f8f4ec] text-[#6b5d4e] hover:bg-[#ebdcc8] border border-[#e0d3c3]"
+                  }`}
+                >
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Barra Strumenti Lettura & Navigazione Capitoli */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-3.5 shadow-sm">
+        {/* Navigazione Veloce Capitoli */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrevChapter}
+            className="flex items-center gap-1 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+            title="Capitolo precedente"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="hidden sm:inline">Prec.</span>
+          </button>
+
+          <span className="text-xs font-bold text-[#5c4a37] px-2 font-serif">
+            {currentBook.shortName} {chapter}
+          </span>
+
+          <button
+            onClick={handleNextChapter}
+            className="flex items-center gap-1 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+            title="Capitolo successivo"
+          >
+            <span className="hidden sm:inline">Succ.</span>
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Strumenti Tipografici */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Dimensione Font */}
+          <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
+            <button
+              onClick={() => handleFontSizeChange(-1)}
+              disabled={fontSize <= 14}
+              className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
+              title="Riduci dimensione testo"
+            >
+              A-
+            </button>
+            <span className="px-1 text-[11px] font-mono text-[#8a755d]">{fontSize}px</span>
+            <button
+              onClick={() => handleFontSizeChange(1)}
+              disabled={fontSize >= 26}
+              className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
+              title="Aumenta dimensione testo"
+            >
+              A+
+            </button>
+          </div>
+
+          {/* Interlinea */}
+          <button
+            onClick={cycleLineSpacing}
+            className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+            title="Cambia interlinea (Compatta / Normale / Ampia)"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+            <span>{spacingLabel}</span>
+          </button>
+
+          {/* Modalità Chiesa */}
+          <button
+            onClick={toggleChurchMode}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+              isChurchMode
+                ? "bg-[#292524] border-[#44403c] text-amber-300 shadow-sm"
+                : "bg-[#fbf8f4] border-[#d9cdbf] text-[#5c4a37] hover:bg-[#ede4d6]"
+            }`}
+          >
+            <span>{isChurchMode ? "🌙 Notturna" : "☀️ Diurna"}</span>
+          </button>
+
+          {/* Copia Capitolo */}
+          <button
+            onClick={handleCopyChapter}
+            className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+            title="Copia l'intero capitolo negli appunti"
+          >
+            {copied ? (
+              <span className="text-emerald-600 font-bold">Copiato!</span>
+            ) : (
+              <>
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+                <span className="hidden sm:inline">Copia</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Area di Lettura dei Versetti */}
+      <div
+        ref={readerContainerRef}
+        className={`rounded-3xl border p-6 sm:p-10 shadow-lg transition-colors duration-300 ${
+          isChurchMode
+            ? "border-[#3f3a36] bg-[#181614] text-[#ece8e2]"
+            : "border-[#e0d6c7] bg-[#fefdfb] text-[#2c2621]"
+        }`}
+      >
+        {loading ? (
+          <div className="py-20 text-center space-y-4">
+            <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-[#aa9576]/30 border-t-[#5c4a37]"></div>
+            <p className="font-serif text-lg text-[#aa9576]">
+              Caricamento di {currentBook.name} {chapter} (CEI 2008)...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="py-12 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h4 className="font-serif text-lg text-rose-800">Impossibile caricare il capitolo</h4>
+            <p className="text-xs text-rose-600 max-w-md mx-auto">{error}</p>
+            <button
+              onClick={() => fetchChapter(selectedBookId, chapter)}
+              className="rounded-full bg-[#5c4a37] px-5 py-2 text-xs font-semibold text-white hover:bg-[#4b3c2c] transition"
+            >
+              Riprova
+            </button>
+          </div>
+        ) : chapterData ? (
+          <article
+            className="bibbia-content font-serif max-w-none"
+            style={{ fontSize: `${fontSize}px`, lineHeight: lineHeightValue }}
+          >
+            {/* Intestazione Capitolo */}
+            <div className="border-b pb-4 mb-6 text-center space-y-1" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+              <span className="text-xs uppercase tracking-widest font-sans font-bold text-[#aa9576]">
+                {chapterData.category} · CEI 2008
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+                {chapterData.bookName}
+              </h1>
+              <p className="text-base font-sans font-semibold text-[#8a755d]">
+                Capitolo {chapterData.chapter}
+              </p>
+            </div>
+
+            {/* Versetti */}
+            <div className="space-y-3">
+              {chapterData.verses.map((v) => {
+                const isSelected = selectedVerseNum === v.num;
+                return (
+                  <p
+                    key={v.num}
+                    onClick={() => setSelectedVerseNum(isSelected ? null : v.num)}
+                    className={`transition-colors rounded-xl px-2.5 py-1.5 cursor-pointer ${
+                      isSelected
+                        ? isChurchMode
+                          ? "bg-[#2d2824] ring-1 ring-amber-400"
+                          : "bg-[#f5ecdd] ring-1 ring-[#aa9576]"
+                        : "hover:bg-black/5 dark:hover:bg-white/5"
+                    }`}
+                    style={{ marginBottom: paragraphMarginValue }}
+                  >
+                    <sup
+                      className={`select-none mr-1.5 font-sans font-bold text-[0.72em] ${
+                        isChurchMode ? "text-amber-400" : "text-[#99221b]"
+                      }`}
+                    >
+                      {v.num}
+                    </sup>
+                    <span className="whitespace-pre-line">{v.text}</span>
+                  </p>
+                );
+              })}
+            </div>
+
+            {/* Navigazione a Piè di Pagina */}
+            <div className="border-t pt-8 mt-10 flex items-center justify-between" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+              <button
+                onClick={handlePrevChapter}
+                className="flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-bold transition"
+                style={{
+                  borderColor: isChurchMode ? "#443e38" : "#d9cdbf",
+                  backgroundColor: isChurchMode ? "#25201d" : "#fbf8f4",
+                  color: isChurchMode ? "#ece8e2" : "#5c4a37",
+                }}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Capitolo Precedente</span>
+              </button>
+
+              <button
+                onClick={handleNextChapter}
+                className="flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-bold transition"
+                style={{
+                  borderColor: isChurchMode ? "#443e38" : "#d9cdbf",
+                  backgroundColor: isChurchMode ? "#25201d" : "#fbf8f4",
+                  color: isChurchMode ? "#ece8e2" : "#5c4a37",
+                }}
+              >
+                <span>Capitolo Successivo</span>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </article>
+        ) : null}
+      </div>
+    </div>
+  );
+}
