@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Chiave API di Gemini non configurata. Configura GEMINI_API_KEY nelle variabili d'ambiente di Vercel / .env.local.",
+            "Chiave API di Gemini non configurata. Aggiungi GEMINI_API_KEY nelle variabili d'ambiente di Vercel.",
         },
         { status: 500 }
       );
@@ -52,15 +52,7 @@ Scrivi una Lectio Divina completa, profonda e accessibile a tutti, articolata co
 
 Usa uno stile caldo, evangelico, limpido e meditativo in perfetto stile Cardinale Carlo Maria Martini. Formatta la risposta in chiaro Markdown con titoli e paragrafi ben scanditi.`;
 
-
-    // Modelli candidate in ordine di preferenza (Flash Latest prima)
-    const candidateModels = [
-      process.env.GEMINI_MODEL,
-      "gemini-flash-latest",
-      "gemini-2.5-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
-    ].filter(Boolean) as string[];
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
     const geminiPayload = {
       contents: [
@@ -75,41 +67,65 @@ Usa uno stile caldo, evangelico, limpido e meditativo in perfetto stile Cardinal
       },
     };
 
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    
+    // Timeout di 15 secondi per la chiamata a Google
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 18000);
 
-    let lastError = "";
-    let generatedText: string | null = null;
-    let usedModel = "";
+    const apiResponse = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(geminiPayload),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
 
-    for (const model of candidateModels) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const apiResponse = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(geminiPayload),
-        });
+    if (!apiResponse.ok) {
+      const errText = await apiResponse.text();
+      console.error(`Errore API Gemini (${apiResponse.status}):`, errText);
 
-        if (apiResponse.ok) {
-          const data = await apiResponse.json();
-          generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-          if (generatedText) {
-            usedModel = model;
-            break;
-          }
-        } else {
-          lastError = await apiResponse.text();
-          console.warn(`Tentativo modello ${model} fallito:`, lastError);
-        }
-      } catch (err: any) {
-        lastError = err.message || String(err);
-        console.warn(`Eccezione modello ${model}:`, lastError);
+      if (apiResponse.status === 429) {
+        return NextResponse.json(
+          {
+            error:
+              "Limite temporaneo di richieste Google raggiunto (Too Many Requests / Quota 429). Attendi 20-30 secondi e riprova.",
+          },
+          { status: 429 }
+        );
       }
+
+      if (apiResponse.status === 403 || apiResponse.status === 401) {
+        return NextResponse.json(
+          {
+            error:
+              "Chiave API di Gemini non autorizzata o non valida. Verifica la configurazione su Google AI Studio.",
+          },
+          { status: 403 }
+        );
+      }
+
+      if (apiResponse.status === 404) {
+        return NextResponse.json(
+          {
+            error: `Il modello ${modelName} non è disponibile con questa chiave API. Prova con gemini-2.5-flash.`,
+          },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: `Errore dalle API di Gemini: ${apiResponse.status} ${apiResponse.statusText}` },
+        { status: 502 }
+      );
     }
+
+    const data = await apiResponse.json();
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
 
     if (!generatedText) {
       return NextResponse.json(
-        { error: `Impossibile generare la Lectio con i modelli Flash: ${lastError}` },
-        { status: 502 }
+        { error: "Nessun testo generato dal modello Gemini per questo capitolo." },
+        { status: 500 }
       );
     }
 
@@ -117,10 +133,16 @@ Usa uno stile caldo, evangelico, limpido e meditativo in perfetto stile Cardinal
       bookName,
       chapter,
       lectio: generatedText,
-      model: usedModel,
+      model: modelName,
     });
   } catch (error: any) {
     console.error("Errore server Lectio Divina:", error);
+    if (error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "La richiesta ha impiegato troppo tempo (timeout 18s). Riprova tra poco." },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       { error: error.message || "Errore interno durante la generazione della Lectio Divina." },
       { status: 500 }

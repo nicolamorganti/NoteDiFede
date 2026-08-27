@@ -53,9 +53,12 @@ export function BibbiaReader() {
   const [lectioError, setLectioError] = useState<string | null>(null);
   const [showLectio, setShowLectio] = useState<boolean>(false);
   const [copiedLectio, setCopiedLectio] = useState<boolean>(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   const readerContainerRef = useRef<HTMLDivElement | null>(null);
   const lectioSectionRef = useRef<HTMLDivElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
 
   const currentBook = BIBLE_BOOKS.find((b) => b.id === selectedBookId) || BIBLE_BOOKS[0];
 
@@ -164,6 +167,29 @@ export function BibbiaReader() {
     }
   };
 
+  // Timer secondi trascorsi durante la generazione
+  useEffect(() => {
+    let interval: any;
+    if (lectioLoading) {
+      setElapsedSeconds(0);
+      interval = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setElapsedSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [lectioLoading]);
+
+  // Annulla generazione in corso
+  const handleCancelLectio = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setLectioLoading(false);
+    setLectioError("Generazione annullata dall'utente.");
+  };
+
   // Generazione Lectio Divina con Gemini
   const handleGenerateLectio = async () => {
     if (lectioText) {
@@ -172,6 +198,9 @@ export function BibbiaReader() {
     }
 
     if (!chapterData || !chapterData.verses.length) return;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setLectioLoading(true);
     setLectioError(null);
@@ -191,11 +220,12 @@ export function BibbiaReader() {
           category: chapterData.category,
           text: fullChapterText,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Errore HTTP ${res.status}`);
+        throw new Error(errData.error || `Errore HTTP ${res.status}: Impossibile completare la richiesta.`);
       }
 
       const data = await res.json();
@@ -207,12 +237,17 @@ export function BibbiaReader() {
         }
       }, 100);
     } catch (err: any) {
-      console.error("Errore generazione Lectio:", err);
-      setLectioError(err.message || "Impossibile generare la Lectio Divina.");
+      if (err.name === "AbortError") {
+        setLectioError("Elaborazione annullata.");
+      } else {
+        console.error("Errore generazione Lectio:", err);
+        setLectioError(err.message || "Impossibile generare la Lectio Divina.");
+      }
     } finally {
       setLectioLoading(false);
     }
   };
+
 
   // Copia Lectio
   const handleCopyLectio = async () => {
@@ -654,9 +689,9 @@ export function BibbiaReader() {
                 </button>
               </div>
 
-              {/* Sezione di Caricamento Animato Lectio */}
+              {/* Sezione di Caricamento Animato Lectio con Timer */}
               {lectioLoading && (
-                <div className="mt-6 p-8 rounded-3xl border text-center space-y-4 animate-pulse"
+                <div className="mt-6 p-8 rounded-3xl border text-center space-y-4 shadow-sm"
                   style={{
                     backgroundColor: isChurchMode ? "#1f1b18" : "#fbf8f3",
                     borderColor: isChurchMode ? "#443e38" : "#ebdcc8"
@@ -670,26 +705,44 @@ export function BibbiaReader() {
                       Ascolto della Parola in corso...
                     </h4>
                     <p className="text-xs text-[#8a755d] max-w-md mx-auto">
-                      Gemini Flash sta elaborando la <em>Lectio, Meditatio, Contemplatio, Actio e Oratio</em> su {chapterData.bookName} {chapterData.chapter} secondo la sapienza biblica del Cardinale Carlo Maria Martini.
+                      Gemini Flash sta elaborando la <em>Lectio, Meditatio, Contemplatio, Actio e Oratio</em> su {chapterData.bookName} {chapterData.chapter}.
                     </p>
+                  </div>
+
+                  {/* Timer di avanzamento & Pulsante Annulla */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#ebdcc8] text-[#5c4a37] dark:bg-[#332b26] dark:text-amber-300">
+                      ⏱️ {elapsedSeconds}s trascorsi (media: 3-5 sec)
+                    </span>
+                    <button
+                      onClick={handleCancelLectio}
+                      className="px-3 py-1 rounded-full text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition"
+                    >
+                      ✕ Annulla attesa
+                    </button>
                   </div>
                 </div>
               )}
 
-
               {/* Errore Generazione Lectio */}
               {lectioError && (
-                <div className="mt-6 p-5 rounded-3xl bg-rose-50 border border-rose-200 text-center space-y-2">
-                  <p className="text-xs font-bold text-rose-700">Impossibile completare la meditazione:</p>
-                  <p className="text-xs text-rose-600">{lectioError}</p>
+                <div className="mt-6 p-5 rounded-3xl bg-amber-50 dark:bg-[#251816] border border-amber-300 dark:border-rose-900 text-center space-y-3 shadow-sm">
+                  <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 dark:bg-rose-950 text-amber-800 dark:text-rose-300 text-sm font-bold">
+                    ⚠️
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-amber-900 dark:text-rose-200">Stato elaborazione meditazione:</p>
+                    <p className="text-xs text-amber-800 dark:text-rose-300 max-w-md mx-auto">{lectioError}</p>
+                  </div>
                   <button
                     onClick={handleGenerateLectio}
-                    className="px-4 py-1.5 rounded-full bg-rose-700 text-white text-xs font-semibold hover:bg-rose-800 transition"
+                    className="px-5 py-2 rounded-full bg-[#5c4a37] text-white text-xs font-bold hover:bg-[#4a3a29] transition shadow-sm"
                   >
-                    Riprova
+                    🔄 Riprova a generare
                   </button>
                 </div>
               )}
+
 
               {/* Risultato Lectio Divina Generato */}
               {showLectio && lectioText && !lectioLoading && (
