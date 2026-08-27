@@ -10,7 +10,9 @@ function sanitizeHtml(html: string): string {
     .replace(/<a[^>]*href=["'](?:http:\/\/www\.ibreviary\.com\/new\/donazione\.html|HTTP:\/\/www\.ibreviary\.com\/new\/newsletter\.html|#menu)["'][^>]*>.*?<\/a>/gi, "")
     .replace(/<p>\s*<a[^>]*href=["'](?:HTTP:\/\/www\.ibreviary\.com|http:\/\/www\.ibreviary\.com)[^"']*["'][^>]*>.*?<\/a>\s*<\/p>/gi, "")
     .replace(/<p>\s*\*{4,}\s*<\/p>/gi, "")
-    .replace(/<hr\s*\/?>/gi, "<hr class='my-6 border-[#e2d5c4]' />");
+    .replace(/<hr\s*\/?>/gi, "<hr class='my-4 border-[#e2d5c4]' />")
+    .replace(/(?:<br\s*\/?>\s*){3,}/gi, "<br /><br />")
+    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "");
 }
 
 function cleanInfoText(raw: string): string {
@@ -32,7 +34,7 @@ async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string
 
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.5.2",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.5.3",
       Accept: "application/json",
     },
     next: { revalidate: 1800 },
@@ -137,7 +139,6 @@ export async function GET(request: NextRequest) {
 
   try {
     if (rite === "ambrosiano") {
-      // 1. RITO AMBROSIANO: Prova prima la REST API ufficiale di chiesadimilano.it
       try {
         const cdmData = await fetchAmbrosianoFromChiesaDiMilano(isoDate, moment);
         return NextResponse.json({
@@ -169,7 +170,7 @@ export async function GET(request: NextRequest) {
         });
       }
     } else {
-      // 2. RITO ROMANO via iBreviary
+      // RITO ROMANO via iBreviary
       let url = "";
       if (moment === "messa") {
         url = "https://www.ibreviary.com/m2/letture.php?s=letture&lang=it";
@@ -198,7 +199,6 @@ export async function GET(request: NextRequest) {
 
       const html = await res.text();
 
-      // Estrai il blocco #contenuto o .inner
       let content = html;
       const match = html.match(/<div class="inner">([\s\S]*?)<\/div>\s*<\/div>\s*<\/body>/i) ||
                     html.match(/<div id="contenuto">([\s\S]*?)<\/div>\s*<\/body>/i);

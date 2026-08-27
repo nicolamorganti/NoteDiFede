@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 
 export type LiturgyRite = "ambrosiano" | "romano";
 export type LiturgyMoment = "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa";
+export type LineSpacingOption = "compact" | "normal" | "relaxed";
 
 const MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
   { id: "lodi", label: "Lodi", icon: "☀️", timeHint: "06:00 - 09:30" },
@@ -39,7 +39,8 @@ export function LiturgiaReader() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayIsoString());
 
   // Preferenze di lettura
-  const [fontSize, setFontSize] = useState<number>(18); // 15, 18, 21, 24
+  const [fontSize, setFontSize] = useState<number>(17); // 14 to 26 px
+  const [lineSpacing, setLineSpacing] = useState<LineSpacingOption>("compact"); // compact, normal, relaxed
   const [isChurchMode, setIsChurchMode] = useState<boolean>(false); // Modalità Chiesa Notturna
 
   // Dati e caricamento
@@ -65,6 +66,10 @@ export function LiturgiaReader() {
           setFontSize(num);
         }
       }
+      const savedSpacing = localStorage.getItem("liturgia_line_spacing") as LineSpacingOption;
+      if (savedSpacing === "compact" || savedSpacing === "normal" || savedSpacing === "relaxed") {
+        setLineSpacing(savedSpacing);
+      }
       const savedChurchMode = localStorage.getItem("liturgia_church_mode");
       if (savedChurchMode === "true") {
         setIsChurchMode(true);
@@ -86,9 +91,24 @@ export function LiturgiaReader() {
   // Salva dimensione font
   const handleFontSizeChange = (delta: number) => {
     setFontSize((prev) => {
-      const next = Math.max(15, Math.min(26, prev + delta));
+      const next = Math.max(14, Math.min(26, prev + delta));
       if (typeof window !== "undefined") {
         localStorage.setItem("liturgia_font_size", String(next));
+      }
+      return next;
+    });
+  };
+
+  // Cambia interlinea a rotazione
+  const cycleLineSpacing = () => {
+    setLineSpacing((prev) => {
+      let next: LineSpacingOption = "compact";
+      if (prev === "compact") next = "normal";
+      else if (prev === "normal") next = "relaxed";
+      else next = "compact";
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("liturgia_line_spacing", next);
       }
       return next;
     });
@@ -121,7 +141,6 @@ export function LiturgiaReader() {
       setContentHtml(data.contentHtml || "<p>Nessun testo disponibile.</p>");
       setLiturgicalInfo(data.liturgicalInfo || "");
       
-      // Scorri delicatamente in cima all'area di lettura
       if (readerContainerRef.current) {
         readerContainerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
@@ -171,6 +190,11 @@ export function LiturgiaReader() {
     month: "long",
     year: "numeric",
   }).format(new Date(selectedDate));
+
+  // Valori calcolati per l'interlinea
+  const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
+  const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
+  const spacingLabel = lineSpacing === "compact" ? "Compatta" : lineSpacing === "normal" ? "Normale" : "Ampia";
 
   return (
     <div className="space-y-6 pb-24 max-w-5xl mx-auto">
@@ -294,13 +318,13 @@ export function LiturgiaReader() {
           </button>
         </div>
 
-        {/* Strumenti Lettura (Dimensione Testo + Modalità Chiesa + Copia) */}
-        <div className="flex items-center gap-2">
+        {/* Strumenti Lettura (Dimensione Font + Interlinea + Modalità Chiesa + Copia) */}
+        <div className="flex flex-wrap items-center gap-2">
           {/* Dimensione Font */}
           <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
             <button
-              onClick={() => handleFontSizeChange(-2)}
-              disabled={fontSize <= 15}
+              onClick={() => handleFontSizeChange(-1)}
+              disabled={fontSize <= 14}
               className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
               title="Riduci dimensione testo"
             >
@@ -308,7 +332,7 @@ export function LiturgiaReader() {
             </button>
             <span className="px-1 text-[11px] font-mono text-[#8a755d]">{fontSize}px</span>
             <button
-              onClick={() => handleFontSizeChange(2)}
+              onClick={() => handleFontSizeChange(1)}
               disabled={fontSize >= 26}
               className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
               title="Aumenta dimensione testo"
@@ -316,6 +340,18 @@ export function LiturgiaReader() {
               A+
             </button>
           </div>
+
+          {/* Regolazione Interlinea Spaziatura */}
+          <button
+            onClick={cycleLineSpacing}
+            className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+            title="Cambia interlinea e spaziatura (Compatta / Normale / Ampia)"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+            <span>{spacingLabel}</span>
+          </button>
 
           {/* Toggle Modalità Chiesa (Sfondo Scuro per penombra) */}
           <button
@@ -406,8 +442,11 @@ export function LiturgiaReader() {
           </div>
         ) : (
           <article
-            className="liturgia-content prose max-w-none font-serif leading-relaxed"
-            style={{ fontSize: `${fontSize}px` }}
+            className="liturgia-content prose max-w-none font-serif"
+            style={{ 
+              fontSize: `${fontSize}px`,
+              lineHeight: lineHeightValue,
+            }}
             dangerouslySetInnerHTML={{ __html: contentHtml }}
           />
         )}
@@ -416,13 +455,11 @@ export function LiturgiaReader() {
       {/* Stili CSS dedicati per la formattazione dei testi liturgici */}
       <style jsx global>{`
         .liturgia-content {
-          line-height: 1.8;
-          white-space: pre-line;
           word-break: break-word;
         }
         .liturgia-content p,
         .liturgia-content .liturgia-paragrafo {
-          margin-bottom: 1.25em;
+          margin-bottom: ${paragraphMarginValue};
           display: block;
         }
         .liturgia-content b,
@@ -443,10 +480,9 @@ export function LiturgiaReader() {
           color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
           font-style: italic;
           display: block;
-          margin-top: 0.5em;
-          margin-bottom: 0.5em;
+          margin-top: 0.35em;
+          margin-bottom: 0.35em;
         }
-
         .liturgia-content .sezione,
         .liturgia-content .sezione-titolo,
         .liturgia-content .titolo,
@@ -456,14 +492,14 @@ export function LiturgiaReader() {
           display: block;
           font-family: inherit;
           font-weight: 700;
-          font-size: 1.15em;
+          font-size: 1.12em;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.04em;
           color: ${isChurchMode ? "#fbbf24" : "#6e5a45"};
-          margin-top: 1.8em;
-          margin-bottom: 0.6em;
+          margin-top: 1.4em;
+          margin-bottom: 0.4em;
           border-bottom: 1px solid ${isChurchMode ? "#292524" : "#f0e6d8"};
-          padding-bottom: 0.3em;
+          padding-bottom: 0.2em;
         }
         .liturgia-content .salmo-titolo,
         .liturgia-content .preghiera-titolo,
@@ -471,10 +507,10 @@ export function LiturgiaReader() {
           display: block;
           font-family: inherit;
           font-weight: 700;
-          font-size: 1.05em;
+          font-size: 1.02em;
           color: ${isChurchMode ? "#fde047" : "#5c4a37"};
-          margin-top: 1.4em;
-          margin-bottom: 0.4em;
+          margin-top: 1em;
+          margin-bottom: 0.3em;
         }
         .liturgia-content .antifona-badge {
           display: inline-block;
@@ -488,10 +524,9 @@ export function LiturgiaReader() {
         }
         .liturgia-content hr {
           border-color: ${isChurchMode ? "#3f3a36" : "#e2d5c4"};
-          margin: 2em 0;
+          margin: 1.5em 0;
         }
       `}</style>
-
     </div>
   );
 }
