@@ -33,6 +33,81 @@ function getTodayIsoString(): string {
   return `${year}-${month}-${day}`;
 }
 
+function formatMarkdownToHtml(markdown: string): string {
+  let html = markdown
+    .replace(/^### (.*$)/gim, '<h4 class="omelia-h4">$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3 class="omelia-h3">$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2 class="omelia-h2">$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/^>\s*(.*$)/gim, '<blockquote class="omelia-quote">$1</blockquote>')
+    .replace(/^\s*-\s+(.*$)/gim, '<li class="omelia-li">$1</li>')
+    .replace(/^\s*\*\s+(.*$)/gim, '<li class="omelia-li">$1</li>')
+    .replace(/\n\n+/g, '</p><p class="omelia-p">')
+    .replace(/\n/g, "<br />");
+
+  return `<div class="omelia-body"><p class="omelia-p">${html}</p></div>`;
+}
+
+function extractGospelText(html: string): string {
+  const plainText = html
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+
+  const vangeloMatch = plainText.search(/(?:VANGELO|Dal Vangelo secondo)/i);
+  if (vangeloMatch !== -1) {
+    const afterVangelo = plainText.slice(vangeloMatch);
+    const endMatch = afterVangelo.search(
+      /(?:DOPO IL VANGELO|SUI DONI|ALLA COMUNIONE|PREGHIERA DEI FEDELI|PROFESSIONE DI FEDE|DOPO LA COMUNIONE)/i
+    );
+    if (endMatch !== -1 && endMatch > 100) {
+      return afterVangelo.slice(0, endMatch).trim();
+    }
+    return afterVangelo.slice(0, 2500).trim();
+  }
+  return plainText.slice(0, 3000).trim();
+}
+
+function splitContentAtGospelEnd(html: string) {
+  // 1. Cerca la fine del tag audio (dopo l'audio del Vangelo)
+  const audioEndIdx = html.indexOf("</audio>");
+  if (audioEndIdx !== -1) {
+    const splitPoint = audioEndIdx + "</audio>".length;
+    return {
+      before: html.slice(0, splitPoint),
+      after: html.slice(splitPoint),
+      hasGospel: true,
+    };
+  }
+
+  // 2. In alternativa, cerca l'inizio della sezione successiva
+  const markers = [
+    /<strong>\s*DOPO IL VANGELO\s*<\/strong>/i,
+    /<strong>\s*SUI DONI\s*<\/strong>/i,
+    /<strong>\s*ALLA COMUNIONE\s*<\/strong>/i,
+    /<h[1-6][^>]*>\s*DOPO IL VANGELO\s*<\/h[1-6]>/i,
+  ];
+
+  for (const regex of markers) {
+    const match = regex.exec(html);
+    if (match) {
+      return {
+        before: html.slice(0, match.index),
+        after: html.slice(match.index),
+        hasGospel: true,
+      };
+    }
+  }
+
+  return {
+    before: html,
+    after: "",
+    hasGospel: false,
+  };
+}
+
 export function LiturgiaReader() {
   // Stato Rito con persistenza in localStorage (default: ambrosiano)
   const [rite, setRite] = useState<LiturgyRite>("ambrosiano");
@@ -51,7 +126,17 @@ export function LiturgiaReader() {
   const [liturgicalInfo, setLiturgicalInfo] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
 
+  // Stato Supporto alla Comprensione (Omelia Card. Martini)
+  const [omeliaLoading, setOmeliaLoading] = useState<boolean>(false);
+  const [omeliaText, setOmeliaText] = useState<string | null>(null);
+  const [omeliaError, setOmeliaError] = useState<string | null>(null);
+  const [showOmelia, setShowOmelia] = useState<boolean>(false);
+  const [copiedOmelia, setCopiedOmelia] = useState<boolean>(false);
+  const [omeliaElapsedSeconds, setOmeliaElapsedSeconds] = useState<number>(0);
+
   const readerContainerRef = useRef<HTMLDivElement | null>(null);
+  const omeliaSectionRef = useRef<HTMLDivElement | null>(null);
+  const omeliaAbortControllerRef = useRef<AbortController | null>(null);
 
   // Inizializza preferenze da localStorage
   useEffect(() => {
@@ -80,6 +165,20 @@ export function LiturgiaReader() {
       setMoment(getAutomaticMoment());
     }
   }, []);
+
+  // Timer per l'elaborazione dell'omelia
+  useEffect(() => {
+    let interval: any;
+    if (omeliaLoading) {
+      setOmeliaElapsedSeconds(0);
+      interval = setInterval(() => {
+        setOmeliaElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setOmeliaElapsedSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [omeliaLoading]);
 
   // Salva rito preferito su cambio
   const handleRiteChange = (newRite: LiturgyRite) => {
@@ -130,6 +229,10 @@ export function LiturgiaReader() {
   const fetchLiturgy = async () => {
     setLoading(true);
     setError(null);
+    setOmeliaText(null);
+    setShowOmelia(false);
+    setOmeliaError(null);
+
     try {
       const res = await fetch(
         `/api/liturgia?rite=${rite}&moment=${moment}&date=${selectedDate}`
@@ -141,7 +244,7 @@ export function LiturgiaReader() {
       const data = await res.json();
       setContentHtml(data.contentHtml || "<p>Nessun testo disponibile.</p>");
       setLiturgicalInfo(data.liturgicalInfo || "");
-      
+
       if (readerContainerRef.current) {
         readerContainerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
@@ -184,6 +287,87 @@ export function LiturgiaReader() {
     }
   };
 
+  // Annulla generazione omelia
+  const handleCancelOmelia = () => {
+    if (omeliaAbortControllerRef.current) {
+      omeliaAbortControllerRef.current.abort();
+    }
+    setOmeliaLoading(false);
+    setOmeliaError("Generazione annullata dall'utente.");
+  };
+
+  // Generazione Supporto alla Comprensione (Omelia Card. Martini) con Gemini
+  const handleGenerateOmelia = async () => {
+    if (omeliaText) {
+      setShowOmelia((prev) => !prev);
+      return;
+    }
+
+    if (!contentHtml) return;
+
+    const gospelText = extractGospelText(contentHtml);
+    if (!gospelText || gospelText.length < 20) {
+      setOmeliaError("Testo del Vangelo non identificato.");
+      return;
+    }
+
+    const controller = new AbortController();
+    omeliaAbortControllerRef.current = controller;
+
+    setOmeliaLoading(true);
+    setOmeliaError(null);
+    setShowOmelia(true);
+
+    try {
+      const res = await fetch("/api/liturgia/omelia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: gospelText,
+          liturgicalInfo,
+          rite,
+          date: selectedDate,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Errore HTTP ${res.status}: Impossibile completare la richiesta.`);
+      }
+
+      const data = await res.json();
+      setOmeliaText(data.omelia);
+
+      setTimeout(() => {
+        if (omeliaSectionRef.current) {
+          omeliaSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        setOmeliaError("Elaborazione annullata.");
+      } else {
+        console.error("Errore generazione Omelia:", err);
+        setOmeliaError(err.message || "Impossibile generare la riflessione sul Vangelo.");
+      }
+    } finally {
+      setOmeliaLoading(false);
+    }
+  };
+
+  // Copia Omelia
+  const handleCopyOmelia = async () => {
+    if (!omeliaText) return;
+    try {
+      await navigator.clipboard.writeText(omeliaText);
+      setCopiedOmelia(true);
+      setTimeout(() => setCopiedOmelia(false), 2500);
+    } catch (e) {
+      console.error("Errore copia omelia:", e);
+    }
+  };
+
   // Data formattata in italiano per il titolo
   const formattedDateTitle = new Intl.DateTimeFormat("it-IT", {
     weekday: "long",
@@ -197,13 +381,225 @@ export function LiturgiaReader() {
   const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
   const spacingLabel = lineSpacing === "compact" ? "Compatta" : lineSpacing === "normal" ? "Normale" : "Ampia";
 
+  // Suddivide il testo esattamente dopo l'audio del Vangelo
+  const splitContent = splitContentAtGospelEnd(contentHtml);
+
+  // Render del blocco "Supporto alla Comprensione"
+  const renderSupportoComprensione = () => (
+    <div className="my-8 pt-4 pb-2 border-y" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+      <div
+        className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-3xl border shadow-sm transition"
+        style={{
+          backgroundColor: isChurchMode ? "#25201d" : "#fdfbf7",
+          borderColor: isChurchMode ? "#443e38" : "#ebdcc8",
+        }}
+      >
+        <div className="space-y-1 text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <span className="text-lg">✨</span>
+            <h3 className="font-serif font-bold text-base" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+              Supporto alla Comprensione
+            </h3>
+          </div>
+          <p className="text-xs text-[#8a755d]">
+            Breve riflessione strutturata e profonda sul Vangelo in stile <strong>Card. Carlo Maria Martini</strong> (200-300 parole).
+          </p>
+        </div>
+
+        <button
+          onClick={handleGenerateOmelia}
+          disabled={omeliaLoading}
+          className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-[#5c4a37] text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#4a3a29] transition shadow-md disabled:opacity-50 shrink-0"
+        >
+          {omeliaLoading ? (
+            <>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+              <span>Elaborazione Riflessione...</span>
+            </>
+          ) : showOmelia && omeliaText ? (
+            <>
+              <span>📖 Mostra/Nascondi Riflessione</span>
+            </>
+          ) : (
+            <>
+              <span>✨ Supporto alla Comprensione</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Sezione di Caricamento Animato con Timer */}
+      {omeliaLoading && (
+        <div
+          className="mt-6 p-8 rounded-3xl border text-center space-y-4 shadow-sm"
+          style={{
+            backgroundColor: isChurchMode ? "#1f1b18" : "#fbf8f3",
+            borderColor: isChurchMode ? "#443e38" : "#ebdcc8",
+          }}
+        >
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5c4a37] text-white shadow-md animate-bounce">
+            ✨
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-serif font-bold text-base" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+              Ascolto del Vangelo in corso...
+            </h4>
+            <p className="text-xs text-[#8a755d] max-w-md mx-auto">
+              Gemini Flash sta elaborando una breve riflessione omiletica secondo la sapienza del Cardinale Carlo Maria Martini.
+            </p>
+          </div>
+
+          {/* Timer di avanzamento & Pulsante Annulla */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold"
+              style={{
+                backgroundColor: isChurchMode ? "#332b26" : "#ebdcc8",
+                color: isChurchMode ? "#fde047" : "#5c4a37",
+              }}
+            >
+              ⏱️ {omeliaElapsedSeconds}s trascorsi · provo catena Gemini Flash (20s)
+            </span>
+            <button
+              onClick={handleCancelOmelia}
+              className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition"
+              style={{
+                backgroundColor: isChurchMode ? "#3b1e1e" : "#fef2f2",
+                color: isChurchMode ? "#fca5a5" : "#b91c1c",
+                border: `1px solid ${isChurchMode ? "#6b2525" : "#fecaca"}`,
+              }}
+            >
+              ✕ Annulla attesa
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Errore Generazione Omelia */}
+      {omeliaError && (
+        <div
+          className="mt-6 p-6 rounded-3xl border text-center space-y-3 shadow-sm"
+          style={{
+            backgroundColor: isChurchMode ? "#281b18" : "#fff8f3",
+            borderColor: isChurchMode ? "#58201a" : "#fed7aa",
+          }}
+        >
+          <div
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+            style={{
+              backgroundColor: isChurchMode ? "#421815" : "#ffedd5",
+              color: isChurchMode ? "#fca5a5" : "#9a3412",
+            }}
+          >
+            ⚠️
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-bold" style={{ color: isChurchMode ? "#fca5a5" : "#9a3412" }}>
+              Stato riflessione sul Vangelo:
+            </p>
+            <p className="text-xs max-w-md mx-auto" style={{ color: isChurchMode ? "#e5b7b2" : "#c2410c" }}>
+              {omeliaError}
+            </p>
+          </div>
+          <button
+            onClick={handleGenerateOmelia}
+            className="px-5 py-2 rounded-full bg-[#5c4a37] text-white text-xs font-bold hover:bg-[#4a3a29] transition shadow-sm"
+          >
+            🔄 Riprova con il modello successivo
+          </button>
+        </div>
+      )}
+
+      {/* Risultato Supporto alla Comprensione Generato */}
+      {showOmelia && omeliaText && !omeliaLoading && (
+        <div
+          ref={omeliaSectionRef}
+          className="mt-6 p-6 sm:p-8 rounded-3xl border shadow-md transition-colors duration-300 space-y-5"
+          style={{
+            backgroundColor: isChurchMode ? "#201c19" : "#faf6f0",
+            borderColor: isChurchMode ? "#443e38" : "#e5d7c5",
+          }}
+        >
+          {/* Intestazione Card */}
+          <div
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4"
+            style={{ borderColor: isChurchMode ? "#38332f" : "#e8dcce" }}
+          >
+            <div className="space-y-1">
+              <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-[#aa9576]">
+                Riflessione Biblica · Stile Card. Martini
+              </span>
+              <h4 className="text-lg sm:text-xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+                Supporto alla Comprensione del Vangelo
+              </h4>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyOmelia}
+                className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition"
+                style={{
+                  borderColor: isChurchMode ? "#443e38" : "#d9cdbf",
+                  backgroundColor: isChurchMode ? "#2b2521" : "#fbf8f4",
+                  color: isChurchMode ? "#ece8e2" : "#5c4a37",
+                }}
+              >
+                {copiedOmelia ? (
+                  <span className="text-emerald-600 font-bold">Copiata!</span>
+                ) : (
+                  <>
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                    <span>Copia Riflessione</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowOmelia(false)}
+                className="rounded-xl border p-1.5 text-xs transition"
+                style={{
+                  borderColor: isChurchMode ? "#443e38" : "#d9cdbf",
+                  backgroundColor: isChurchMode ? "#2b2521" : "#fbf8f4",
+                  color: isChurchMode ? "#ece8e2" : "#5c4a37",
+                }}
+                title="Nascondi"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Contenuto Testo Omelia */}
+          <div
+            className="omelia-rendered-content font-serif leading-relaxed max-h-[450px] overflow-y-auto pr-3 rounded-2xl p-4 border shadow-inner"
+            style={{
+              fontSize: `${fontSize - 1}px`,
+              backgroundColor: isChurchMode ? "#1a1614" : "#fefdfa",
+              borderColor: isChurchMode ? "#38332f" : "#e4d7c7",
+            }}
+            dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(omeliaText) }}
+          />
+
+          {/* Citazione conclusiva */}
+          <div
+            className="border-t pt-3 text-center italic text-xs text-[#8a755d]"
+            style={{ borderColor: isChurchMode ? "#38332f" : "#e8dcce" }}
+          >
+            «Il Vangelo non è una pagina da conservare nel cassetto, ma un fuoco che accende il cammino dell'uomo.» — Card. Carlo Maria Martini
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6 pb-24 max-w-5xl mx-auto">
       {/* Sottomenu di Navigazione Sezione Preghiera */}
       <PreghieraNav />
 
       {/* Header Intestazione */}
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e4dcce] pb-6">
         <div>
           <div className="flex items-center gap-2">
@@ -404,23 +800,27 @@ export function LiturgiaReader() {
 
       {/* Info Liturgica del Giorno se presente */}
       {liturgicalInfo && (
-        <div className={`rounded-2xl border p-3 text-xs italic text-center transition ${
-          isChurchMode
-            ? "border-[#44403c] bg-[#1c1917] text-amber-200"
-            : "border-[#ebdcc8] bg-[#fdfbf7] text-[#8a755d]"
-        }`}>
+        <div
+          className="rounded-2xl border p-3 text-xs italic text-center transition"
+          style={{
+            borderColor: isChurchMode ? "#44403c" : "#ebdcc8",
+            backgroundColor: isChurchMode ? "#1c1917" : "#fdfbf7",
+            color: isChurchMode ? "#fde047" : "#8a755d",
+          }}
+        >
           {liturgicalInfo}
         </div>
       )}
 
-      {/* Area di Lettura del Breviario */}
+      {/* Area di Lettura dei Testi Liturgici */}
       <div
         ref={readerContainerRef}
-        className={`rounded-3xl border p-6 sm:p-10 shadow-lg transition-colors duration-300 ${
-          isChurchMode
-            ? "border-[#3f3a36] bg-[#181614] text-[#ece8e2]"
-            : "border-[#e0d6c7] bg-[#fefdfb] text-[#2c2621]"
-        }`}
+        className="rounded-3xl border p-6 sm:p-10 shadow-lg transition-colors duration-300"
+        style={{
+          borderColor: isChurchMode ? "#3f3a36" : "#e0d6c7",
+          backgroundColor: isChurchMode ? "#181614" : "#fefdfb",
+          color: isChurchMode ? "#ece8e2" : "#2c2621",
+        }}
       >
         {loading ? (
           <div className="py-20 text-center space-y-4">
@@ -448,12 +848,22 @@ export function LiturgiaReader() {
         ) : (
           <article
             className="liturgia-content prose max-w-none font-serif"
-            style={{ 
+            style={{
               fontSize: `${fontSize}px`,
               lineHeight: lineHeightValue,
             }}
-            dangerouslySetInnerHTML={{ __html: contentHtml }}
-          />
+          >
+            {/* Prima parte del testo (fino alla fine dell'audio del Vangelo) */}
+            <div dangerouslySetInnerHTML={{ __html: splitContent.before }} />
+
+            {/* Pulsante & Card "Supporto alla Comprensione" esattamente dopo l'audio del Vangelo */}
+            {renderSupportoComprensione()}
+
+            {/* Seconda parte del testo (se presente, es. Dopo il Vangelo, Sui Doni, Comunione) */}
+            {splitContent.after && (
+              <div dangerouslySetInnerHTML={{ __html: splitContent.after }} />
+            )}
+          </article>
         )}
       </div>
 
@@ -530,6 +940,17 @@ export function LiturgiaReader() {
         .liturgia-content hr {
           border-color: ${isChurchMode ? "#3f3a36" : "#e2d5c4"};
           margin: 1.5em 0;
+        }
+        .omelia-rendered-content h2,
+        .omelia-rendered-content h3,
+        .omelia-rendered-content h4 {
+          font-weight: bold;
+          margin-top: 0.8em;
+          margin-bottom: 0.2em;
+          color: ${isChurchMode ? "#fbbf24" : "#5c4a37"};
+        }
+        .omelia-rendered-content strong {
+          color: ${isChurchMode ? "#fde047" : "#5c4a37"};
         }
       `}</style>
     </div>
