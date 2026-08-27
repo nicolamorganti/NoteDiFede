@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, verifyUserRole } from "@/lib/supabase/server";
 import { serializeNotesAndLyrics } from "@/lib/song-utils";
 
 export type CreateSongFormState = {
@@ -65,6 +65,11 @@ export async function createSongAction(
   _previousState: CreateSongFormState,
   formData: FormData,
 ): Promise<CreateSongFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const code = readString(formData, "code");
   const title = readString(formData, "title");
   const alternateTitle = readString(formData, "alternateTitle");
@@ -78,6 +83,7 @@ export async function createSongAction(
       success: null,
     };
   }
+
 
   const supabase = await createServerSupabaseClient();
   const payload = {
@@ -166,6 +172,11 @@ export async function createArrangementAction(
   _previousState: CreateArrangementFormState,
   formData: FormData,
 ): Promise<CreateArrangementFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const songId = readString(formData, "songId");
   const arrangementName = readString(formData, "arrangementName");
   const musicalKey = readString(formData, "musicalKey");
@@ -223,7 +234,13 @@ export async function createSongFileAction(
   _previousState: CreateSongFileFormState,
   formData: FormData,
 ): Promise<CreateSongFileFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const fileValue = formData.get("file");
+
 
   const songId = readString(formData, "songId");
   const arrangementId = readString(formData, "arrangementId");
@@ -391,6 +408,11 @@ export async function createSongLinkAction(
   _previousState: CreateSongLinkFormState,
   formData: FormData,
 ): Promise<CreateSongLinkFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const songId = readString(formData, "songId");
   const label = readString(formData, "label");
   const url = readString(formData, "url");
@@ -452,6 +474,11 @@ export async function updateSongAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const songId = readString(formData, "songId");
   const code = readString(formData, "code");
   const title = readString(formData, "title");
@@ -535,7 +562,13 @@ export async function deleteSongAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const songId = readString(formData, "songId");
+
 
   if (!songId) {
     return {
@@ -587,6 +620,11 @@ export async function updateArrangementAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const arrangementId = readString(formData, "arrangementId");
   const arrangementName = readString(formData, "arrangementName");
   const musicalKey = readString(formData, "musicalKey");
@@ -638,6 +676,11 @@ export async function deleteArrangementAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const arrangementId = readString(formData, "arrangementId");
 
   if (!arrangementId) {
@@ -693,6 +736,11 @@ export async function updateSongLinkAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const linkId = readString(formData, "linkId");
   const label = readString(formData, "label");
   const url = readString(formData, "url");
@@ -748,6 +796,11 @@ export async function deleteSongLinkAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const linkId = readString(formData, "linkId");
 
   if (!linkId) {
@@ -782,6 +835,11 @@ export async function deleteSongFileAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const fileId = readString(formData, "fileId");
 
   if (!fileId) {
@@ -838,6 +896,11 @@ export async function createMassMomentAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const name = readString(formData, "name");
   const sortOrderStr = readString(formData, "sortOrder");
 
@@ -933,7 +996,13 @@ export async function deleteMassMomentAction(
   _previousState: CatalogMutationFormState,
   formData: FormData,
 ): Promise<CatalogMutationFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const momentId = readString(formData, "momentId");
+
 
   if (!momentId) {
     return {

@@ -10,8 +10,14 @@ export default async function DashboardLayout({
   const { user, profile } = await verifyUserRole([]);
   
   return (
-    <AppShell initialUser={user} initialRole={profile?.role} initialFullName={profile?.full_name}>
+    <AppShell
+      initialUser={user}
+      initialRole={profile?.role}
+      initialFullName={profile?.full_name}
+      initialVocalRegister={profile?.vocal_register}
+    >
       {children}
     </AppShell>
   );
 }
+

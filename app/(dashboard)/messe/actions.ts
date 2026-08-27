@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { verifyUserRole } from "@/lib/supabase/server";
 import { autoLinkPsalmFile } from "@/app/(dashboard)/canti/actions";
 
 export type MassFormState = {
@@ -23,10 +24,16 @@ export async function createMassAction(
   _previousState: MassFormState,
   formData: FormData,
 ): Promise<MassFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const title = readString(formData, "title");
   const liturgicalYear = readString(formData, "liturgicalYear");
   const celebrationDate = readString(formData, "celebrationDate");
   const notes = readString(formData, "notes");
+
 
   if (!title || !liturgicalYear || !celebrationDate) {
     return {
@@ -64,6 +71,11 @@ export async function updateMassAction(
   _previousState: MassFormState,
   formData: FormData,
 ): Promise<MassFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const id = readString(formData, "massId");
   const title = readString(formData, "title");
   const liturgicalYear = readString(formData, "liturgicalYear");
@@ -110,6 +122,11 @@ export async function deleteMassAction(
   _previousState: MassFormState,
   formData: FormData,
 ): Promise<MassFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const id = readString(formData, "massId");
 
   if (!id) {
@@ -143,6 +160,11 @@ export async function addSongToMassAction(
   _previousState: MassFormState,
   formData: FormData,
 ): Promise<MassFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const massId = readString(formData, "massId");
   const songId = readString(formData, "songId");
   const momentId = readString(formData, "momentId");
@@ -213,8 +235,14 @@ export async function removeSongFromMassAction(
   _previousState: MassFormState,
   formData: FormData,
 ): Promise<MassFormState> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, success: null };
+  }
+
   const massSongId = readString(formData, "massSongId");
   const massId = readString(formData, "massId");
+
 
   if (!massSongId || !massId) {
     return {
@@ -248,6 +276,11 @@ export async function removeSongFromMassAction(
 
 // 6. Analizza l'immagine di una celebrazione tramite Gemini API
 export async function parseMassImageAction(formData: FormData) {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError, data: null };
+  }
+
   const file = formData.get("file") as File;
   if (!file) {
     return { error: "Nessun file immagine caricato.", data: null };
@@ -464,6 +497,11 @@ export async function saveImportedMassAction(
     }[];
   }
 ) {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { error: authError };
+  }
+
   if (!massData.title || !massData.liturgicalYear || !massData.celebrationDate) {
     return { error: "Titolo, anno liturgico e data della celebrazione sono richiesti." };
   }
@@ -549,6 +587,11 @@ export async function updateMassSongNoteAction(
   massSongId: string,
   notes: string | null,
 ): Promise<{ success: boolean; error?: string }> {
+  const { error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError) {
+    return { success: false, error: authError };
+  }
+
   if (!massSongId) {
     return { success: false, error: "ID Associazione mancante." };
   }
@@ -569,3 +612,4 @@ export async function updateMassSongNoteAction(
   
   return { success: true };
 }
+

@@ -6,6 +6,8 @@ import { useFormStatus } from "react-dom";
 import type { MassListItem } from "@/lib/masses";
 import { createMassAction, deleteMassAction, updateMassAction, parseMassImageAction, saveImportedMassAction } from "@/app/(dashboard)/messe/actions";
 import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/components/auth-context";
+
 
 type MesseListProps = {
   initialMasses: MassListItem[];
@@ -201,45 +203,9 @@ export function MesseList({ initialMasses }: MesseListProps) {
     });
   };
 
-  // Stati Auth
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nDF_user_role");
-    }
-    return null;
-  });
-  const [authLoading, setAuthLoading] = useState(true);
+  // Stati Auth da Context globale
+  const { user: currentUser, role: userRole, isAdmin, isLoading: authLoading } = useAuth();
 
-  useEffect(() => {
-    async function initUser() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setCurrentUser(session.user);
-        }
-      } catch (err) {
-        console.error("Errore in initUser di MesseList:", err);
-      } finally {
-        setAuthLoading(false);
-      }
-    }
-    initUser();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "nDF_user_role") {
-        setUserRole(e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
-  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
 
   const [createState, createAction] = useActionState(createMassAction, initialFormState);
   const [updateState, updateAction] = useActionState(updateMassAction, initialFormState);

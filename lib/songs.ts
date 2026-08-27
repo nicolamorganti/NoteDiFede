@@ -21,6 +21,7 @@ type SongArrangementRow = {
 
 type SongFileRow = {
   id: string;
+  song_id: string;
   arrangement_id: string | null;
   file_type: string;
   file_name: string;
@@ -29,6 +30,7 @@ type SongFileRow = {
   created_at: string;
   storage_path: string;
 };
+
 
 export type SongFileListItem = {
   id: string;
@@ -145,7 +147,7 @@ export async function getSongs(): Promise<SongListItem[]> {
     supabase
       .from("song_files")
       .select(
-        "id, arrangement_id, file_type, file_name, mime_type, file_size_bytes, created_at, storage_path",
+        "id, song_id, arrangement_id, file_type, file_name, mime_type, file_size_bytes, created_at, storage_path",
       )
       .order("created_at", { ascending: false }),
     supabase
@@ -184,41 +186,45 @@ export async function getSongs(): Promise<SongListItem[]> {
     return [];
   }
 
-  const filesByArrangementId = (filesData satisfies SongFileRow[]).reduce<
-    Record<string, SongFileListItem[]>
-  >((accumulator, file) => {
-    if (!file.arrangement_id) {
-      return accumulator;
+  const mapFileItem = (file: SongFileRow): SongFileListItem => ({
+    id: file.id,
+    fileType: file.file_type,
+    fileLabel:
+      file.file_type === "spartito_pdf" ? "Spartito PDF" :
+      file.file_type === "accordi_pdf" ? "Accordi PDF" :
+      file.file_type === "mp3_completo" ? "Brano Completo" :
+      file.file_type === "mp3_soprano" ? "Soprano" :
+      file.file_type === "mp3_contralto" ? "Contralto" :
+      file.file_type === "mp3_tenore" ? "Tenore" :
+      file.file_type === "mp3_basso" ? "Basso" :
+      file.file_type === "mp3_organo" ? "Organo" :
+      file.file_type,
+    fileName: file.file_name,
+    mimeType: file.mime_type,
+    fileSizeLabel: formatFileSize(file.file_size_bytes),
+    createdAtLabel: formatSongDate(file.created_at),
+    storagePath: file.storage_path,
+    previewHref: `/api/song-files/${file.id}?disposition=inline`,
+    downloadHref: `/api/song-files/${file.id}?disposition=download`,
+  });
+
+  const filesByArrangementId: Record<string, SongFileListItem[]> = {};
+  const unassignedFilesBySongId: Record<string, SongFileListItem[]> = {};
+
+  (filesData satisfies SongFileRow[]).forEach((file) => {
+    const item = mapFileItem(file);
+    if (file.arrangement_id) {
+      if (!filesByArrangementId[file.arrangement_id]) {
+        filesByArrangementId[file.arrangement_id] = [];
+      }
+      filesByArrangementId[file.arrangement_id].push(item);
+    } else {
+      if (!unassignedFilesBySongId[file.song_id]) {
+        unassignedFilesBySongId[file.song_id] = [];
+      }
+      unassignedFilesBySongId[file.song_id].push(item);
     }
-
-    const arrangementFiles = accumulator[file.arrangement_id] ?? [];
-
-    arrangementFiles.push({
-      id: file.id,
-      fileType: file.file_type,
-      fileLabel:
-        file.file_type === "spartito_pdf" ? "Spartito PDF" :
-        file.file_type === "accordi_pdf" ? "Accordi PDF" :
-        file.file_type === "mp3_completo" ? "Brano Completo" :
-        file.file_type === "mp3_soprano" ? "Soprano" :
-        file.file_type === "mp3_contralto" ? "Contralto" :
-        file.file_type === "mp3_tenore" ? "Tenore" :
-        file.file_type === "mp3_basso" ? "Basso" :
-        file.file_type === "mp3_organo" ? "Organo" :
-        file.file_type,
-      fileName: file.file_name,
-      mimeType: file.mime_type,
-      fileSizeLabel: formatFileSize(file.file_size_bytes),
-      createdAtLabel: formatSongDate(file.created_at),
-      storagePath: file.storage_path,
-      previewHref: `/api/song-files/${file.id}?disposition=inline`,
-      downloadHref: `/api/song-files/${file.id}?disposition=download`,
-    });
-
-    accumulator[file.arrangement_id] = arrangementFiles;
-
-    return accumulator;
-  }, {});
+  });
 
   const arrangementsBySongId = (arrangementsData satisfies SongArrangementRow[]).reduce<
     Record<string, SongArrangementListItem[]>
@@ -239,6 +245,26 @@ export async function getSongs(): Promise<SongListItem[]> {
 
     return accumulator;
   }, {});
+
+  // Se ci sono file senza variante esplicita per un canto, li associamo alla prima variante (o ne creiamo una fittizia)
+  Object.entries(unassignedFilesBySongId).forEach(([songId, files]) => {
+    const songArrangements = arrangementsBySongId[songId] ?? [];
+    if (songArrangements.length > 0) {
+      songArrangements[0].files.push(...files);
+    } else {
+      songArrangements.push({
+        id: `virtual-${songId}`,
+        arrangementName: "Originale",
+        musicalKey: null,
+        instrumentation: null,
+        notes: null,
+        updatedAtLabel: formatSongDate(new Date().toISOString()),
+        files,
+      });
+      arrangementsBySongId[songId] = songArrangements;
+    }
+  });
+
 
   const linksBySongId = (linksData satisfies SongLinkRow[]).reduce<
     Record<string, SongLinkListItem[]>

@@ -10,21 +10,16 @@ export async function createServerSupabaseClient() {
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      getAll() {
+        return cookieStore.getAll();
       },
-      set(name: string, value: string, options: CookieOptions) {
+      setAll(cookiesToSet) {
         try {
-          cookieStore.set({ name, value, ...options });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
         } catch (error) {
-          // Si può ignorare questo errore se chiamato da un Server Component (non possono settare cookie)
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore.delete({ name, ...options });
-        } catch (error) {
-          // Idem
+          // Si può ignorare questo errore se chiamato da un Server Component (non possono settare cookie direttamente)
         }
       },
     },

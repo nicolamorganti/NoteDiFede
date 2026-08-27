@@ -38,9 +38,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Rotte protette
-  const protectedRoutes = ["/canti", "/messe", "/impostazioni"];
-  const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+  // Rotte protette (richiedono account autenticato)
+  const protectedRoutes = ["/impostazioni"];
+  const pathname = request.nextUrl.pathname;
+  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route)) || pathname.endsWith("/modifica");
 
   if (!user && isProtectedRoute) {
     // Se non loggato e prova ad accedere a una rotta protetta, reindirizza alla home (login)

@@ -2,6 +2,7 @@
 
 import { useState, useActionState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/components/auth-context";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import type { MassDetails } from "@/lib/masses";
@@ -150,45 +151,9 @@ const STANDARD_MOMENTS = [
 ];
 
 export function MesseComposer({ massDetails, allSongs }: MesseComposerProps) {
-  // Stati Auth
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nDF_user_role");
-    }
-    return null;
-  });
-  const [authLoading, setAuthLoading] = useState(true);
+  // Stati Auth da Context globale
+  const { user: currentUser, role: userRole, isAdmin, isLoading: authLoading } = useAuth();
 
-  useEffect(() => {
-    async function initUser() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setCurrentUser(session.user);
-        }
-      } catch (err) {
-        console.error("Errore in initUser di MesseComposer:", err);
-      } finally {
-        setAuthLoading(false);
-      }
-    }
-    initUser();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "nDF_user_role") {
-        setUserRole(e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
-  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
 
   const [selectedSongs, setSelectedSongs] = useState<Record<string, string>>({});
   

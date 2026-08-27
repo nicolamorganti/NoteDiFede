@@ -2,60 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { AuthProvider, useAuth, type AppUserRole } from "@/components/auth-context";
 
-export function AppShell({ 
-  children,
-  initialUser = null,
-  initialRole = null,
-  initialFullName = null,
-}: Readonly<{ 
-  children: ReactNode;
-  initialUser?: any;
-  initialRole?: string | null;
-  initialFullName?: string | null;
-}>) {
+function AppShellInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<any | null>(initialUser);
-  const [role, setRole] = useState<string | null>(initialRole);
-  const [fullName, setFullName] = useState<string | null>(initialFullName);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-      
-      if (event === "SIGNED_OUT") {
-        setUser(null);
-        setRole(null);
-        setFullName(null);
-        router.push("/");
-      } else if (event === "SIGNED_IN" && session) {
-        setUser(session.user);
-        try {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role, full_name")
-            .eq("id", session.user.id)
-            .single();
-          if (profile && isMounted) {
-            setRole(profile.role);
-            setFullName(profile.full_name);
-          }
-        } catch (err) {
-          console.error("Errore recupero profilo in SIGNED_IN:", err);
-        }
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [router]);
+  const { user, role, fullName } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -63,9 +17,6 @@ export function AppShell({
     } catch (err) {
       console.error("Errore durante il logout di Supabase:", err);
     } finally {
-      setUser(null);
-      setRole(null);
-      setFullName(null);
       router.push("/");
     }
   };
@@ -80,6 +31,7 @@ export function AppShell({
   if (role === "maestro" || role === "responsabile") {
     navigation.push({ href: "/impostazioni", label: "Impostazioni", badge: "Gestisci" });
   }
+
 
   return (
     <div className="min-h-screen bg-[#f6f1ea] text-[#3e3933]">
@@ -197,3 +149,29 @@ export function AppShell({
     </div>
   );
 }
+
+export function AppShell({
+  children,
+  initialUser = null,
+  initialRole = null,
+  initialFullName = null,
+  initialVocalRegister = null,
+}: Readonly<{
+  children: ReactNode;
+  initialUser?: any;
+  initialRole?: AppUserRole | null;
+  initialFullName?: string | null;
+  initialVocalRegister?: string | null;
+}>) {
+  return (
+    <AuthProvider
+      initialUser={initialUser}
+      initialRole={initialRole}
+      initialFullName={initialFullName}
+      initialVocalRegister={initialVocalRegister}
+    >
+      <AppShellInner>{children}</AppShellInner>
+    </AuthProvider>
+  );
+}
+

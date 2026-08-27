@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { MassDetails } from "@/lib/masses";
 import { parseNotesAndLyrics } from "@/lib/song-utils";
 import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/components/auth-context";
 
 type MessaDashboardProps = {
   massDetails: MassDetails;
@@ -25,46 +26,15 @@ type DashboardFile = {
 };
 
 export function MessaDashboard({ massDetails }: MessaDashboardProps) {
-  // Stati Auth
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nDF_user_role");
-    }
-    return null;
-  });
-  const [authLoading, setAuthLoading] = useState(true);
+  // Stati Auth da Context globale
+  const {
+    user: currentUser,
+    role: userRole,
+    isAdmin,
+    isCantoreOrAdmin: isAuthorizedForRestrictedContent,
+    isLoading: authLoading,
+  } = useAuth();
 
-  useEffect(() => {
-    async function initUser() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setCurrentUser(session.user);
-        }
-      } catch (err) {
-        console.error("Errore in initUser di MessaDashboard:", err);
-      } finally {
-        setAuthLoading(false);
-      }
-    }
-    initUser();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "nDF_user_role") {
-        setUserRole(e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
-  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
-  const isAuthorizedForRestrictedContent = currentUser !== null && (userRole === "cantore" || userRole === "maestro" || userRole === "responsabile");
 
   // Stati PDF e Audio
   const [previewPdf, setPreviewPdf] = useState<{ title: string; url: string; fileName: string } | null>(null);

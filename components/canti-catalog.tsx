@@ -15,6 +15,7 @@ import { SongArrangementEditForm } from "./song-arrangement-edit-form";
 import { SongLinkEditForm } from "./song-link-edit-form";
 import { SongFileDeleteForm } from "./song-file-delete-form";
 import { PsalmCollectionsManager } from "./psalm-collections-manager";
+import { useAuth } from "@/components/auth-context";
 
 // Bottone di eliminazione con stato pending per la form
 function DeleteButton() {
@@ -72,46 +73,15 @@ type PreviewPdf = {
 };
 
 export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
-  // Stati Auth
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nDF_user_role");
-    }
-    return null;
-  });
-  const [authLoading, setAuthLoading] = useState(true);
+  // Stati Auth da Context globale
+  const {
+    user: currentUser,
+    role: userRole,
+    isAdmin,
+    isCantoreOrAdmin: isAuthorizedForRestrictedContent,
+    isLoading: authLoading,
+  } = useAuth();
 
-  useEffect(() => {
-    async function initUser() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setCurrentUser(session.user);
-        }
-      } catch (err) {
-        console.error("Errore in initUser di CantiCatalog:", err);
-      } finally {
-        setAuthLoading(false);
-      }
-    }
-    initUser();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "nDF_user_role") {
-        setUserRole(e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
-  const isAdmin = currentUser !== null && (userRole === "maestro" || userRole === "responsabile");
-  const isAuthorizedForRestrictedContent = currentUser !== null && (userRole === "cantore" || userRole === "maestro" || userRole === "responsabile");
 
   // Stati di ricerca e filtri
   const [searchTerm, setSearchTerm] = useState("");
