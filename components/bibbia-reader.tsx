@@ -690,6 +690,7 @@ export function BibbiaReader() {
               </div>
 
               {/* Sezione di Caricamento Animato Lectio con Timer */}
+
               {lectioLoading && (
                 <div className="mt-6 p-8 rounded-3xl border text-center space-y-4 shadow-sm"
                   style={{
@@ -711,12 +712,22 @@ export function BibbiaReader() {
 
                   {/* Timer di avanzamento & Pulsante Annulla */}
                   <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#ebdcc8] text-[#5c4a37] dark:bg-[#332b26] dark:text-amber-300">
-                      ⏱️ {elapsedSeconds}s trascorsi (media: 3-5 sec)
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold"
+                      style={{
+                        backgroundColor: isChurchMode ? "#332b26" : "#ebdcc8",
+                        color: isChurchMode ? "#fde047" : "#5c4a37"
+                      }}
+                    >
+                      ⏱️ {elapsedSeconds}s trascorsi · provo catena Gemini Flash (20s)
                     </span>
                     <button
                       onClick={handleCancelLectio}
-                      className="px-3 py-1 rounded-full text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition"
+                      className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition"
+                      style={{
+                        backgroundColor: isChurchMode ? "#3b1e1e" : "#fef2f2",
+                        color: isChurchMode ? "#fca5a5" : "#b91c1c",
+                        border: `1px solid ${isChurchMode ? "#6b2525" : "#fecaca"}`
+                      }}
                     >
                       ✕ Annulla attesa
                     </button>
@@ -726,23 +737,36 @@ export function BibbiaReader() {
 
               {/* Errore Generazione Lectio */}
               {lectioError && (
-                <div className="mt-6 p-5 rounded-3xl bg-amber-50 dark:bg-[#251816] border border-amber-300 dark:border-rose-900 text-center space-y-3 shadow-sm">
-                  <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 dark:bg-rose-950 text-amber-800 dark:text-rose-300 text-sm font-bold">
+                <div className="mt-6 p-6 rounded-3xl border text-center space-y-3 shadow-sm"
+                  style={{
+                    backgroundColor: isChurchMode ? "#281b18" : "#fff8f3",
+                    borderColor: isChurchMode ? "#58201a" : "#fed7aa"
+                  }}
+                >
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+                    style={{
+                      backgroundColor: isChurchMode ? "#421815" : "#ffedd5",
+                      color: isChurchMode ? "#fca5a5" : "#9a3412"
+                    }}
+                  >
                     ⚠️
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-amber-900 dark:text-rose-200">Stato elaborazione meditazione:</p>
-                    <p className="text-xs text-amber-800 dark:text-rose-300 max-w-md mx-auto">{lectioError}</p>
+                    <p className="text-xs font-bold" style={{ color: isChurchMode ? "#fca5a5" : "#9a3412" }}>
+                      Stato elaborazione meditazione:
+                    </p>
+                    <p className="text-xs max-w-md mx-auto" style={{ color: isChurchMode ? "#e5b7b2" : "#c2410c" }}>
+                      {lectioError}
+                    </p>
                   </div>
                   <button
                     onClick={handleGenerateLectio}
                     className="px-5 py-2 rounded-full bg-[#5c4a37] text-white text-xs font-bold hover:bg-[#4a3a29] transition shadow-sm"
                   >
-                    🔄 Riprova a generare
+                    🔄 Riprova con il modello successivo
                   </button>
                 </div>
               )}
-
 
               {/* Risultato Lectio Divina Generato */}
               {showLectio && lectioText && !lectioLoading && (
@@ -805,7 +829,11 @@ export function BibbiaReader() {
                   </div>
 
                   {/* Controlli Vista Lectio */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 bg-black/5 dark:bg-white/5 p-2 rounded-2xl">
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl"
+                    style={{
+                      backgroundColor: isChurchMode ? "#2b2521" : "#f0e6d8"
+                    }}
+                  >
                     <span className="text-xs font-semibold text-[#8a755d]">
                       Modalità di Lettura della Meditazione:
                     </span>
@@ -816,8 +844,12 @@ export function BibbiaReader() {
 
                   {/* Contenuto Testo Lectio Scorrevole */}
                   <div
-                    className="lectio-rendered-content font-serif leading-relaxed max-h-[550px] overflow-y-auto pr-3 rounded-2xl p-4 bg-white/40 dark:bg-black/20 border border-[#e4d7c7] dark:border-[#38332f] shadow-inner"
-                    style={{ fontSize: `${fontSize - 1}px` }}
+                    className="lectio-rendered-content font-serif leading-relaxed max-h-[550px] overflow-y-auto pr-3 rounded-2xl p-4 border shadow-inner"
+                    style={{
+                      fontSize: `${fontSize - 1}px`,
+                      backgroundColor: isChurchMode ? "#1a1614" : "#fefdfa",
+                      borderColor: isChurchMode ? "#38332f" : "#e4d7c7"
+                    }}
                     dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(lectioText) }}
                   />
 
@@ -830,6 +862,7 @@ export function BibbiaReader() {
                 </div>
               )}
             </div>
+
 
 
             {/* Navigazione a Piè di Pagina */}

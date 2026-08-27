@@ -56,8 +56,14 @@ REGOLE STILISTICHE FONDAMENTALI:
 - Tono: diretto, caloroso, usando un "noi" inclusivo che interpella personalmente chi legge, comprensibile e toccante per tutti (credenti, ricercatori, giovani, laici).
 - Mantieni il testo asciutto, profondo e privo di inutili premesse retoriche (circa 350-500 parole in totale). Formatta con titoli markdown netti ed elenchi puliti.`;
 
-
-    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    // Catena di modelli da provare in sequenza (timeout 20s per ciascuno)
+    const candidateModels = [
+      process.env.GEMINI_MODEL,
+      "gemini-2.5-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash",
+      "gemini-flash-latest",
+    ].filter(Boolean) as string[];
 
     const geminiPayload = {
       contents: [
@@ -72,65 +78,57 @@ REGOLE STILISTICHE FONDAMENTALI:
       },
     };
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-    
-    // Timeout di 15 secondi per la chiamata a Google
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 18000);
+    let lastError = "";
+    let generatedText: string | null = null;
+    let usedModel = "";
 
-    const apiResponse = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiPayload),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
+    for (const model of candidateModels) {
+      const controller = new AbortController();
+      // 20 secondi esatti di timeout per modello
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    if (!apiResponse.ok) {
-      const errText = await apiResponse.text();
-      console.error(`Errore API Gemini (${apiResponse.status}):`, errText);
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const apiResponse = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geminiPayload),
+          signal: controller.signal,
+        });
 
-      if (apiResponse.status === 429) {
-        return NextResponse.json(
-          {
-            error:
-              "Limite temporaneo di richieste Google raggiunto (Too Many Requests / Quota 429). Attendi 20-30 secondi e riprova.",
-          },
-          { status: 429 }
-        );
+        clearTimeout(timeoutId);
+
+        if (apiResponse.ok) {
+          const data = await apiResponse.json();
+          generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          if (generatedText) {
+            usedModel = model;
+            break;
+          }
+        } else {
+          const errBody = await apiResponse.text();
+          lastError = `[${model}] HTTP ${apiResponse.status}: ${errBody}`;
+          console.warn(`Tentativo modello ${model} fallito, passo al successivo:`, lastError);
+        }
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          lastError = `[${model}] Timeout 20s superato`;
+        } else {
+          lastError = `[${model}] ${err.message || String(err)}`;
+        }
+        console.warn(`Eccezione modello ${model}, passo al successivo:`, lastError);
       }
-
-      if (apiResponse.status === 403 || apiResponse.status === 401) {
-        return NextResponse.json(
-          {
-            error:
-              "Chiave API di Gemini non autorizzata o non valida. Verifica la configurazione su Google AI Studio.",
-          },
-          { status: 403 }
-        );
-      }
-
-      if (apiResponse.status === 404) {
-        return NextResponse.json(
-          {
-            error: `Il modello ${modelName} non è disponibile con questa chiave API. Prova con gemini-2.5-flash.`,
-          },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json(
-        { error: `Errore dalle API di Gemini: ${apiResponse.status} ${apiResponse.statusText}` },
-        { status: 502 }
-      );
     }
-
-    const data = await apiResponse.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
 
     if (!generatedText) {
       return NextResponse.json(
-        { error: "Nessun testo generato dal modello Gemini per questo capitolo." },
-        { status: 500 }
+        {
+          error:
+            "Tutti i tentativi con i modelli Gemini sono andati in timeout o limite quota. Riprova tra poco.",
+          details: lastError,
+        },
+        { status: 502 }
       );
     }
 
@@ -138,16 +136,10 @@ REGOLE STILISTICHE FONDAMENTALI:
       bookName,
       chapter,
       lectio: generatedText,
-      model: modelName,
+      model: usedModel,
     });
   } catch (error: any) {
     console.error("Errore server Lectio Divina:", error);
-    if (error.name === "AbortError") {
-      return NextResponse.json(
-        { error: "La richiesta ha impiegato troppo tempo (timeout 18s). Riprova tra poco." },
-        { status: 504 }
-      );
-    }
     return NextResponse.json(
       { error: error.message || "Errore interno durante la generazione della Lectio Divina." },
       { status: 500 }
