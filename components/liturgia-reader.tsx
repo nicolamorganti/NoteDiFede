@@ -402,9 +402,10 @@ export function LiturgiaReader() {
             </h3>
           </div>
           <p className="text-xs text-[#8a755d]">
-            Breve riflessione strutturata e profonda sul Vangelo in stile <strong>Card. Carlo Maria Martini</strong> (200-300 parole).
+            Breve riflessione sul Vangelo di oggi
           </p>
         </div>
+
 
         <button
           onClick={handleGenerateOmelia}
