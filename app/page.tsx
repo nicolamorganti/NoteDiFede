@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { notifyNewRegistration } from "@/app/actions/notifications";
+import { ShareAppButton } from "@/components/share-app-button";
 import { APP_VERSION } from "@/lib/version";
+
 
 
 export default function LoginPage() {
@@ -119,8 +121,14 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute inset-6 hidden rounded-[20px] border border-[#aa9576]/10 md:block" />
 
       <div className="z-10 w-full max-w-md space-y-8">
+        {/* Pulsante Condividi in alto */}
+        <div className="flex justify-end">
+          <ShareAppButton variant="header" />
+        </div>
+
         {/* Intestazione Liturgica */}
         <div className="text-center space-y-4">
+
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#5c4a37] shadow-xl shadow-[#5c4a37]/10">
             {/* Icona SVG elegante: Croce latina minimale */}
             <svg

@@ -7,7 +7,9 @@ import { supabase } from "@/lib/supabase/client";
 import { AuthProvider, useAuth, type AppUserRole } from "@/components/auth-context";
 import { AudioProvider } from "@/components/audio-context";
 import { GlobalAudioPlayer } from "@/components/global-audio-player";
+import { ShareAppButton } from "@/components/share-app-button";
 import { APP_VERSION } from "@/lib/version";
+
 
 
 function AppShellInner({ children }: { children: ReactNode }) {
@@ -146,6 +148,12 @@ function AppShellInner({ children }: { children: ReactNode }) {
                 </Link>
               </div>
             )}
+
+
+            {/* Pulsante Condividi App nella Sidebar */}
+            <div className="pt-1">
+              <ShareAppButton variant="sidebar" />
+            </div>
           </div>
         </aside>
 
@@ -161,13 +169,15 @@ function AppShellInner({ children }: { children: ReactNode }) {
                   Coro Liturgico
                 </h1>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <ShareAppButton variant="header" />
                 <span className="inline-flex items-center rounded-full bg-[#ede4d8] border border-[#d7c7b5] px-2.5 py-1 text-xs font-mono font-medium text-[#6e5a45] shadow-xs">
                   {APP_VERSION}
                 </span>
               </div>
             </div>
           </header>
+
 
 
           <main className="flex-1 px-5 py-6 sm:px-6 lg:px-8 xl:px-10">
