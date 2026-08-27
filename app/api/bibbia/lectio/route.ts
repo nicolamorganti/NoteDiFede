@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { bookName, chapter, text, category } = body;
+    const { bookName, chapter, text } = body;
 
     if (!bookName || !text) {
       return NextResponse.json(
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Chiave API di Gemini non configurata. Configura GEMINI_API_KEY nelle variabili d'ambiente.",
+            "Chiave API di Gemini non configurata. Configura GEMINI_API_KEY nelle variabili d'ambiente di Vercel / .env.local.",
         },
         { status: 500 }
       );
@@ -52,8 +52,14 @@ Scrivi una Lectio Divina completa, profonda e accessibile a tutti, articolata co
 
 Usa uno stile caldo, evangelico, limpido e meditativo. Formatta la risposta in chiaro Markdown con titoli e paragrafi ben scanditi.`;
 
-    const modelName = "gemini-2.5-flash";
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    // Modelli candidate in ordine di preferenza (Flash Latest prima)
+    const candidateModels = [
+      process.env.GEMINI_MODEL,
+      "gemini-flash-latest",
+      "gemini-2.5-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash",
+    ].filter(Boolean) as string[];
 
     const geminiPayload = {
       contents: [
@@ -68,29 +74,40 @@ Usa uno stile caldo, evangelico, limpido e meditativo. Formatta la risposta in c
       },
     };
 
-    const apiResponse = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiPayload),
-    });
+    let lastError = "";
+    let generatedText: string | null = null;
+    let usedModel = "";
 
-    if (!apiResponse.ok) {
-      const errText = await apiResponse.text();
-      console.error("Errore chiamata Gemini API per Lectio:", errText);
-      return NextResponse.json(
-        { error: `Errore nella generazione con Gemini: ${apiResponse.statusText}` },
-        { status: 502 }
-      );
+    for (const model of candidateModels) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const apiResponse = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geminiPayload),
+        });
+
+        if (apiResponse.ok) {
+          const data = await apiResponse.json();
+          generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          if (generatedText) {
+            usedModel = model;
+            break;
+          }
+        } else {
+          lastError = await apiResponse.text();
+          console.warn(`Tentativo modello ${model} fallito:`, lastError);
+        }
+      } catch (err: any) {
+        lastError = err.message || String(err);
+        console.warn(`Eccezione modello ${model}:`, lastError);
+      }
     }
-
-    const data = await apiResponse.json();
-    const generatedText =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || null;
 
     if (!generatedText) {
       return NextResponse.json(
-        { error: "Nessun testo generato dal modello Gemini." },
-        { status: 500 }
+        { error: `Impossibile generare la Lectio con i modelli Flash: ${lastError}` },
+        { status: 502 }
       );
     }
 
@@ -98,7 +115,7 @@ Usa uno stile caldo, evangelico, limpido e meditativo. Formatta la risposta in c
       bookName,
       chapter,
       lectio: generatedText,
-      model: modelName,
+      model: usedModel,
     });
   } catch (error: any) {
     console.error("Errore server Lectio Divina:", error);
