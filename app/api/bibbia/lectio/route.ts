@@ -33,7 +33,7 @@ Sul passo della Sacra Bibbia qui proposto (${bookName}, Capitolo ${chapter} - Tr
 ${text}
 """
 
-Scrivi una Lectio Divina completa, profonda e accessibile a tutti, articolata con chiarezza nei 5 momenti classici della tradizione spirituale e del magistero del Cardinale Carlo Maria Martini:
+Scrivi una Lectio Divina completa, profonda e accessibile a tutti, articolata con chiarezza nell'ordine esatto dei seguenti 5 momenti:
 
 1. 📖 **LECTIO (Che cosa dice il testo in sé?)**:
    - Spiegazione essenziale del contesto, delle parole-chiave e dei passaggi fondamentali del brano.
@@ -41,16 +41,17 @@ Scrivi una Lectio Divina completa, profonda e accessibile a tutti, articolata co
 2. 💡 **MEDITATIO (Che cosa dice il testo a noi oggi?)**:
    - Riflessione per la nostra vita, le domande del cuore, il discernimento quotidiano, la fiducia e il rapporto con Dio e i fratelli.
 
-3. 🕊️ **ORATIO (Che cosa diciamo noi al Signore in risposta alla sua Parola?)**:
-   - Una preghiera sincera, calda, orante e filiale da rivolgere a Dio Padre nel nome di Gesù.
-
-4. 👁️ **CONTEMPLATIO (Quale conversione dello sguardo ci dona il Signore?)**:
+3. 👁️ **CONTEMPLATIO (Quale conversione dello sguardo ci dona il Signore?)**:
    - Uno spazio di silenzio interiore, adorazione e contemplazione dell'opera di Dio nella nostra storia.
 
-5. 👣 **ACTIO (Quale passo concreto siamo chiamati a compiere?)**:
+4. 👣 **ACTIO (Quale passo concreto siamo chiamati a compiere?)**:
    - Un'indicazione pratica di carità, speranza, riconciliazione o testimonianza per la giornata.
 
-Usa uno stile caldo, evangelico, limpido e meditativo. Formatta la risposta in chiaro Markdown con titoli e paragrafi ben scanditi.`;
+5. 🕊️ **ORATIO (Che cosa diciamo noi al Signore in risposta alla sua Parola?)**:
+   - Una preghiera accorata, calda, orante e filiale da rivolgere a Dio Padre nel nome di Gesù a compimento del cammino.
+
+Usa uno stile caldo, evangelico, limpido e meditativo in perfetto stile Cardinale Carlo Maria Martini. Formatta la risposta in chiaro Markdown con titoli e paragrafi ben scanditi.`;
+
 
     // Modelli candidate in ordine di preferenza (Flash Latest prima)
     const candidateModels = [
@@ -69,10 +70,11 @@ Usa uno stile caldo, evangelico, limpido e meditativo. Formatta la risposta in c
         },
       ],
       generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: 2500,
+        temperature: 0.65,
+        maxOutputTokens: 8192,
       },
     };
+
 
     let lastError = "";
     let generatedText: string | null = null;

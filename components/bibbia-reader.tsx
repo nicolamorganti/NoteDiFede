@@ -628,7 +628,7 @@ export function BibbiaReader() {
                     </h3>
                   </div>
                   <p className="text-xs text-[#8a755d]">
-                    Genera una <em>Lectio, Meditatio, Oratio, Contemplatio, Actio</em> in perfetto stile <strong>Card. Carlo Maria Martini</strong>.
+                    Genera una <em>Lectio, Meditatio, Contemplatio, Actio, Oratio</em> in perfetto stile <strong>Card. Carlo Maria Martini</strong>.
                   </p>
                 </div>
 
@@ -670,11 +670,12 @@ export function BibbiaReader() {
                       Ascolto della Parola in corso...
                     </h4>
                     <p className="text-xs text-[#8a755d] max-w-md mx-auto">
-                      Gemini Flash sta elaborando la <em>Lectio, Meditatio, Oratio, Contemplatio e Actio</em> su {chapterData.bookName} {chapterData.chapter} secondo la sapienza biblica del Cardinale Carlo Maria Martini.
+                      Gemini Flash sta elaborando la <em>Lectio, Meditatio, Contemplatio, Actio e Oratio</em> su {chapterData.bookName} {chapterData.chapter} secondo la sapienza biblica del Cardinale Carlo Maria Martini.
                     </p>
                   </div>
                 </div>
               )}
+
 
               {/* Errore Generazione Lectio */}
               {lectioError && (
@@ -750,9 +751,19 @@ export function BibbiaReader() {
                     </div>
                   </div>
 
-                  {/* Contenuto Testo Lectio */}
+                  {/* Controlli Vista Lectio */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-black/5 dark:bg-white/5 p-2 rounded-2xl">
+                    <span className="text-xs font-semibold text-[#8a755d]">
+                      Modalità di Lettura della Meditazione:
+                    </span>
+                    <span className="text-xs text-[#aa9576] font-bold">
+                      Completa · Testo Scorrevole
+                    </span>
+                  </div>
+
+                  {/* Contenuto Testo Lectio Scorrevole */}
                   <div
-                    className="lectio-rendered-content font-serif leading-relaxed"
+                    className="lectio-rendered-content font-serif leading-relaxed max-h-[550px] overflow-y-auto pr-3 rounded-2xl p-4 bg-white/40 dark:bg-black/20 border border-[#e4d7c7] dark:border-[#38332f] shadow-inner"
                     style={{ fontSize: `${fontSize - 1}px` }}
                     dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(lectioText) }}
                   />
@@ -766,6 +777,7 @@ export function BibbiaReader() {
                 </div>
               )}
             </div>
+
 
             {/* Navigazione a Piè di Pagina */}
             <div className="border-t pt-8 mt-10 flex items-center justify-between" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
