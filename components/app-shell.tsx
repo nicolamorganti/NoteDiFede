@@ -5,7 +5,10 @@ import { useRouter, usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { AuthProvider, useAuth, type AppUserRole } from "@/components/auth-context";
+import { AudioProvider } from "@/components/audio-context";
+import { GlobalAudioPlayer } from "@/components/global-audio-player";
 import { APP_VERSION } from "@/lib/version";
+
 
 function AppShellInner({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -165,6 +168,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
 }
 
 export function AppShell({
+
+
   children,
   initialUser = null,
   initialRole = null,
@@ -184,8 +189,12 @@ export function AppShell({
       initialFullName={initialFullName}
       initialVocalRegister={initialVocalRegister}
     >
-      <AppShellInner>{children}</AppShellInner>
+      <AudioProvider>
+        <AppShellInner>{children}</AppShellInner>
+        <GlobalAudioPlayer />
+      </AudioProvider>
     </AuthProvider>
   );
 }
+
 

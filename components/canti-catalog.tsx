@@ -16,6 +16,7 @@ import { SongLinkEditForm } from "./song-link-edit-form";
 import { SongFileDeleteForm } from "./song-file-delete-form";
 import { PsalmCollectionsManager } from "./psalm-collections-manager";
 import { useAuth } from "@/components/auth-context";
+import { useAudio } from "@/components/audio-context";
 
 // Bottone di eliminazione con stato pending per la form
 function DeleteButton() {
@@ -83,22 +84,19 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
   } = useAuth();
 
 
+  // Audio Player Globale
+  const { playTrack, activeTrack, isPlaying } = useAudio();
+
+
   // Stati di ricerca e filtri
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKey, setSelectedKey] = useState("all");
   const [selectedMoment, setSelectedMoment] = useState("all");
   const [selectedAttachment, setSelectedAttachment] = useState("all");
-
-  // Stati del Player Audio
-  const [activeTrack, setActiveTrack] = useState<ActiveAudioTrack | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
   
   // State per l'espansione dei canti (accordion su mobile)
   const [expandedSongs, setExpandedSongs] = useState<Record<string, boolean>>({});
+
 
   // Auto-espande e scrolla a un canto specifico se indicato nel query param ?cantoId=...
   useEffect(() => {
@@ -212,14 +210,19 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
 
   // Filtra la lista dei canti in base a ricerca e filtri
   const filteredSongs = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
     return initialSongs.filter((song) => {
-      // 1. Ricerca testuale
-      const matchesSearch =
-        searchTerm === "" ||
-        song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.alternateTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+      // 1. Ricerca testuale potenziata (titolo, codice, note e testo del canto)
+      let matchesSearch = true;
+      if (term !== "") {
+        const { notes: plainNotes, lyrics } = parseNotesAndLyrics(song.notes);
+        matchesSearch =
+          song.title.toLowerCase().includes(term) ||
+          (song.alternateTitle?.toLowerCase().includes(term) ?? false) ||
+          (song.code?.toLowerCase().includes(term) ?? false) ||
+          (plainNotes?.toLowerCase().includes(term) ?? false) ||
+          (lyrics?.toLowerCase().includes(term) ?? false);
+      }
 
       // 2. Filtro Tonalità
       const matchesKey =
@@ -234,14 +237,14 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
       // 4. Filtro Allegati
       let matchesAttachment = true;
       if (selectedAttachment !== "all") {
-        const hasPdf = song.arrangements.some((arr) => arr.files.length > 0);
-        const hasVocalParts = true; // Ogni arrangiamento ha sempre le tracce vocali mockate nel nostro frontend
+        const hasPdf = song.arrangements.some((arr) => arr.files.some(f => f.fileType.endsWith("_pdf")));
+        const hasMp3 = song.arrangements.some((arr) => arr.files.some(f => f.fileType.startsWith("mp3_")));
         const hasExternalLinks = song.links.length > 0;
 
         if (selectedAttachment === "pdf") {
           matchesAttachment = hasPdf;
         } else if (selectedAttachment === "mp3") {
-          matchesAttachment = hasVocalParts;
+          matchesAttachment = hasMp3;
         } else if (selectedAttachment === "link") {
           matchesAttachment = hasExternalLinks;
         }
@@ -251,58 +254,13 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
     });
   }, [initialSongs, searchTerm, selectedKey, selectedMoment, selectedAttachment]);
 
-  // Gestione audio events
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handleLoadedMetadata = () => setDuration(audio.duration);
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-    };
-
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("ended", handleEnded);
-
-    return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("ended", handleEnded);
-    };
-  }, [activeTrack]);
-
-  // Effetto per riprodurre o mettere in pausa l'audio
-  useEffect(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.play().catch(() => setIsPlaying(false));
-    } else {
-      audioRef.current.pause();
-    }
-  }, [isPlaying, activeTrack]);
-
-  // Gestisce la regolazione del volume
-  useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.volume = isMuted ? 0 : volume;
-  }, [volume, isMuted]);
-
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
-
   const handleTrackSelect = (songTitle: string, part: { part: string; label: string; url: string }) => {
     if (!isAuthorizedForRestrictedContent) return;
-    setActiveTrack({
+    playTrack({
       songTitle,
       partLabel: part.label,
       url: part.url,
     });
-    setIsPlaying(true);
-    setCurrentTime(0);
   };
 
   const toggleExpandSong = (songId: string) => {
@@ -312,12 +270,6 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
     }));
   };
 
-  const formatTime = (time: number) => {
-    if (isNaN(time)) return "00:00";
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  };
 
   const freshEditSong = modalEditSong
     ? (initialSongs.find((s) => s.id === modalEditSong.id) || modalEditSong)
@@ -862,131 +814,9 @@ export function CantiCatalog({ initialSongs, allMoments }: CantiCatalogProps) {
       )}
 
       {/* ========================================================================= */}
-      {/* MOCK MP3 STICKY PLAYER BAR */}
-      {/* ========================================================================= */}
-      {activeTrack && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#fffdfa]/95 border-t border-[#e4dcce] px-4 py-3 shadow-2xl backdrop-blur-md transition-all duration-300 md:py-4">
-          <div className="mx-auto max-w-6xl flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            {/* Tag audio nativo nascosto */}
-            <audio ref={audioRef} src={activeTrack.url} />
-
-            {/* Titolo e Traccia in riproduzione */}
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-[#5c4a37] text-white">
-                <svg className={`h-5 w-5 ${isPlaying ? "animate-pulse" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8a755d]">Esercitazione Parti</p>
-                <p className="text-sm font-semibold text-[#3f3933] truncate max-w-[240px] md:max-w-[320px]" title={activeTrack.songTitle}>
-                  {activeTrack.songTitle}
-                </p>
-                <p className="text-xs text-[#736555] truncate">{activeTrack.partLabel}</p>
-              </div>
-            </div>
-
-            {/* Controlli di Riproduzione */}
-            <div className="flex flex-col gap-2 flex-1 max-w-md md:mx-6">
-              <div className="flex items-center justify-center gap-4">
-                {/* Tempo Corrente */}
-                <span className="text-[11px] font-mono text-[#736555] shrink-0">
-                  {formatTime(currentTime)}
-                </span>
-
-                {/* Pulsante Play / Pausa */}
-                <button
-                  onClick={handlePlayPause}
-                  className="h-9 w-9 flex items-center justify-center rounded-full bg-[#5c4a37] text-[#fffdfa] hover:bg-[#4b3c2c] transition shadow-md"
-                >
-                  {isPlaying ? (
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4 fill-current ml-0.5" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                </button>
-
-                {/* Tempo Totale */}
-                <span className="text-[11px] font-mono text-[#736555] shrink-0">
-                  {formatTime(duration)}
-                </span>
-              </div>
-
-              {/* Slider di Avanzamento */}
-              <div className="relative group w-full flex items-center h-2">
-                <input
-                  type="range"
-                  min={0}
-                  max={duration || 100}
-                  value={currentTime}
-                  onChange={(e) => {
-                    const time = parseFloat(e.target.value);
-                    if (audioRef.current) audioRef.current.currentTime = time;
-                    setCurrentTime(time);
-                  }}
-                  className="w-full h-1 bg-[#d9cdbf] rounded-lg appearance-none cursor-pointer accent-[#5c4a37]"
-                />
-              </div>
-            </div>
-
-            {/* Controlli di Regolazione (Volume e Chiusura) */}
-            <div className="flex items-center justify-between md:justify-end gap-4 self-stretch md:self-auto border-t border-[#e4dcce]/40 pt-2.5 md:border-t-0 md:pt-0 shrink-0">
-              {/* Regolazione Volume */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="text-[#736555] hover:text-[#3f3933] transition"
-                >
-                  {isMuted || volume === 0 ? (
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    </svg>
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={volume}
-                  onChange={(e) => {
-                    const vol = parseFloat(e.target.value);
-                    setVolume(vol);
-                    setIsMuted(false);
-                  }}
-                  className="w-16 h-1 bg-[#d9cdbf] rounded-lg appearance-none cursor-pointer accent-[#5c4a37]"
-                />
-              </div>
-
-              <span className="hidden md:inline text-[#d9cdbf]">|</span>
-
-              {/* Chiudi Player */}
-              <button
-                onClick={() => {
-                  setIsPlaying(false);
-                  setActiveTrack(null);
-                }}
-                className="text-xs font-semibold text-[#8a755d] hover:text-red-700 transition"
-              >
-                Chiudi Player
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
       {/* MODALE DI PREVIEW PDF (IFRAME E MOCK) */}
       {/* ========================================================================= */}
+
       {previewPdf && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#e4dcce] bg-[#fffdfa] shadow-2xl">

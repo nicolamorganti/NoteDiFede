@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { MassDetails } from "@/lib/masses";
 import { parseNotesAndLyrics } from "@/lib/song-utils";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-context";
+import { useAudio } from "@/components/audio-context";
+import {
+  exportTableReportPdf,
+  exportListReportPdf,
+  exportWordReport,
+} from "@/lib/pdf-generator";
 
 type MessaDashboardProps = {
   massDetails: MassDetails;
-};
-
-type ActiveAudioTrack = {
-  songTitle: string;
-  partLabel: string;
-  url: string;
 };
 
 type DashboardFile = {
@@ -35,15 +35,12 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     isLoading: authLoading,
   } = useAuth();
 
+  // Audio Player Globale
+  const { playTrack, activeTrack, isPlaying } = useAudio();
 
-  // Stati PDF e Audio
+
+  // Stati PDF
   const [previewPdf, setPreviewPdf] = useState<{ title: string; url: string; fileName: string } | null>(null);
-  const [activeTrack, setActiveTrack] = useState<ActiveAudioTrack | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
 
   // Stato Modale Report
   const [modalReport, setModalReport] = useState(false);
@@ -53,8 +50,6 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   const [isGeneratingBinder, setIsGeneratingBinder] = useState(false);
   const [binderError, setBinderError] = useState<string | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   // Formatta la data
   const formattedDate = new Intl.DateTimeFormat("it-IT", {
     weekday: "long",
@@ -63,43 +58,16 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     year: "numeric",
   }).format(new Date(massDetails.celebrationDate));
 
-  // Gestione Player Audio
-  useEffect(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.play().catch(() => setIsPlaying(false));
-    } else {
-      audioRef.current.pause();
-    }
-  }, [isPlaying, activeTrack]);
-
-  useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.volume = isMuted ? 0 : volume;
-  }, [volume, isMuted]);
-
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
-
   const handleTrackSelect = (songTitle: string, file: DashboardFile) => {
     if (!isAuthorizedForRestrictedContent) return;
     const fileUrl = `/api/song-files/${file.id}?disposition=inline`;
-    setActiveTrack({
+    playTrack({
       songTitle,
-      partLabel: file.fileName,
+      partLabel: file.fileLabel || file.fileName,
       url: fileUrl,
     });
-    setIsPlaying(true);
-    setCurrentTime(0);
   };
 
-  const formatTime = (time: number) => {
-    if (isNaN(time)) return "00:00";
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  };
 
   // Generatore di Report
   const generateReportText = () => {
@@ -380,208 +348,8 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   };
 
   const handlePrintTableReport = () => {
-    import("jspdf").then(({ jsPDF }) => {
-      const doc = new jsPDF({ orientation: "landscape" });
-      
-      let y = 15;
-      const margin = 15;
-      const pageHeight = 210;
-      const pageWidth = 297;
-      const docWidth = pageWidth - (margin * 2);
 
-      const col1Width = 45; // Moment
-      const col2Width = 140; // Song + Notes
-      const col3Width = docWidth - col1Width - col2Width; // Links ~82
-      
-      const col1X = margin;
-      const col2X = margin + col1Width;
-      const col3X = margin + col1Width + col2Width;
-
-      const checkPageSpace = (heightNeeded: number) => {
-        if (y + heightNeeded > pageHeight - margin) {
-          doc.addPage();
-          y = margin;
-        }
-      };
-
-      // 1. Title
-      const dateStr = new Intl.DateTimeFormat("it-IT", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "2-digit"
-      }).format(new Date(massDetails.celebrationDate));
-      
-      doc.setFont("Helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(50, 50, 50);
-      doc.text(massDetails.title, margin, y);
-      
-      const titleWidth = doc.getTextWidth(massDetails.title);
-      
-      doc.setFont("Helvetica", "italic");
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Domenica ${dateStr}  |  Anno ${massDetails.liturgicalYear}`, margin + titleWidth + 5, y);
-      
-      y += 6;
-
-      if (massDetails.notes) {
-        doc.setFont("Helvetica", "normal");
-        doc.setFontSize(9);
-        const noteLines = doc.splitTextToSize(`Indicazioni: ${massDetails.notes}`, docWidth - 4);
-        const noteHeight = noteLines.length * 4.5 + 4;
-        
-        doc.setFillColor(251, 249, 245);
-        doc.rect(margin, y, docWidth, noteHeight, "F");
-        
-        doc.setDrawColor(235, 220, 203);
-        doc.setLineWidth(1.5);
-        doc.line(margin, y, margin, y + noteHeight);
-        
-        doc.setTextColor(92, 74, 55);
-        doc.text(noteLines, margin + 4, y + 4.5);
-        
-        y += noteHeight + 4;
-        
-        // Reset line width for table
-        doc.setLineWidth(0.2);
-      } else {
-        y += 2;
-      }
-      
-      // Draw Table Header
-      doc.setFont("Helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      doc.setFillColor(240, 240, 240);
-      doc.rect(margin, y, docWidth, 8, "FD");
-      
-      doc.text("Momento", col1X + 2, y + 5);
-      doc.text("Canto", col2X + 2, y + 5);
-      doc.text("YouTube", col3X + 2, y + 5);
-      
-      y += 8;
-
-      massDetails.moments.forEach(({ moment, songs }) => {
-        if (songs.length === 0) return;
-
-        songs.forEach((massSong, index) => {
-          const { song, notes: specificNotes } = massSong;
-          const { notes: generalNotes } = parseNotesAndLyrics(song.notes);
-          
-          const notesArr = [];
-          if (specificNotes) notesArr.push(specificNotes);
-          if (generalNotes) notesArr.push(`Canto: ${generalNotes.replace(/\n/g, " ")}`);
-          const notes = notesArr.join(" | ");
-          
-          doc.setFont("Helvetica", "normal");
-          doc.setFontSize(10);
-          
-          const codePart = song.code ? ` (${song.code})` : "";
-          const titleText = `${song.title}${codePart}`;
-          
-          // Calculate row height based on the text wraps
-          doc.setFont("Helvetica", "bold");
-          const titleLines = doc.splitTextToSize(titleText, col2Width - 4);
-          
-          doc.setFont("Helvetica", "italic");
-          doc.setFontSize(9);
-          const notesLines = notes ? doc.splitTextToSize(notes.replace(/\n/g, " "), col2Width - 4) : [];
-          
-          const ytLink = song.links.find(l => l.provider === "youtube") || song.links[0];
-          doc.setFont("Helvetica", "normal");
-          doc.setFontSize(9);
-          const linkLines = ytLink ? doc.splitTextToSize(ytLink.label, col3Width - 10) : []; // leave space for icon
-
-          // Calculate height
-          const titleHeight = titleLines.length * 4.5;
-          const notesHeight = notesLines.length > 0 ? (notesLines.length * 4) + 2 : 0;
-          const contentCol2Height = titleHeight + notesHeight;
-          
-          const linkHeight = linkLines.length * 4;
-          
-          const rowHeight = Math.max(8, contentCol2Height + 4, linkHeight + 4);
-          
-          checkPageSpace(rowHeight);
-          const isNewPage = y === margin;
-          
-          doc.setDrawColor(200, 200, 200);
-          
-          // Draw left and right outer borders
-          doc.line(margin, y, margin, y + rowHeight);
-          doc.line(margin + docWidth, y, margin + docWidth, y + rowHeight);
-          
-          // Draw inner column dividers
-          doc.line(col2X, y, col2X, y + rowHeight);
-          doc.line(col3X, y, col3X, y + rowHeight);
-          
-          // Top border if it's a new page
-          if (isNewPage) {
-            doc.line(margin, y, margin + docWidth, y);
-          }
-          
-          // Bottom border:
-          // If it's the last song of the moment, draw full bottom border.
-          // Otherwise, draw bottom border only for col2 and col3.
-          const isLastSong = index === songs.length - 1;
-          if (isLastSong) {
-            doc.line(margin, y + rowHeight, margin + docWidth, y + rowHeight);
-          } else {
-            doc.line(col2X, y + rowHeight, margin + docWidth, y + rowHeight);
-          }
-          
-          // Col 1: Moment
-          if (index === 0 || isNewPage) {
-            doc.setFont("Helvetica", "normal");
-            doc.setFontSize(9);
-            doc.setTextColor(80, 80, 80);
-            const momentLines = doc.splitTextToSize(moment.name.toUpperCase(), col1Width - 4);
-            doc.text(momentLines, col1X + 2, y + 5);
-          }
-          
-          // Col 2: Title & Notes
-          let currentY = y + 5;
-          doc.setFont("Helvetica", "bold");
-          doc.setFontSize(10);
-          doc.setTextColor(40, 40, 40);
-          doc.text(titleLines, col2X + 2, currentY);
-          
-          if (notesLines.length > 0) {
-            currentY += titleHeight;
-            doc.setFont("Helvetica", "italic");
-            doc.setFontSize(9);
-            doc.setTextColor(100, 100, 100);
-            doc.text(notesLines, col2X + 2, currentY);
-          }
-          
-          // Col 3: Link
-          if (ytLink) {
-            const linkY = y + 5;
-            // Draw fake YouTube icon
-            doc.setFillColor(204, 0, 0); // YouTube red
-            doc.roundedRect(col3X + 2, linkY - 3, 6, 4, 1, 1, "F");
-            doc.setFillColor(255, 255, 255);
-            doc.triangle(col3X + 4, linkY - 2, col3X + 4, linkY, col3X + 6, linkY - 1, "F"); // Play button
-            
-            doc.setFont("Helvetica", "normal");
-            doc.setFontSize(9);
-            doc.setTextColor(0, 0, 238);
-            
-            doc.text(linkLines, col3X + 10, linkY);
-            
-            // Add clickable link over the icon and text
-            const textWidth = doc.getTextWidth(linkLines[0] || "");
-            doc.link(col3X + 2, linkY - 4, 8 + textWidth, linkLines.length * 4, { url: ytLink.url });
-          }
-          
-          y += rowHeight;
-        });
-      });
-
-      // Save PDF
-      const safeTitle = massDetails.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-      doc.save(`Tabella_${safeTitle}.pdf`);
-    });
+    exportTableReportPdf(massDetails);
   };
 
   const handleCopyShareLink = () => {
@@ -592,178 +360,15 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
   };
 
   const handleDownloadPdfReport = () => {
-    import("jspdf").then(({ jsPDF }) => {
-      const doc = new jsPDF();
-      
-      let y = 20;
-      const margin = 20;
-      const pageHeight = 275;
-      const docWidth = 210 - (margin * 2);
-
-      const checkPageSpace = (heightNeeded: number) => {
-        if (y + heightNeeded > pageHeight) {
-          doc.addPage();
-          y = 20;
-        }
-      };
-
-      const printText = (text: string, size: number, style: "normal" | "bold" | "italic" = "normal", color = [63, 57, 51]) => {
-        doc.setFont("Helvetica", style);
-        doc.setFontSize(size);
-        doc.setTextColor(color[0], color[1], color[2]);
-        
-        const lines = doc.splitTextToSize(text, docWidth);
-        const lineHeight = size * 0.45;
-        const height = lines.length * lineHeight + 2;
-        
-        checkPageSpace(height);
-        doc.text(lines, margin, y);
-        y += height;
-      };
-
-      // 1. Title
-      printText(massDetails.title, 20, "bold", [63, 57, 51]);
-      
-      // 2. Subtitle (Date and Liturgical Year)
-      const dateStr = new Intl.DateTimeFormat("it-IT", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric"
-      }).format(new Date(massDetails.celebrationDate));
-      printText(`Domenica ${dateStr}  |  Anno ${massDetails.liturgicalYear}  |  Portale Note di Fede`, 10, "italic", [115, 101, 85]);
-
-      // 3. Separator line
-      y += 2;
-      doc.setDrawColor(228, 220, 206);
-      doc.setLineWidth(0.5);
-      doc.line(margin, y, 210 - margin, y);
-      y += 8;
-
-      // 4. Notes if present
-      if (massDetails.notes) {
-        doc.setFont("Helvetica", "normal");
-        doc.setFontSize(9);
-        const noteLines = doc.splitTextToSize(`Indicazioni Celebrazione:\n${massDetails.notes}`, docWidth - 10);
-        const noteHeight = noteLines.length * 4.5 + 6;
-        
-        checkPageSpace(noteHeight);
-        
-        // Draw background box
-        doc.setFillColor(251, 249, 245);
-        doc.rect(margin, y, docWidth, noteHeight, "F");
-        
-        // Draw left border
-        doc.setDrawColor(235, 220, 203);
-        doc.setLineWidth(1.5);
-        doc.line(margin, y, margin, y + noteHeight);
-        
-        doc.setTextColor(92, 74, 55);
-        doc.text(noteLines, margin + 5, y + 5);
-        
-        y += noteHeight + 8;
-      }
-
-      // 5. Loop moments
-      massDetails.moments.forEach(({ moment, songs }) => {
-        if (songs.length === 0) return;
-
-        // Moment Header
-        checkPageSpace(15);
-        y += 4;
-        printText(`${moment.sortOrder}. ${moment.name.toUpperCase()}`, 11, "bold", [138, 117, 93]);
-        y += 1;
-
-        songs.forEach((massSong) => {
-          const { song, notes: specificNotes } = massSong;
-          checkPageSpace(12);
-          const codePrefix = song.code ? `[${song.code}] ` : "";
-          printText(`${codePrefix}${song.title}`, 12, "bold", [63, 57, 51]);
-
-          // Links
-          if (reportFormat === "links" || reportFormat === "lyrics") {
-            if (song.links && song.links.length > 0) {
-              song.links.forEach((link) => {
-                checkPageSpace(8);
-                doc.setFont("Helvetica", "normal");
-                doc.setFontSize(9);
-                doc.setTextColor(115, 101, 85);
-                
-                doc.text("• YouTube: ", margin + 5, y);
-                const prefixWidth = doc.getTextWidth("• YouTube: ");
-                
-                doc.setTextColor(0, 0, 238);
-                doc.text(link.label, margin + 5 + prefixWidth, y);
-                
-                const labelWidth = doc.getTextWidth(link.label);
-                doc.link(margin + 5 + prefixWidth, y - 3, labelWidth, 4.5, { url: link.url });
-                
-                y += 5;
-              });
-            }
-          }
-
-          // Lyrics & notes
-          if (reportFormat === "lyrics") {
-            const { notes: generalNotes, lyrics } = parseNotesAndLyrics(song.notes);
-            
-            if (specificNotes) {
-              doc.setFont("Helvetica", "italic");
-              doc.setFontSize(9);
-              const songNoteLines = doc.splitTextToSize(specificNotes, docWidth - 5);
-              const noteHeight = songNoteLines.length * 4.5;
-              
-              checkPageSpace(noteHeight + 2);
-              doc.setTextColor(80, 80, 80);
-              doc.text(songNoteLines, margin + 5, y);
-              y += noteHeight + 2;
-            }
-
-            if (generalNotes) {
-              doc.setFont("Helvetica", "italic");
-              doc.setFontSize(9);
-              const songNoteLines = doc.splitTextToSize(`Nota Canto: ${generalNotes}`, docWidth - 5);
-              const noteHeight = songNoteLines.length * 4.5;
-              
-              checkPageSpace(noteHeight + 2);
-              doc.setTextColor(100, 100, 100);
-              doc.text(songNoteLines, margin + 5, y);
-              y += noteHeight + 2;
-            }
-
-            if (lyrics) {
-              doc.setFont("Helvetica", "normal");
-              doc.setFontSize(9);
-              const lyricLines = doc.splitTextToSize(lyrics, docWidth - 10);
-              const lyricHeight = lyricLines.length * 4.5;
-              
-              checkPageSpace(lyricHeight + 4);
-              
-              // Draw light background for lyrics
-              doc.setFillColor(253, 251, 247);
-              doc.rect(margin + 2, y - 2, docWidth - 4, lyricHeight + 4, "F");
-              
-              // Draw thin border
-              doc.setDrawColor(240, 235, 225);
-              doc.setLineWidth(0.3);
-              doc.rect(margin + 2, y - 2, docWidth - 4, lyricHeight + 4, "S");
-              
-              doc.setTextColor(60, 60, 60);
-              doc.text(lyricLines, margin + 5, y + 2);
-              
-              y += lyricHeight + 6;
-            }
-          }
-          y += 2; // spacing between songs
-        });
-        y += 4; // spacing between moments
-      });
-
-      // Save PDF
-      const safeTitle = massDetails.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-      doc.save(`Report_${safeTitle}.pdf`);
-    });
+    const format = reportFormat === "lyrics" ? "lyrics" : reportFormat === "links" ? "links" : "simple";
+    exportListReportPdf(massDetails, format);
   };
+
+  const handleDownloadWordReport = () => {
+    const format = reportFormat === "lyrics" ? "lyrics" : reportFormat === "links" ? "links" : "simple";
+    exportWordReport(massDetails, format);
+  };
+
 
   const handleDownloadBinder = async () => {
     setIsGeneratingBinder(true);
@@ -1103,129 +708,10 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
         })}
       </div>
 
-      {/* Riferimento audio invisibile per riproduzione */}
-      {activeTrack && (
-        <audio
-          ref={audioRef}
-          src={activeTrack.url}
-          onTimeUpdate={() => {
-            if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
-          }}
-          onLoadedMetadata={() => {
-            if (audioRef.current) setDuration(audioRef.current.duration);
-          }}
-          onEnded={() => setIsPlaying(false)}
-        />
-      )}
-
-      {/* ========================================================================= */}
-      {/* PLAYER AUDIO FLUTTUANTE (STICKY PLAYER IN BASSO) */}
-      {/* ========================================================================= */}
-      {activeTrack && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#d9cdbf] bg-[#fffdfa]/95 px-4 py-4 backdrop-blur shadow-2xl transition-all duration-300 md:px-6">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            {/* Info Brano Attivo */}
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">Esercizio Parti Corali</span>
-              <div className="flex items-center gap-2">
-                <h4 className="truncate font-semibold text-[#3f3933] text-sm md:text-base">
-                  {activeTrack.songTitle}
-                </h4>
-                <span className="hidden rounded-full bg-[#f4efe6] px-2 py-0.5 text-[10px] font-bold text-[#736555] sm:inline truncate">
-                  {activeTrack.partLabel}
-                </span>
-              </div>
-            </div>
-
-            {/* Slider Durata */}
-            <div className="flex flex-1 items-center gap-3 w-full md:max-w-xl">
-              <span className="text-xs font-mono text-[#8c7e6c]">{formatTime(currentTime)}</span>
-              <input
-                type="range"
-                min={0}
-                max={duration || 100}
-                value={currentTime}
-                onChange={(e) => {
-                  const time = parseFloat(e.target.value);
-                  setCurrentTime(time);
-                  if (audioRef.current) audioRef.current.currentTime = time;
-                }}
-                className="h-1.5 flex-1 cursor-pointer rounded-full bg-[#eadcc8] accent-[#5c4a37]"
-              />
-              <span className="text-xs font-mono text-[#8c7e6c]">{formatTime(duration)}</span>
-            </div>
-
-            {/* Controlli Audio */}
-            <div className="flex items-center justify-center gap-6">
-              <button
-                onClick={handlePlayPause}
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#5c4a37] text-white shadow-md hover:bg-[#4b3c2c] transition active:scale-[0.95]"
-              >
-                {isPlaying ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Regolazione Volume */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="rounded-full p-1.5 text-[#736555] hover:bg-[#f4efe6] transition"
-                >
-                  {isMuted || volume === 0 ? (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M12 18.75V5.25L7.75 9.5H4.5v5h3.25L12 18.75z" />
-                    </svg>
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => {
-                    const vol = parseFloat(e.target.value);
-                    setVolume(vol);
-                    if (vol > 0) setIsMuted(false);
-                  }}
-                  className="w-16 h-1 cursor-pointer rounded-full bg-[#eadcc8] accent-[#5c4a37] sm:w-20"
-                />
-              </div>
-
-              {/* Chiudi Player */}
-              <button
-                onClick={() => {
-                  setActiveTrack(null);
-                  setIsPlaying(false);
-                }}
-                className="rounded-full bg-[#f4efe6] p-2 text-[#736555] hover:bg-[#eadcc8] hover:text-[#3f3933] transition"
-                title="Chiudi Player"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ========================================================================= */}
       {/* MODALE: VISUALIZZATORE PDF SPARITITI */}
       {/* ========================================================================= */}
+
       {previewPdf && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 backdrop-blur-sm md:p-6">
           <div className="flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#e4dcce] bg-[#fffdfa] shadow-2xl">
@@ -1450,10 +936,21 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
-                        <span>Scarica PDF Report</span>
+                        <span>PDF Report</span>
+                      </button>
+                      <span className="text-[#d9cdbf]">|</span>
+                      <button
+                        onClick={handleDownloadWordReport}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#5c4a37] hover:underline"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Word (.doc)</span>
                       </button>
                     </div>
                   </div>
+
                   <textarea
                     readOnly
                     onClick={(e) => e.currentTarget.select()}
