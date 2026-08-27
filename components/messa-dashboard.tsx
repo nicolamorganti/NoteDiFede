@@ -375,23 +375,29 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
     setBinderError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || "";
+      const token = session?.access_token;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
 
       const res = await fetch(`/api/masses/${massDetails.id}/binder`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        method: "GET",
+        headers,
+        credentials: "include",
       });
+
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || "Errore durante la generazione del binder.");
+        throw new Error(text || `Errore server (${res.status})`);
       }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      
+
       const link = document.createElement("a");
       link.href = url;
-      
+
       const contentDisposition = res.headers.get("content-disposition");
       let filename = `Messa_${massDetails.title}.pdf`;
       if (contentDisposition) {
@@ -400,12 +406,19 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
           filename = match[1];
         }
       }
-      
+
       link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+
+      setTimeout(() => {
+        try {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        } catch (e) {
+          // ignore
+        }
+      }, 2000);
     } catch (err: any) {
       console.error(err);
       setBinderError(err.message || "Impossibile scaricare il file. Riprova.");
@@ -413,6 +426,7 @@ export function MessaDashboard({ massDetails }: MessaDashboardProps) {
       setIsGeneratingBinder(false);
     }
   };
+
 
   return (
     <div className="space-y-8 pb-32">

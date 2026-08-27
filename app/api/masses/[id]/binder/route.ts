@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { verifyUserRole } from "@/lib/supabase/server";
 import { PDFDocument } from "pdf-lib";
@@ -22,6 +22,7 @@ type SongFileRecord = {
   song_id: string;
   file_type: string;
   file_name: string;
+  storage_bucket: string;
   storage_path: string;
   mime_type: string | null;
 };
@@ -38,27 +39,48 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: massId } = await params;
+  const adminSupabase = createAdminSupabaseClient();
 
-  // Verify auth header
-  const authHeader = request.headers.get("authorization");
+  // 1. Verifica autorizzazione: controlla prima la sessione nei cookie SSR
+  let isAuthorized = false;
+  const { error: cookieAuthError } = await verifyUserRole(["cantore", "maestro", "responsabile"]);
 
-  if (!authHeader) {
-    return new Response("Non autorizzato: sessione mancante o non valida.", {
-      status: 401,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+  if (!cookieAuthError) {
+    isAuthorized = true;
+  } else {
+    // Fallback: controlla eventuale header Authorization Bearer token inviato dal client
+    const authHeader = request.headers.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      if (token) {
+        const { data: { user } } = await adminSupabase.auth.getUser(token);
+        if (user) {
+          const { data: profile } = await adminSupabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+          if (profile && ["cantore", "maestro", "responsabile"].includes(profile.role)) {
+            isAuthorized = true;
+          }
+        }
+      }
+    }
   }
 
-  // Verifica che l'utente abbia un ruolo adeguato
-  const { error: authError } = await verifyUserRole(["cantore", "maestro", "responsabile"]);
-  if (authError) {
-    return new Response(`Non autorizzato: ${authError}`, {
-      status: 403,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+  if (!isAuthorized) {
+    return new NextResponse(
+      "Non autorizzato: accesso riservato a Cantori, Maestri e Responsabili.",
+      {
+        status: 403,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      }
+    );
   }
 
-  const supabase = createAdminSupabaseClient();
+  const supabase = adminSupabase;
+
 
   // 1. Fetch mass details
   const { data: mass, error: massError } = await supabase
@@ -113,11 +135,11 @@ export async function GET(
   // 3. Fetch all files for these songs
   const { data: filesData, error: filesError } = await supabase
     .from("song_files")
-    .select("id, song_id, file_type, file_name, storage_path, mime_type")
+    .select("id, song_id, file_type, file_name, storage_bucket, storage_path, mime_type")
     .in("song_id", songIds);
 
   if (filesError || !filesData) {
-    return new Response("Impossibile caricare i file dei canti", { status: 500 });
+    return new NextResponse("Impossibile caricare i file dei canti", { status: 500 });
   }
 
   // Select all files per song (spartiti and accordi)
@@ -136,7 +158,7 @@ export async function GET(
   }
 
   if (filesToMerge.length === 0) {
-    return new Response(
+    return new NextResponse(
       "Nessuno spartito o foglio accordi (PDF/Immagine) è stato caricato per i canti di questa messa.",
       { status: 400, headers: { "Content-Type": "text/plain; charset=utf-8" } }
     );
@@ -148,16 +170,35 @@ export async function GET(
 
     for (const file of filesToMerge) {
       try {
+        const bucket = file.storage_bucket || "note-di-fede";
+        let arrayBuffer: ArrayBuffer | null = null;
+
+        // Prova il download diretto
         const { data: fileBlob, error: downloadError } = await supabase.storage
-          .from("note-di-fede")
+          .from(bucket)
           .download(file.storage_path);
 
-        if (downloadError || !fileBlob) {
-          console.warn(`Impossibile scaricare il file ${file.file_name} dallo storage:`, downloadError);
+        if (!downloadError && fileBlob) {
+          arrayBuffer = await fileBlob.arrayBuffer();
+        } else {
+          // Fallback via signed url
+          const { data: signedData } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(file.storage_path, 60);
+
+          if (signedData?.signedUrl) {
+            const fetchRes = await fetch(signedData.signedUrl);
+            if (fetchRes.ok) {
+              arrayBuffer = await fetchRes.arrayBuffer();
+            }
+          }
+        }
+
+        if (!arrayBuffer) {
+          console.warn(`Impossibile scaricare il file ${file.file_name} dallo storage.`);
           continue;
         }
 
-        const arrayBuffer = await fileBlob.arrayBuffer();
         const ext = file.file_name.substring(file.file_name.lastIndexOf(".")).toLowerCase();
 
         if (ext === ".pdf") {
@@ -165,7 +206,7 @@ export async function GET(
           const copiedPages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
           copiedPages.forEach((page) => mergedPdf.addPage(page));
           pagesAdded += copiedPages.length;
-        } else if ([".png", ".jpg", ".jpeg"].some(suffix => ext.endsWith(suffix))) {
+        } else if ([".png", ".jpg", ".jpeg"].some((suffix) => ext.endsWith(suffix))) {
           let img;
           if (ext === ".png") {
             img = await mergedPdf.embedPng(arrayBuffer);
@@ -180,12 +221,11 @@ export async function GET(
         }
       } catch (fileErr) {
         console.error(`Errore durante il processamento del file ${file.file_name}:`, fileErr);
-        // Continue merging other files even if one fails
       }
     }
 
     if (pagesAdded === 0) {
-      return new Response(
+      return new NextResponse(
         "Nessuna pagina valida è stata estratta dai file caricati.",
         { status: 400, headers: { "Content-Type": "text/plain; charset=utf-8" } }
       );
@@ -202,15 +242,17 @@ export async function GET(
     }
     const safeFileName = sanitizeFileName(`${mass.title}${formattedDate}`);
 
-    return new Response(Buffer.from(mergedPdfBytes), {
+    return new NextResponse(new Uint8Array(mergedPdfBytes), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${safeFileName}.pdf"`,
+        "Content-Disposition": `attachment; filename="${safeFileName}.pdf"`,
+        "Cache-Control": "no-store, max-age=0",
       },
     });
   } catch (err) {
     console.error("Errore generale durante la creazione del PDF unificato:", err);
-    return new Response("Errore durante la generazione del documento unico", { status: 500 });
+    return new NextResponse("Errore durante la generazione del documento unico", { status: 500 });
   }
 }
+
