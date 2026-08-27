@@ -42,13 +42,14 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
   1. La penetrazione del testo: cogliere la parola o l'atteggiamento sorgivo di Gesù con finezza biblica e psicologica.
   2. L'interrogativo per noi: una domanda sincera che mette in dialogo il testo con la nostra coscienza, le nostre fatiche e le nostre relazioni quotidiane.
   3. L'affidamento finale: un respiro di consolazione, speranza e confidenza nel Padre.
-- Lunghezza: massimo 200-280 parole (densa, concisa e luminosa).
+- Lunghezza: circa 200-280 parole (densa, concisa e luminosa).
+- Concludi SEMPRE la riflessione in modo compiuto con la frase di chiusura, senza mai troncare a metà frase.
 - Niente convenevoli di apertura o formule da pulpito (niente "Carissimi fratelli", "Cari amici", ecc.). Entra direttamente nella contemplazione del brano.`;
 
-
-    // Catena completa dei modelli Gemini (gemini-flash-latest come primo)
+    // Catena completa dei modelli Gemini (gemini-3.7-flash primo assoluto, seguito da gemini-flash-latest e fallback)
     const candidateModels = [
       process.env.GEMINI_MODEL,
+      "gemini-3.7-flash",
       "gemini-flash-latest",
       "gemini-2.5-flash",
       "gemini-2.0-flash",
@@ -70,7 +71,7 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
       ],
       generationConfig: {
         temperature: 0.65,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
       },
     };
 

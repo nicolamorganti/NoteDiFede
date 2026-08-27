@@ -65,10 +65,11 @@ function extractGospelText(html: string): string {
     if (endMatch !== -1 && endMatch > 100) {
       return afterVangelo.slice(0, endMatch).trim();
     }
-    return afterVangelo.slice(0, 2500).trim();
+    return afterVangelo.trim();
   }
-  return plainText.slice(0, 3000).trim();
+  return plainText.trim();
 }
+
 
 function splitContentAtGospelEnd(html: string) {
   // 1. Cerca la fine del tag audio (dopo l'audio del Vangelo)
