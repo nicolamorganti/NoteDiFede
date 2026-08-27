@@ -1,9 +1,10 @@
-const CACHE_NAME = "notedifede-v1.5.0";
+const CACHE_NAME = "notedifede-v1.6.0";
 
 // Asset statici principali pre-memorizzati in cache all'installazione
 const PRECACHE_ASSETS = [
   "/",
   "/liturgia",
+  "/preghiera/infermi",
   "/manifest.webmanifest",
   "/icon.svg",
   "/icons/icon-192x192.png",
@@ -11,6 +12,7 @@ const PRECACHE_ASSETS = [
   "/icons/icon-maskable-512x512.png",
   "/apple-touch-icon.png",
 ];
+
 
 // Installazione Service Worker
 self.addEventListener("install", (event) => {

@@ -30,7 +30,9 @@ function AppShellInner({ children }: { children: ReactNode }) {
     { href: "/canti", label: "Catalogo Canti", badge: "Attivo" },
     { href: "/messe", label: "Messe & Celebrazioni", badge: "Attivo" },
     { href: "/liturgia", label: "Liturgia delle Ore", badge: "Preghiera" },
+    { href: "/preghiera/infermi", label: "Comunione agli Infermi", badge: "Ministri" },
   ];
+
 
 
   // Mostra il link Impostazioni solo se è Maestro o Responsabile

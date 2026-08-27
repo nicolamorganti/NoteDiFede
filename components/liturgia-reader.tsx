@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { PreghieraNav } from "@/components/preghiera-nav";
 
 export type LiturgyRite = "ambrosiano" | "romano";
 export type LiturgyMoment = "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa";
@@ -198,7 +199,11 @@ export function LiturgiaReader() {
 
   return (
     <div className="space-y-6 pb-24 max-w-5xl mx-auto">
+      {/* Sottomenu di Navigazione Sezione Preghiera */}
+      <PreghieraNav />
+
       {/* Header Intestazione */}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e4dcce] pb-6">
         <div>
           <div className="flex items-center gap-2">
