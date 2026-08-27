@@ -7,6 +7,27 @@ import { BibleApiResponse, BibleVerse } from "@/app/api/bibbia/route";
 
 export type LineSpacingOption = "compact" | "normal" | "relaxed";
 
+// Funzione di formattazione markdown per la Lectio Divina
+function formatMarkdownToHtml(markdown: string): string {
+  let html = markdown
+    // Titoli h3 / h2
+    .replace(/^### (.*$)/gim, '<h4 class="lectio-h4">$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3 class="lectio-h3">$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2 class="lectio-h2">$1</h2>')
+    // Grassetti
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Corsivi
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Elenchi puntati
+    .replace(/^\s*-\s+(.*$)/gim, '<li class="lectio-li">$1</li>')
+    .replace(/^\s*\*\s+(.*$)/gim, '<li class="lectio-li">$1</li>')
+    // Paragrafi e a capo
+    .replace(/\n\n/g, '</p><p class="lectio-p">')
+    .replace(/\n/g, '<br />');
+
+  return `<p class="lectio-p">${html}</p>`;
+}
+
 export function BibbiaReader() {
   // Stato Libro e Capitolo
   const [selectedBookId, setSelectedBookId] = useState<string>("Gv");
@@ -19,14 +40,22 @@ export function BibbiaReader() {
   const [lineSpacing, setLineSpacing] = useState<LineSpacingOption>("compact");
   const [isChurchMode, setIsChurchMode] = useState<boolean>(false);
 
-  // Dati e caricamento
+  // Dati capitolo
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [chapterData, setChapterData] = useState<BibleApiResponse | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [selectedVerseNum, setSelectedVerseNum] = useState<number | null>(null);
 
+  // Stato Lectio Divina con Gemini
+  const [lectioLoading, setLectioLoading] = useState<boolean>(false);
+  const [lectioText, setLectioText] = useState<string | null>(null);
+  const [lectioError, setLectioError] = useState<string | null>(null);
+  const [showLectio, setShowLectio] = useState<boolean>(false);
+  const [copiedLectio, setCopiedLectio] = useState<boolean>(false);
+
   const readerContainerRef = useRef<HTMLDivElement | null>(null);
+  const lectioSectionRef = useRef<HTMLDivElement | null>(null);
 
   const currentBook = BIBLE_BOOKS.find((b) => b.id === selectedBookId) || BIBLE_BOOKS[0];
 
@@ -68,6 +97,11 @@ export function BibbiaReader() {
     setLoading(true);
     setError(null);
     setSelectedVerseNum(null);
+    // Reset lectio on chapter change
+    setLectioText(null);
+    setLectioError(null);
+    setShowLectio(false);
+
     try {
       const res = await fetch(`/api/bibbia?book=${encodeURIComponent(bId)}&chapter=${chapNum}`);
       if (!res.ok) {
@@ -77,7 +111,6 @@ export function BibbiaReader() {
       const data: BibleApiResponse = await res.json();
       setChapterData(data);
 
-      // Salva progresso di lettura
       if (typeof window !== "undefined") {
         localStorage.setItem("bibbia_last_book", bId);
         localStorage.setItem("bibbia_last_chapter", String(chapNum));
@@ -109,7 +142,6 @@ export function BibbiaReader() {
     if (chapter > 1) {
       setChapter((c) => c - 1);
     } else {
-      // Passa al libro precedente se esiste
       const currentIndex = BIBLE_BOOKS.findIndex((b) => b.id === selectedBookId);
       if (currentIndex > 0) {
         const prevBook = BIBLE_BOOKS[currentIndex - 1];
@@ -123,13 +155,74 @@ export function BibbiaReader() {
     if (chapter < currentBook.chaptersCount) {
       setChapter((c) => c + 1);
     } else {
-      // Passa al libro successivo se esiste
       const currentIndex = BIBLE_BOOKS.findIndex((b) => b.id === selectedBookId);
       if (currentIndex < BIBLE_BOOKS.length - 1) {
         const nextBook = BIBLE_BOOKS[currentIndex + 1];
         setSelectedBookId(nextBook.id);
         setChapter(1);
       }
+    }
+  };
+
+  // Generazione Lectio Divina con Gemini
+  const handleGenerateLectio = async () => {
+    if (lectioText) {
+      setShowLectio((prev) => !prev);
+      return;
+    }
+
+    if (!chapterData || !chapterData.verses.length) return;
+
+    setLectioLoading(true);
+    setLectioError(null);
+    setShowLectio(true);
+
+    const fullChapterText = chapterData.verses
+      .map((v) => `${v.num}. ${v.text}`)
+      .join("\n");
+
+    try {
+      const res = await fetch("/api/bibbia/lectio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookName: chapterData.bookName,
+          chapter: chapterData.chapter,
+          category: chapterData.category,
+          text: fullChapterText,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Errore HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      setLectioText(data.lectio);
+
+      setTimeout(() => {
+        if (lectioSectionRef.current) {
+          lectioSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error("Errore generazione Lectio:", err);
+      setLectioError(err.message || "Impossibile generare la Lectio Divina.");
+    } finally {
+      setLectioLoading(false);
+    }
+  };
+
+  // Copia Lectio
+  const handleCopyLectio = async () => {
+    if (!lectioText) return;
+    try {
+      await navigator.clipboard.writeText(lectioText);
+      setCopiedLectio(true);
+      setTimeout(() => setCopiedLectio(false), 2500);
+    } catch (e) {
+      console.error("Errore copia Lectio:", e);
     }
   };
 
@@ -517,6 +610,163 @@ export function BibbiaReader() {
               })}
             </div>
 
+            {/* ========================================================================= */}
+            {/* PULSANTE LECTIO DIVINA (CARDINALE CARLO MARIA MARTINI) */}
+            {/* ========================================================================= */}
+            <div className="my-10 pt-6 border-t" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-3xl border shadow-sm transition"
+                style={{
+                  backgroundColor: isChurchMode ? "#25201d" : "#fdfbf7",
+                  borderColor: isChurchMode ? "#443e38" : "#ebdcc8"
+                }}
+              >
+                <div className="space-y-1 text-center sm:text-left">
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <span className="text-lg">✨</span>
+                    <h3 className="font-serif font-bold text-base" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+                      Lectio Divina con Intelligenza Artificiale
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#8a755d]">
+                    Genera una <em>Lectio, Meditatio, Oratio, Contemplatio, Actio</em> in perfetto stile <strong>Card. Carlo Maria Martini</strong>.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleGenerateLectio}
+                  disabled={lectioLoading}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-[#5c4a37] text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#4a3a29] transition shadow-md disabled:opacity-50 shrink-0"
+                >
+                  {lectioLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                      <span>Elaborazione Lectio...</span>
+                    </>
+                  ) : showLectio && lectioText ? (
+                    <>
+                      <span>📖 Mostra/Nascondi Meditazione</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✨ Genera Lectio Divina</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Sezione di Caricamento Animato Lectio */}
+              {lectioLoading && (
+                <div className="mt-6 p-8 rounded-3xl border text-center space-y-4 animate-pulse"
+                  style={{
+                    backgroundColor: isChurchMode ? "#1f1b18" : "#fbf8f3",
+                    borderColor: isChurchMode ? "#443e38" : "#ebdcc8"
+                  }}
+                >
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5c4a37] text-white shadow-md animate-bounce">
+                    ✨
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-serif font-bold text-base" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+                      Ascolto della Parola in corso...
+                    </h4>
+                    <p className="text-xs text-[#8a755d] max-w-md mx-auto">
+                      Gemini Flash sta elaborando la <em>Lectio, Meditatio, Oratio, Contemplatio e Actio</em> su {chapterData.bookName} {chapterData.chapter} secondo la sapienza biblica del Cardinale Carlo Maria Martini.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Errore Generazione Lectio */}
+              {lectioError && (
+                <div className="mt-6 p-5 rounded-3xl bg-rose-50 border border-rose-200 text-center space-y-2">
+                  <p className="text-xs font-bold text-rose-700">Impossibile completare la meditazione:</p>
+                  <p className="text-xs text-rose-600">{lectioError}</p>
+                  <button
+                    onClick={handleGenerateLectio}
+                    className="px-4 py-1.5 rounded-full bg-rose-700 text-white text-xs font-semibold hover:bg-rose-800 transition"
+                  >
+                    Riprova
+                  </button>
+                </div>
+              )}
+
+              {/* Risultato Lectio Divina Generato */}
+              {showLectio && lectioText && !lectioLoading && (
+                <div
+                  ref={lectioSectionRef}
+                  className="mt-6 p-6 sm:p-10 rounded-3xl border shadow-md transition-colors duration-300 space-y-6"
+                  style={{
+                    backgroundColor: isChurchMode ? "#201c19" : "#faf6f0",
+                    borderColor: isChurchMode ? "#443e38" : "#e5d7c5"
+                  }}
+                >
+                  {/* Intestazione Card Lectio */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-5"
+                    style={{ borderColor: isChurchMode ? "#38332f" : "#e8dcce" }}
+                  >
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-[#aa9576]">
+                        Meditazione Spirituale · Metodo Card. Martini
+                      </span>
+                      <h3 className="text-xl sm:text-2xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+                        Lectio Divina: {chapterData.bookName} {chapterData.chapter}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCopyLectio}
+                        className="flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition"
+                        style={{
+                          borderColor: isChurchMode ? "#443e38" : "#d9cdbf",
+                          backgroundColor: isChurchMode ? "#2b2521" : "#fbf8f4",
+                          color: isChurchMode ? "#ece8e2" : "#5c4a37"
+                        }}
+                      >
+                        {copiedLectio ? (
+                          <span className="text-emerald-600 font-bold">Copiata!</span>
+                        ) : (
+                          <>
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            <span>Copia Meditazione</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setShowLectio(false)}
+                        className="rounded-xl border p-1.5 text-xs transition"
+                        style={{
+                          borderColor: isChurchMode ? "#443e38" : "#d9cdbf",
+                          backgroundColor: isChurchMode ? "#2b2521" : "#fbf8f4",
+                          color: isChurchMode ? "#ece8e2" : "#5c4a37"
+                        }}
+                        title="Nascondi"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Contenuto Testo Lectio */}
+                  <div
+                    className="lectio-rendered-content font-serif leading-relaxed"
+                    style={{ fontSize: `${fontSize - 1}px` }}
+                    dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(lectioText) }}
+                  />
+
+                  {/* Citazione conclusiva Card. Martini */}
+                  <div className="border-t pt-4 text-center italic text-xs text-[#8a755d]"
+                    style={{ borderColor: isChurchMode ? "#38332f" : "#e8dcce" }}
+                  >
+                    «La Parola di Dio non è mai statica: entra nella nostra vita, interpella le nostre fragilità e accende la speranza.» — Card. Carlo Maria Martini
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Navigazione a Piè di Pagina */}
             <div className="border-t pt-8 mt-10 flex items-center justify-between" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
               <button
@@ -552,6 +802,46 @@ export function BibbiaReader() {
           </article>
         ) : null}
       </div>
+
+      {/* Stili CSS dedicati per la Lectio Divina */}
+      <style jsx global>{`
+        .lectio-rendered-content .lectio-h2 {
+          font-size: 1.35em;
+          font-weight: 700;
+          color: ${isChurchMode ? "#fbbf24" : "#6e5a45"};
+          margin-top: 1.4em;
+          margin-bottom: 0.5em;
+          border-bottom: 1px solid ${isChurchMode ? "#38332f" : "#e6dcce"};
+          padding-bottom: 0.25em;
+        }
+        .lectio-rendered-content .lectio-h3 {
+          font-size: 1.2em;
+          font-weight: 700;
+          color: ${isChurchMode ? "#fbbf24" : "#5c4a37"};
+          margin-top: 1.2em;
+          margin-bottom: 0.4em;
+        }
+        .lectio-rendered-content .lectio-h4 {
+          font-size: 1.05em;
+          font-weight: 700;
+          color: ${isChurchMode ? "#fde047" : "#7c6853"};
+          margin-top: 1em;
+          margin-bottom: 0.3em;
+        }
+        .lectio-rendered-content .lectio-p {
+          margin-bottom: 0.85em;
+          line-height: 1.6;
+        }
+        .lectio-rendered-content .lectio-li {
+          margin-left: 1.5em;
+          list-style-type: disc;
+          margin-bottom: 0.35em;
+        }
+        .lectio-rendered-content strong {
+          color: ${isChurchMode ? "#fef3c7" : "#4a3e30"};
+          font-weight: 700;
+        }
+      `}</style>
     </div>
   );
 }
