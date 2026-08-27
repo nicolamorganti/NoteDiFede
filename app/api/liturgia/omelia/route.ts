@@ -33,16 +33,17 @@ Sul brano del Santo Vangelo di oggi${liturgicalInfo ? ` (${liturgicalInfo})` : "
 ${text}
 """
 
-Scrivi una breve riflessione ("Supporto alla Comprensione") che guidi il cuore e l'intelligenza a penetrare il Vangelo.
+Scrivi una riflessione ("Supporto alla Comprensione") che guidi il cuore e l'intelligenza a penetrare il Vangelo e a tradurlo nella vita reale di oggi.
 
 CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
 - Usa la tipica sintassi martiniana: periodi limpidi e misurati, meditativi, capaci di scavare nelle pieghe dell'animo umano e di porre domande essenziali sul senso della vita, della libertà e della fede.
 - EVITA ASSOLUTAMENTE I TIC MECCANICI TIPICI DEI MODELLI LINGUISTICI: niente elenchi puntati schematizzati, niente formule scolastiche o stereotipate (es. evita "In questo brano impariamo che...", "In conclusione...", "In un mondo frenetico...", "Ecco tre riflessioni...").
-- Prosa fluida, viva, calda e organica articolata in 2-3 brevi paragrafi collegati con naturalezza:
+- Prosa fluida, viva, calda e organica articolata in brevi paragrafi collegati con naturalezza:
   1. La penetrazione del testo: cogliere la parola o l'atteggiamento sorgivo di Gesù con finezza biblica e psicologica.
-  2. L'interrogativo per noi: una domanda sincera che mette in dialogo il testo con la nostra coscienza, le nostre fatiche e le nostre relazioni quotidiane.
-  3. L'affidamento finale: un respiro di consolazione, speranza e confidenza nel Padre.
-- Lunghezza: circa 200-280 parole (densa, concisa e luminosa).
+  2. L'interrogativo per la coscienza: una domanda sincera che mette in dialogo il testo con le nostre domande e fatiche interiori.
+  3. L'esempio concreto nel quotidiano (circa 50 parole dedicate): un consiglio pratico ed esistenziale, un atteggiamento concreto da incarnare oggi (nel lavoro, nelle relazioni familiari, nella pazienza, nel perdono, nell'ascolto) per conformarci allo stile e al cuore di Gesù.
+  4. L'affidamento finale: un respiro di consolazione, speranza e confidenza nel Padre.
+- Lunghezza complessiva: circa 250-350 parole (densa, luminosa e profondamente incarnata nel quotidiano).
 - Concludi SEMPRE la riflessione in modo compiuto con la frase di chiusura, senza mai troncare a metà frase.
 - Niente convenevoli di apertura o formule da pulpito (niente "Carissimi fratelli", "Cari amici", ecc.). Entra direttamente nella contemplazione del brano.`;
 
