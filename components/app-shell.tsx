@@ -28,8 +28,10 @@ function AppShellInner({ children }: { children: ReactNode }) {
   // Costruisce la navigazione dinamica
   const navigation = [
     { href: "/canti", label: "Catalogo Canti", badge: "Attivo" },
-    { href: "/messe", label: "Messe & Liturgia", badge: "Attivo" },
+    { href: "/messe", label: "Messe & Celebrazioni", badge: "Attivo" },
+    { href: "/liturgia", label: "Liturgia delle Ore", badge: "Preghiera" },
   ];
+
 
   // Mostra il link Impostazioni solo se è Maestro o Responsabile
   if (role === "maestro" || role === "responsabile") {

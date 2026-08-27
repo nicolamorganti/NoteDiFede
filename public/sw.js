@@ -1,8 +1,9 @@
-﻿const CACHE_NAME = "notedifede-v1.4.2";
+const CACHE_NAME = "notedifede-v1.5.0";
 
 // Asset statici principali pre-memorizzati in cache all'installazione
 const PRECACHE_ASSETS = [
   "/",
+  "/liturgia",
   "/manifest.webmanifest",
   "/icon.svg",
   "/icons/icon-192x192.png",
@@ -60,11 +61,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 2. File spartiti e audio (/api/song-files/*, Supabase storage) -> Stale-While-Revalidate
+  // 2. File spartiti, audio e testi Liturgia (/api/song-files/*, /api/liturgia*, Supabase storage) -> Stale-While-Revalidate
   if (
     url.pathname.startsWith("/api/song-files/") ||
+    url.pathname.startsWith("/api/liturgia") ||
     url.hostname.includes("supabase.co")
   ) {
+
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         const fetchPromise = fetch(request)
