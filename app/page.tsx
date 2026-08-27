@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { notifyNewRegistration } from "@/app/actions/notifications";
+import { APP_VERSION } from "@/lib/version";
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -292,7 +294,12 @@ export default function LoginPage() {
             Sola lettura: puoi consultare il repertorio dei canti e visualizzare gli spartiti.
           </p>
         </div>
+
+        <p className="text-center text-[11px] font-mono text-[#a89885]">
+          Note di Fede • {APP_VERSION}
+        </p>
       </div>
     </main>
   );
 }
+

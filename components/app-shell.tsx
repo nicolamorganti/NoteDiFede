@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { AuthProvider, useAuth, type AppUserRole } from "@/components/auth-context";
+import { APP_VERSION } from "@/lib/version";
 
 function AppShellInner({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -40,15 +41,22 @@ function AppShellInner({ children }: { children: ReactNode }) {
         <aside className="flex flex-col justify-between border-b border-[#ddd2c2] bg-[#ede4d8] px-5 py-5 text-[#3f3933] lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:border-b-0 lg:border-r lg:px-6 lg:py-8 lg:overflow-y-auto">
           <div className="space-y-6">
             <div className="space-y-3">
-              <Link href="/" className="inline-flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#6e5a45] font-semibold text-[#fbf7f2]">
+              <Link href="/" className="inline-flex items-center gap-3 group">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#6e5a45] font-semibold text-[#fbf7f2] shadow-sm">
                   NF
                 </span>
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#887865]">
-                    Note di Fede
-                  </p>
-                  <p className="text-lg font-semibold">Portale Coro</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#887865]">
+                      Note di Fede
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-semibold text-[#3f3933]">Portale Coro</p>
+                    <span className="rounded-full bg-[#dfd3c3] border border-[#cfc1ad] px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#5c4a37]">
+                      {APP_VERSION}
+                    </span>
+                  </div>
                 </div>
               </Link>
 
@@ -129,7 +137,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         {/* Contenuto Principale */}
         <div className="flex min-h-screen flex-1 flex-col">
           <header className="border-b border-[#ddd2c2] bg-[#f6f1ea]/90 px-5 py-4 backdrop-blur sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#857866]">
                   Area Riservata
@@ -138,8 +146,14 @@ function AppShellInner({ children }: { children: ReactNode }) {
                   Coro Liturgico
                 </h1>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-[#ede4d8] border border-[#d7c7b5] px-2.5 py-1 text-xs font-mono font-medium text-[#6e5a45] shadow-xs">
+                  {APP_VERSION}
+                </span>
+              </div>
             </div>
           </header>
+
 
           <main className="flex-1 px-5 py-6 sm:px-6 lg:px-8 xl:px-10">
             {children}
