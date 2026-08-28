@@ -224,7 +224,7 @@ export default function CreditiPage() {
             </p>
           </div>
 
-          {/* Rituale dei Sacramenti */}
+          {/* Benedizionale */}
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
             <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
               <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
@@ -232,13 +232,14 @@ export default function CreditiPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </span>
-              <span>Rituale dei Sacramenti</span>
+              <span>Rituale Romano</span>
             </div>
-            <h4 className="font-bold text-[#2c241c]">Benedizionale & Cura Infermi</h4>
+            <h4 className="font-bold text-[#2c241c]">Benedizionale</h4>
             <p className="text-xs text-[#6b5d4e] leading-relaxed">
-              Formulari per benedizioni, sacramenti, visite agli ammalati e sussidi per ministri straordinari.
+              Formulari del Rituale per le benedizioni delle persone, delle famiglie, degli infermi, delle mense e dei luoghi.
             </p>
           </div>
+
 
           {/* Repertorio Musicale */}
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
