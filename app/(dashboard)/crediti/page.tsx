@@ -14,7 +14,10 @@ export default function CreditiPage() {
       {/* Intestazione Principale */}
       <div className="rounded-3xl bg-gradient-to-br from-[#fbf8f3] via-[#f7f2ea] to-[#ebdcc8] border border-[#e2d5c4] p-6 sm:p-10 shadow-sm text-center sm:text-left space-y-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#f3ebd8] text-[#8a755d] text-xs font-semibold uppercase tracking-wider border border-[#e2d5c4]">
-          <span>✨</span> Progetto Pastorale Open & No-Profit
+          <svg className="w-3.5 h-3.5 text-[#8a755d]" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6.4-4.8-6.4 4.8 2.4-7.2-6-4.8h7.6z" />
+          </svg>
+          <span>Progetto Pastorale Open & No-Profit</span>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -36,11 +39,18 @@ export default function CreditiPage() {
         </div>
       </div>
 
-      {/* 1. Spirito e Finalità del Progetto (No-Profit) - Prima sezione richiesta */}
+      {/* 1. Spirito e Finalità del Progetto (No-Profit) */}
       <div className="rounded-3xl bg-[#fbf8f3] border border-[#ebdcc8] p-6 sm:p-8 space-y-4 shadow-2xs">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#3f3123] text-[#ebdcc8] text-lg shadow-xs shrink-0">
-            🕊️
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f4ebd9] border border-[#d8c5ad] text-[#5c4a37] shadow-2xs shrink-0">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
           </span>
           <div>
             <h2 className="text-xl sm:text-2xl font-bold font-serif text-[#2c241c]">
@@ -66,8 +76,17 @@ export default function CreditiPage() {
 
       {/* 2. Sezione Curatori dell’Opera */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 px-1">
-          <span className="text-lg">👥</span>
+        <div className="flex items-center gap-2.5 px-1">
+          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#f4ebd9] border border-[#d8c5ad] text-[#5c4a37] shrink-0">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              />
+            </svg>
+          </span>
           <h2 className="text-xl sm:text-2xl font-bold font-serif text-[#2c241c]">
             Curatori dell’Opera
           </h2>
@@ -94,8 +113,8 @@ export default function CreditiPage() {
                 Ideazione e sviluppo dell’architettura software, digitalizzazione del repertorio canti,
                 gestione delle partiture, trasposizione automatica degli accordi, audio guide corali per registri vocali e sintesi vocale liturgica.
               </p>
-              <p className="text-xs text-[#786653] italic leading-relaxed pt-1">
-                Realizzato con il supporto alle fonti dei testi del <strong>Coro della Beata Vergine del Rosario di Mombretto di Mediglia</strong> e con un ringraziamento particolare ad <strong>Alessandro Bellotto</strong>.
+              <p className="text-xs text-[#786653] leading-relaxed pt-1.5 border-t border-[#f7f2ea]">
+                Fonti dei testi a cura del <strong>Coro della Beata Vergine del Rosario di Mombretto di Mediglia</strong>. Un ringraziamento speciale ad <strong>Alessandro Bellotto</strong>, per gli spartiti condivisi e per la cura di una raccolta costruita negli anni.
               </p>
             </div>
             <div className="pt-3 border-t border-[#f3ebd8] text-xs text-[#786653] flex items-center gap-2">
@@ -136,22 +155,36 @@ export default function CreditiPage() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* 3. Libri Liturgici & Testi Sacri di Riferimento */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 px-1">
-          <span className="text-lg">📜</span>
+        <div className="flex items-center gap-2.5 px-1">
+          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#f4ebd9] border border-[#d8c5ad] text-[#5c4a37] shrink-0">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </span>
           <h2 className="text-xl sm:text-2xl font-bold font-serif text-[#2c241c]">
             Libri Liturgici & Testi Sacri di Riferimento
           </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs sm:text-sm">
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+          {/* Sacra Scrittura */}
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
             <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
-              <span>📖</span> Sacra Scrittura
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </span>
+              <span>Sacra Scrittura</span>
             </div>
             <h4 className="font-bold text-[#2c241c]">Bibbia CEI 2008</h4>
             <p className="text-xs text-[#6b5d4e] leading-relaxed">
@@ -159,9 +192,15 @@ export default function CreditiPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+          {/* Celebrazione Eucaristica */}
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
             <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
-              <span>⛪</span> Celebrazione Eucaristica
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </span>
+              <span>Celebrazione Eucaristica</span>
             </div>
             <h4 className="font-bold text-[#2c241c]">Messale Romano & Ambrosiano</h4>
             <p className="text-xs text-[#6b5d4e] leading-relaxed">
@@ -169,9 +208,15 @@ export default function CreditiPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+          {/* Ufficio Divino */}
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
             <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
-              <span>🕯️</span> Ufficio Divino
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343a7.975 7.975 0 010 11.314z" />
+                </svg>
+              </span>
+              <span>Ufficio Divino</span>
             </div>
             <h4 className="font-bold text-[#2c241c]">Liturgia delle Ore</h4>
             <p className="text-xs text-[#6b5d4e] leading-relaxed">
@@ -179,9 +224,15 @@ export default function CreditiPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+          {/* Rituale dei Sacramenti */}
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
             <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
-              <span>✝️</span> Rituale dei Sacramenti
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </span>
+              <span>Rituale dei Sacramenti</span>
             </div>
             <h4 className="font-bold text-[#2c241c]">Benedizionale & Cura Infermi</h4>
             <p className="text-xs text-[#6b5d4e] leading-relaxed">
@@ -189,9 +240,15 @@ export default function CreditiPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+          {/* Repertorio Musicale */}
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
             <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
-              <span>🎵</span> Repertorio Musicale
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                </svg>
+              </span>
+              <span>Repertorio Musicale</span>
             </div>
             <h4 className="font-bold text-[#2c241c]">Repertorio Nazionale Canti</h4>
             <p className="text-xs text-[#6b5d4e] leading-relaxed">
@@ -199,9 +256,15 @@ export default function CreditiPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+          {/* Tradizione Ecclesiale */}
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
             <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
-              <span>🏛️</span> Tradizione Ecclesiale
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                </svg>
+              </span>
+              <span>Tradizione Ecclesiale</span>
             </div>
             <h4 className="font-bold text-[#2c241c]">Preghiere della Tradizione</h4>
             <p className="text-xs text-[#6b5d4e] leading-relaxed">
@@ -213,56 +276,134 @@ export default function CreditiPage() {
 
       {/* 4. Fonti Istituzionali & Piattaforme Integrate */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 px-1">
-          <span className="text-lg">🏛️</span>
+        <div className="flex items-center gap-2.5 px-1">
+          <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#f4ebd9] border border-[#d8c5ad] text-[#5c4a37] shrink-0">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </span>
           <h2 className="text-xl font-bold font-serif text-[#2c241c]">
             Fonti Istituzionali & Piattaforme Integrate
           </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
-            <h4 className="font-bold text-[#2c241c] flex items-center gap-1.5">
-              <span>⛪</span> Diocesi di Milano (chiesadimilano.it)
-            </h4>
-            <p className="text-[#6b5d4e] leading-relaxed">
+          {/* Milano */}
+          <a
+            href="https://www.chiesadimilano.it"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs hover:shadow-xs hover:border-[#cbb397] transition group block"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="font-bold text-[#2c241c] group-hover:text-[#8a755d] transition flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </span>
+                <span>Diocesi di Milano</span>
+              </h4>
+              <span className="text-[11px] text-[#8a755d] font-mono group-hover:underline flex items-center gap-0.5 shrink-0">
+                <span>chiesadimilano.it</span>
+                <span>↗</span>
+              </span>
+            </div>
+            <p className="text-[#6b5d4e] leading-relaxed text-xs">
               Per la Liturgia delle Ore Ambrosiana, il lezionario delle Messe, l'Almanacco diocesano e i feed di cronaca pastorale.
             </p>
-          </div>
+          </a>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
-            <h4 className="font-bold text-[#2c241c] flex items-center gap-1.5">
-              <span>📡</span> Santa Sede & Vatican News (vatican.va)
-            </h4>
-            <p className="text-[#6b5d4e] leading-relaxed">
+          {/* Vaticano */}
+          <a
+            href="https://www.vaticannews.va/it.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs hover:shadow-xs hover:border-[#cbb397] transition group block"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="font-bold text-[#2c241c] group-hover:text-[#8a755d] transition flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </span>
+                <span>Santa Sede & Vatican News</span>
+              </h4>
+              <span className="text-[11px] text-[#8a755d] font-mono group-hover:underline flex items-center gap-0.5 shrink-0">
+                <span>vaticannews.va</span>
+                <span>↗</span>
+              </span>
+            </div>
+            <p className="text-[#6b5d4e] leading-relaxed text-xs">
               Per i testi del Magistero pontificio, le letture del Rito Romano e l’informazione ecclesiale universale.
             </p>
-          </div>
+          </a>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
-            <h4 className="font-bold text-[#2c241c] flex items-center gap-1.5">
-              <span>📰</span> Conferenza Episcopale Italiana (chiesacattolica.it)
-            </h4>
-            <p className="text-[#6b5d4e] leading-relaxed">
+          {/* CEI */}
+          <a
+            href="https://www.chiesacattolica.it"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs hover:shadow-xs hover:border-[#cbb397] transition group block"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="font-bold text-[#2c241c] group-hover:text-[#8a755d] transition flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  </svg>
+                </span>
+                <span>Chiesa Cattolica Italiana (CEI)</span>
+              </h4>
+              <span className="text-[11px] text-[#8a755d] font-mono group-hover:underline flex items-center gap-0.5 shrink-0">
+                <span>chiesacattolica.it</span>
+                <span>↗</span>
+              </span>
+            </div>
+            <p className="text-[#6b5d4e] leading-relaxed text-xs">
               Per i testi della Bibbia CEI 2008, il Messale Romano, il Benedizionale e le comunicazioni della Chiesa in Italia.
             </p>
-          </div>
+          </a>
 
-          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs">
-            <h4 className="font-bold text-[#2c241c] flex items-center gap-1.5">
-              <span>🏛️</span> Diocesi di Roma (romasette.it)
-            </h4>
-            <p className="text-[#6b5d4e] leading-relaxed">
+          {/* Roma */}
+          <a
+            href="https://www.romasette.it"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-2 shadow-2xs hover:shadow-xs hover:border-[#cbb397] transition group block"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="font-bold text-[#2c241c] group-hover:text-[#8a755d] transition flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                  </svg>
+                </span>
+                <span>Diocesi di Roma</span>
+              </h4>
+              <span className="text-[11px] text-[#8a755d] font-mono group-hover:underline flex items-center gap-0.5 shrink-0">
+                <span>romasette.it</span>
+                <span>↗</span>
+              </span>
+            </div>
+            <p className="text-[#6b5d4e] leading-relaxed text-xs">
               Per l’attualità, gli eventi e la vita ecclesiale della Diocesi del Santo Padre.
             </p>
-          </div>
+          </a>
         </div>
+
       </div>
 
       {/* 5. Tutela dei Diritti & Fair Use */}
       <div className="rounded-2xl border border-[#e2d5c4] bg-[#f7f2ea] p-5 text-xs text-[#786653] space-y-2 leading-relaxed">
-        <p className="font-semibold text-[#4a3b2c]">
-          ⚖️ Nota sui Diritti d'Autore e Utilizzo Pastorale
+        <p className="font-semibold text-[#4a3b2c] flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#f4ebd9] text-[#5c4a37] shrink-0">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+            </svg>
+          </span>
+          <span>Nota sui Diritti d'Autore e Utilizzo Pastorale</span>
         </p>
         <p>
           I testi della Sacra Scrittura e della Liturgia appartengono ai rispettivi detentori dei diritti morali e canonici
