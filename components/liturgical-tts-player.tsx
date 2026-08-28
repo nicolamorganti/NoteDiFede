@@ -44,6 +44,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
   const [voiceType, setVoiceType] = useState<"neural" | "device" | null>(null);
   const [rate, setRate] = useState<number>(1.0); // 0.85, 1.0, 1.2
   const [isSupported, setIsSupported] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // Audio HTML5 (per Google Cloud Neural2 / Cache)
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -55,12 +56,18 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsSupported("speechSynthesis" in window || typeof Audio !== "undefined");
-    }
 
-    return () => {
-      stopSpeech();
-    };
+      const handleScroll = () => {
+        setIsScrolled(window.scrollY > 200);
+      };
+      window.addEventListener("scroll", handleScroll, { passive: true });
+      return () => {
+        window.removeEventListener("scroll", handleScroll);
+        stopSpeech();
+      };
+    }
   }, []);
+
 
   // Ferma la riproduzione se cambia il contenuto o la lingua
   useEffect(() => {
@@ -360,6 +367,57 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
           </button>
         </div>
       )}
+
+      {/* Floating Audio Controller galleggiante (appare solo quando l'audio è attivo e l'utente scorre in basso) */}
+      {(isPlaying || isPaused) && isScrolled && (
+        <div className="fixed bottom-24 right-3 sm:right-6 z-40 flex items-center gap-2 rounded-2xl bg-[#5c4a37]/95 backdrop-blur-md border border-[#8a755d]/50 p-2 shadow-2xl text-white animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <span className="text-[10px] font-mono font-bold bg-[#ede4d8] text-[#5c4a37] px-1.5 py-0.5 rounded-md select-none">
+            {voiceType === "neural" ? "🎙️ HD" : "🔊 Voce"}
+          </span>
+
+          {/* Onda sonora animata */}
+          <div className="flex items-center gap-0.5 h-3">
+            <span className={`w-0.5 h-3 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse" : "opacity-40"}`} />
+            <span className={`w-0.5 h-2 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse delay-75" : "opacity-40"}`} />
+            <span className={`w-0.5 h-3 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse delay-150" : "opacity-40"}`} />
+          </div>
+
+          {isPaused ? (
+            <button
+              onClick={resumeSpeech}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-white"
+              title="Riprendi lettura"
+            >
+              ▶️
+            </button>
+          ) : (
+            <button
+              onClick={pauseSpeech}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-white"
+              title="Metti in pausa"
+            >
+              ⏸️
+            </button>
+          )}
+
+          <button
+            onClick={stopSpeech}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 hover:bg-rose-500/30 text-rose-300 hover:text-rose-100 active:scale-95 transition"
+            title="Ferma lettura vocale"
+          >
+            ⏹️
+          </button>
+
+          <button
+            onClick={cycleRate}
+            className="rounded-lg bg-white/10 px-2 py-1 text-[11px] font-mono font-bold text-amber-200 hover:bg-white/20 active:scale-95 transition"
+            title="Cambia velocità voce"
+          >
+            {rate}x
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+

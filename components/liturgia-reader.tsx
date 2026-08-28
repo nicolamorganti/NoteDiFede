@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
+import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
+
 
 
 export type LiturgyRite = "ambrosiano" | "romano";
@@ -457,6 +459,10 @@ export function LiturgiaReader() {
     year: "numeric",
   }).format(new Date(selectedDate));
 
+  // Dettagli teologici e canonici del giorno liturgico (Tempo, Salterio I-IV, Anno I-II)
+  const liturgicalDayDetails = getLiturgicalDayDetails(selectedDate, rite);
+
+
   // Valori calcolati per l'interlinea
   const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
   const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
@@ -695,12 +701,18 @@ export function LiturgiaReader() {
             </span>
           </div>
           <h2 className="font-serif text-3xl font-normal text-[#3f3933] mt-1">
-            Liturgia delle Ore
+            {moment === "messa" ? "Santa Messa" : "Liturgia delle Ore"}
           </h2>
-          <p className="text-sm text-[#736555] capitalize">
-            {formattedDateTitle}
-          </p>
+          <div className="mt-1 space-y-0.5">
+            <p className="text-sm font-semibold text-[#5c4a37] capitalize">
+              {MOMENTS.find((m) => m.id === moment)?.label} · {formattedDateTitle}
+            </p>
+            <p className="text-xs text-[#8a755d] italic font-serif">
+              {liturgicalDayDetails.tempoLiturgico}, {liturgicalDayDetails.salterioLabel} · <span className="font-sans font-bold text-[#6b5d4e] not-italic">{liturgicalDayDetails.annoFeriale}</span>
+            </p>
+          </div>
         </div>
+
 
         {/* Selettore Rito (Memorizzato per utente) */}
         <div className="flex items-center p-1 rounded-2xl bg-[#ebe3d5] border border-[#dacbb8] shadow-inner">
@@ -921,18 +933,20 @@ export function LiturgiaReader() {
       </div>
 
       {/* Info Liturgica del Giorno se presente */}
-      {liturgicalInfo && (
-        <div
-          className="rounded-2xl border p-3 text-xs italic text-center transition"
-          style={{
-            borderColor: isChurchMode ? "#44403c" : "#ebdcc8",
-            backgroundColor: isChurchMode ? "#1c1917" : "#fdfbf7",
-            color: isChurchMode ? "#fde047" : "#8a755d",
-          }}
-        >
-          {liturgicalInfo}
+      <div
+        className="rounded-2xl border p-3 text-xs text-center transition space-y-1"
+        style={{
+          borderColor: isChurchMode ? "#44403c" : "#ebdcc8",
+          backgroundColor: isChurchMode ? "#1c1917" : "#fdfbf7",
+          color: isChurchMode ? "#fde047" : "#8a755d",
+        }}
+      >
+        {liturgicalInfo && <div className="font-serif font-bold">{liturgicalInfo}</div>}
+        <div className="text-[11px] opacity-90 italic">
+          {liturgicalDayDetails.tempoLiturgico} · {liturgicalDayDetails.salterioLabel} · <span className="font-semibold not-italic">{liturgicalDayDetails.annoFeriale}</span>
         </div>
-      )}
+      </div>
+
 
       {/* Area di Lettura dei Testi Liturgici */}
       <div
