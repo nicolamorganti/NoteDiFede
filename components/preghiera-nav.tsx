@@ -43,7 +43,14 @@ export function PreghieraNav() {
       icon: "✨",
       description: "Rituale Romano delle Benedizioni (CEI 1992)",
     },
+    {
+      href: "/preghiera/tradizione",
+      label: "Preghiere Tradizionali",
+      icon: "📿",
+      description: "Padre Nostro, Ave Maria, Inni e Orazioni (Italiano e Latino)",
+    },
   ];
+
 
 
 
