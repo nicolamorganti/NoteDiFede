@@ -37,7 +37,8 @@ export interface LiturgicalDayDetails {
 
 export function getLiturgicalDayDetails(
   dateInput: string | Date,
-  rite: "ambrosiano" | "romano" = "romano"
+  rite: "ambrosiano" | "romano" = "romano",
+  apiTemporalInfo?: string
 ): LiturgicalDayDetails {
   const d = typeof dateInput === "string" ? new Date(dateInput + "T12:00:00Z") : dateInput;
   const year = d.getUTCFullYear();
@@ -105,11 +106,23 @@ export function getLiturgicalDayDetails(
     if (daysSincePentecost >= 0) {
       if (rite === "ambrosiano") {
         const weeksAfterPentecost = Math.floor(daysSincePentecost / 7) + 1;
-        const numStr = ROMAN_NUMERALS[weeksAfterPentecost] || String(weeksAfterPentecost);
-        tempoLiturgico = `${numStr} settimana dopo Pentecoste`;
         salterioSettimana = ((weeksAfterPentecost - 1) % 4) + 1;
+
+        // Se ad agosto inoltrato (22-28 agosto)
+        const month = d.getUTCMonth(); // 7 = Agosto
+        const day = d.getUTCDate();
+        if (month === 7 && day >= 23 && day <= 28) {
+          tempoLiturgico = "Settimana che precede il Martirio di san Giovanni il Precursore";
+        } else if (month === 7 && day === 29) {
+          tempoLiturgico = "Martirio di san Giovanni il Precursore";
+        } else if (month >= 8 && month <= 9) {
+          tempoLiturgico = "Tempo dopo il Martirio di san Giovanni il Precursore";
+        } else {
+          const numStr = ROMAN_NUMERALS[weeksAfterPentecost] || String(weeksAfterPentecost);
+          tempoLiturgico = `${numStr} settimana dopo Pentecoste`;
+        }
       } else {
-        // Settimane del Tempo Ordinario post-Pentecoste (formula calcolo ciclo 34 settimane)
+        // Settimane del Tempo Ordinario post-Pentecoste
         const weekOfTO = Math.min(34, Math.max(1, Math.floor((daysSincePentecost + 56) / 7) + 1));
         const numStr = ROMAN_NUMERALS[weekOfTO] || String(weekOfTO);
         tempoLiturgico = `${numStr} settimana del Tempo «per annum»`;
@@ -123,6 +136,11 @@ export function getLiturgicalDayDetails(
       tempoLiturgico = `${numStr} settimana del Tempo «per annum»`;
       salterioSettimana = ((weekOfTO - 1) % 4) + 1;
     }
+  }
+
+  // Se l'API ufficiale fornisce già la denominazione temporale esatta, usala come prioritaria
+  if (apiTemporalInfo && apiTemporalInfo.trim().length > 3) {
+    tempoLiturgico = apiTemporalInfo.trim();
   }
 
   const salterioLabel = `settimana ${ROMAN_NUMERALS[salterioSettimana]} del salterio`;

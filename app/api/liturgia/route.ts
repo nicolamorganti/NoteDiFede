@@ -187,18 +187,25 @@ async function fetchAmbrosianoMessaFromChiesaDiMilano(dateStr: string) {
         const summary = cleanInfoText(matchedPost.acf?.summary || "");
         const overtitle = cleanInfoText(matchedPost.acf?.overtitle || "");
 
-        let liturgicalInfo = "Santa Messa - Rito Ambrosiano";
-        if (title) {
-          liturgicalInfo = `${title}${summary ? ` · ${summary}` : ""}${overtitle ? ` (${overtitle})` : ""} - Messa Rito Ambrosiano`;
+        let liturgicalInfo = summary || title || "Santa Messa - Rito Ambrosiano";
+        let temporalInfo = title || "";
+
+        if (summary) {
+          liturgicalInfo = summary.replace(/^Memoria\s+(?:facoltativa\s+)?di\s+/i, "");
+          if (!liturgicalInfo.toLowerCase().includes("memoria") && !liturgicalInfo.toLowerCase().includes("festa") && !liturgicalInfo.toLowerCase().includes("solennità")) {
+            liturgicalInfo = `${liturgicalInfo} · Memoria`;
+          }
         }
 
         const contentHtml = matchedPost.content?.rendered || "";
         if (contentHtml && contentHtml.length > 50) {
           return {
             liturgicalInfo,
+            temporalInfo,
             contentHtml: sanitizeHtml(contentHtml),
           };
         }
+
       }
     }
   } catch (err) {
@@ -291,9 +298,14 @@ async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string
         const summary = cleanInfoText(matchedPost.acf?.summary || "");
         const overtitle = cleanInfoText(matchedPost.acf?.overtitle || "");
 
-        let liturgicalInfo = "Rito Ambrosiano (Diocesi di Milano)";
-        if (title) {
-          liturgicalInfo = `${title}${summary ? ` · ${summary}` : ""}${overtitle ? ` (${overtitle})` : ""} - Rito Ambrosiano`;
+        let liturgicalInfo = summary || title || "Rito Ambrosiano (Diocesi di Milano)";
+        let temporalInfo = title || "";
+
+        if (summary) {
+          liturgicalInfo = summary.replace(/^Memoria\s+(?:facoltativa\s+)?di\s+/i, "");
+          if (!liturgicalInfo.toLowerCase().includes("memoria") && !liturgicalInfo.toLowerCase().includes("festa") && !liturgicalInfo.toLowerCase().includes("solennità")) {
+            liturgicalInfo = `${liturgicalInfo} · Memoria`;
+          }
         }
 
         let contentHtml = "";
@@ -306,9 +318,11 @@ async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string
         if (contentHtml && contentHtml.length > 50) {
           return {
             liturgicalInfo,
+            temporalInfo,
             contentHtml: sanitizeHtml(contentHtml),
           };
         }
+
       }
     }
   } catch (err) {
@@ -399,17 +413,18 @@ function parseLaChiesaHtml(rawHtml: string) {
   const coloreMatch = rawHtml.match(/Colore liturgico:\s*<b>([^<]+)<\/b>/i);
   if (coloreMatch) colore = coloreMatch[1].trim();
 
-  let liturgicalInfo = "Rito Romano Ufficiale (CEI)";
+  let liturgicalInfo = "Rito Romano Ufficiale";
   if (saint) {
-    liturgicalInfo = `${saint}${grado ? ` · ${grado.toLowerCase()}` : ""}${colore ? ` (colore: ${colore.toLowerCase()})` : ""} - Rito Romano`;
+    liturgicalInfo = `${saint}${grado ? ` · ${grado}` : ""}`;
   } else if (grado) {
-    liturgicalInfo = `${grado}${colore ? ` (colore: ${colore.toLowerCase()})` : ""} - Rito Romano`;
+    liturgicalInfo = grado;
   } else {
     const titleMatch = rawHtml.match(/<title>([^<]+)<\/title>/i);
     if (titleMatch) {
-      liturgicalInfo = titleMatch[1].replace(/^LaChiesa:\s*/i, "").trim() + " - Rito Romano";
+      liturgicalInfo = titleMatch[1].replace(/^LaChiesa:\s*/i, "").trim();
     }
   }
+
 
   const sectionMatches = [
     ...rawHtml.matchAll(
@@ -483,14 +498,15 @@ async function fetchRomanoCelebrationTitle(isoDate: string): Promise<string> {
       if (coloreMatch) colore = coloreMatch[1].trim();
 
       if (saint) {
-        const title = `${saint}${grado ? ` · ${grado.toLowerCase()}` : ""}${colore ? ` (${colore.toLowerCase()})` : ""} - Rito Romano`;
+        const title = `${saint}${grado ? ` · ${grado}` : ""}`;
         cachedRomanoCelebrations[isoDate] = title;
         return title;
       } else if (grado) {
-        const title = `${grado}${colore ? ` (${colore.toLowerCase()})` : ""} - Rito Romano`;
+        const title = grado;
         cachedRomanoCelebrations[isoDate] = title;
         return title;
       }
+
     }
   } catch (err) {
     console.warn("Errore recupero santo del giorno da LaChiesa:", err);

@@ -146,7 +146,9 @@ export function LiturgiaReader() {
   const [error, setError] = useState<string | null>(null);
   const [contentHtml, setContentHtml] = useState<string>("");
   const [liturgicalInfo, setLiturgicalInfo] = useState<string>("");
+  const [temporalInfo, setTemporalInfo] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
+
 
   // Stato Supporto alla Comprensione (Omelia Card. Martini)
   const [omeliaLoading, setOmeliaLoading] = useState<boolean>(false);
@@ -299,6 +301,8 @@ export function LiturgiaReader() {
       const data = await res.json();
       setContentHtml(data.contentHtml || "<p>Nessun testo disponibile.</p>");
       setLiturgicalInfo(data.liturgicalInfo || "");
+      setTemporalInfo(data.temporalInfo || "");
+
 
       if (readerContainerRef.current) {
         readerContainerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -460,7 +464,8 @@ export function LiturgiaReader() {
   }).format(new Date(selectedDate));
 
   // Dettagli teologici e canonici del giorno liturgico (Tempo, Salterio I-IV, Anno I-II)
-  const liturgicalDayDetails = getLiturgicalDayDetails(selectedDate, rite);
+  const liturgicalDayDetails = getLiturgicalDayDetails(selectedDate, rite, temporalInfo);
+
 
 
   // Valori calcolati per l'interlinea
