@@ -295,6 +295,18 @@ const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
   },
 ];
 
+const LITURGICAL_LANGUAGES = [
+  { code: "it", name: "Italiano", flag: "🇮🇹" },
+  { code: "la", name: "Latino", flag: "🇻🇦" },
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "es", name: "Español", flag: "🇪🇸" },
+  { code: "fr", name: "Français", flag: "🇫🇷" },
+  { code: "pt", name: "Português", flag: "🇵🇹" },
+  { code: "ro", name: "Română", flag: "🇷🇴" },
+  { code: "monastico", name: "Monastico", flag: "⛪" },
+  { code: "vetus", name: "Vetus Ordo", flag: "🕊️" },
+];
+
 export function MessaleRomanoReader() {
   const [mainTab, setMainTab] = useState<"online" | "pdf">("online");
   const [selectedSection, setSelectedSection] = useState<MessaleRomanoSection | null>(null);
@@ -302,6 +314,7 @@ export function MessaleRomanoReader() {
   const [activeCategory, setActiveCategory] = useState<string>("Tutte");
 
   // Stato per la consultazione testuale online (iBreviary)
+  const [selectedLang, setSelectedLang] = useState<string>("it");
   const [onlineCategory, setOnlineCategory] = useState<"ordinario" | "preghiera_eucaristica" | "prefazio" | "preghiera_dei_fedeli">("ordinario");
   const [onlineItems, setOnlineItems] = useState<{ id: string; title: string }[]>([]);
   const [selectedOnlineId, setSelectedOnlineId] = useState<string | null>("1");
@@ -312,6 +325,21 @@ export function MessaleRomanoReader() {
   const [lineSpacingMode, setLineSpacingMode] = useState<"compact" | "normal" | "spacious">("normal");
   const [isChurchMode, setIsChurchMode] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Inizializza lingua da localStorage
+  useEffect(() => {
+    try {
+      const savedLang = localStorage.getItem("liturgia_pref_lang");
+      if (savedLang) setSelectedLang(savedLang);
+    } catch {}
+  }, []);
+
+  const handleLangChange = (newLang: string) => {
+    setSelectedLang(newLang);
+    try {
+      localStorage.setItem("liturgia_pref_lang", newLang);
+    } catch {}
+  };
 
   // Carica la lista dei testi per la categoria online
   useEffect(() => {
@@ -324,7 +352,7 @@ export function MessaleRomanoReader() {
 
     let isMounted = true;
     setIsLoadingOnline(true);
-    fetch(`/api/messale-online?category=${onlineCategory}`)
+    fetch(`/api/messale-online?category=${onlineCategory}&lang=${selectedLang}`)
       .then((res) => res.json())
       .then((data) => {
         if (isMounted) {
@@ -345,7 +373,7 @@ export function MessaleRomanoReader() {
     return () => {
       isMounted = false;
     };
-  }, [mainTab, onlineCategory]);
+  }, [mainTab, onlineCategory, selectedLang]);
 
   // Carica il testo della preghiera/rito selezionato
   useEffect(() => {
@@ -353,7 +381,7 @@ export function MessaleRomanoReader() {
 
     let isMounted = true;
     setIsLoadingOnline(true);
-    fetch(`/api/messale-online?category=${onlineCategory}&id=${selectedOnlineId}`)
+    fetch(`/api/messale-online?category=${onlineCategory}&id=${selectedOnlineId}&lang=${selectedLang}`)
       .then((res) => res.json())
       .then((data) => {
         if (isMounted) {
@@ -378,7 +406,8 @@ export function MessaleRomanoReader() {
     return () => {
       isMounted = false;
     };
-  }, [mainTab, onlineCategory, selectedOnlineId]);
+  }, [mainTab, onlineCategory, selectedOnlineId, selectedLang]);
+
 
   const categories = [
     "Tutte",
@@ -556,6 +585,22 @@ export function MessaleRomanoReader() {
 
             {/* Controlli Lettore */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Selettore Lingua / Rito */}
+              <div className="relative flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2 py-1">
+                <span className="text-xs mr-1">🌐</span>
+                <select
+                  value={selectedLang}
+                  onChange={(e) => handleLangChange(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer pr-1"
+                >
+                  {LITURGICAL_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.flag} {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Dimensione Font */}
               <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
                 <button
@@ -609,6 +654,7 @@ export function MessaleRomanoReader() {
                 <span>{isChurchMode ? "🌙 Notte" : "☀️ Giorno"}</span>
               </button>
             </div>
+
           </div>
 
           {/* Griglia Selezione Elementi (se non ordinario) */}

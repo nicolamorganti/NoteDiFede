@@ -242,6 +242,16 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
 
 const PDF_URL = "https://liturgico.chiesacattolica.it/wp-content/uploads/sites/8/2022/04/08/Benedizionale-DEFINITIVO-.pdf";
 
+const LITURGICAL_LANGUAGES = [
+  { code: "it", name: "Italiano", flag: "🇮🇹" },
+  { code: "la", name: "Latino", flag: "🇻🇦" },
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "es", name: "Español", flag: "🇪🇸" },
+  { code: "fr", name: "Français", flag: "🇫🇷" },
+  { code: "pt", name: "Português", flag: "🇵🇹" },
+  { code: "ro", name: "Română", flag: "🇷🇴" },
+];
+
 export function BenedizionaleReader() {
   const [mainTab, setMainTab] = useState<"online" | "pdf">("online");
   const [selectedSection, setSelectedSection] = useState<BenedizioneSection | null>(null);
@@ -249,6 +259,7 @@ export function BenedizionaleReader() {
   const [activeCategory, setActiveCategory] = useState<string>("Tutte");
 
   // Stato per la consultazione testuale online (iBreviary)
+  const [selectedLang, setSelectedLang] = useState<string>("it");
   const [onlineItems, setOnlineItems] = useState<{ id: string; title: string }[]>([]);
   const [selectedOnlineId, setSelectedOnlineId] = useState<string | null>("125");
   const [onlineHtml, setOnlineHtml] = useState<string>("");
@@ -259,19 +270,34 @@ export function BenedizionaleReader() {
   const [isChurchMode, setIsChurchMode] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Carica la lista dei 101 riti e benedizioni
+  // Inizializza lingua da localStorage
+  useEffect(() => {
+    try {
+      const savedLang = localStorage.getItem("liturgia_pref_lang");
+      if (savedLang) setSelectedLang(savedLang);
+    } catch {}
+  }, []);
+
+  const handleLangChange = (newLang: string) => {
+    setSelectedLang(newLang);
+    try {
+      localStorage.setItem("liturgia_pref_lang", newLang);
+    } catch {}
+  };
+
+  // Carica la lista dei riti e benedizioni
   useEffect(() => {
     if (mainTab !== "online") return;
 
     let isMounted = true;
     setIsLoadingOnline(true);
-    fetch("/api/benedizionale-online")
+    fetch(`/api/benedizionale-online?lang=${selectedLang}`)
       .then((res) => res.json())
       .then((data) => {
         if (isMounted) {
           if (data.items) {
             setOnlineItems(data.items);
-            if (data.items.length > 0 && !selectedOnlineId) {
+            if (data.items.length > 0) {
               setSelectedOnlineId(data.items[0].id);
             }
           }
@@ -286,7 +312,7 @@ export function BenedizionaleReader() {
     return () => {
       isMounted = false;
     };
-  }, [mainTab]);
+  }, [mainTab, selectedLang]);
 
   // Carica il testo del rito selezionato
   useEffect(() => {
@@ -294,7 +320,7 @@ export function BenedizionaleReader() {
 
     let isMounted = true;
     setIsLoadingOnline(true);
-    fetch(`/api/benedizionale-online?id=${selectedOnlineId}`)
+    fetch(`/api/benedizionale-online?id=${selectedOnlineId}&lang=${selectedLang}`)
       .then((res) => res.json())
       .then((data) => {
         if (isMounted) {
@@ -319,7 +345,8 @@ export function BenedizionaleReader() {
     return () => {
       isMounted = false;
     };
-  }, [mainTab, selectedOnlineId]);
+  }, [mainTab, selectedOnlineId, selectedLang]);
+
 
   const categories = [
     "Tutte",
@@ -466,6 +493,22 @@ export function BenedizionaleReader() {
 
             {/* Controlli Lettore */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Selettore Lingua / Rito */}
+              <div className="relative flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2 py-1">
+                <span className="text-xs mr-1">🌐</span>
+                <select
+                  value={selectedLang}
+                  onChange={(e) => handleLangChange(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer pr-1"
+                >
+                  {LITURGICAL_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.flag} {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Dimensione Font */}
               <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
                 <button
@@ -486,6 +529,7 @@ export function BenedizionaleReader() {
                   A+
                 </button>
               </div>
+
 
               {/* Regolazione Interlinea e Spaziatura */}
               <button

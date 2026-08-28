@@ -109,11 +109,24 @@ function splitContentAtGospelEnd(html: string) {
   };
 }
 
+const LITURGICAL_LANGUAGES = [
+  { code: "it", name: "Italiano", flag: "🇮🇹" },
+  { code: "la", name: "Latino", flag: "🇻🇦" },
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "es", name: "Español", flag: "🇪🇸" },
+  { code: "fr", name: "Français", flag: "🇫🇷" },
+  { code: "pt", name: "Português", flag: "🇵🇹" },
+  { code: "ro", name: "Română", flag: "🇷🇴" },
+  { code: "monastico", name: "Monastico", flag: "⛪" },
+  { code: "vetus", name: "Vetus Ordo", flag: "🕊️" },
+];
+
 export function LiturgiaReader() {
   // Stato Rito con persistenza in localStorage (default: ambrosiano)
   const [rite, setRite] = useState<LiturgyRite>("ambrosiano");
   const [moment, setMoment] = useState<LiturgyMoment>("lodi");
   const [selectedDate, setSelectedDate] = useState<string>(getTodayIsoString());
+  const [selectedLang, setSelectedLang] = useState<string>("it");
 
   // Preferenze di lettura
   const [fontSize, setFontSize] = useState<number>(17); // 14 to 26 px
@@ -126,6 +139,7 @@ export function LiturgiaReader() {
   const [contentHtml, setContentHtml] = useState<string>("");
   const [liturgicalInfo, setLiturgicalInfo] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
+
 
   // Stato Supporto alla Comprensione (Omelia Card. Martini)
   const [omeliaLoading, setOmeliaLoading] = useState<boolean>(false);
@@ -235,8 +249,9 @@ export function LiturgiaReader() {
     setOmeliaError(null);
 
     try {
+      const langParam = rite === "romano" ? `&lang=${selectedLang}` : "";
       const res = await fetch(
-        `/api/liturgia?rite=${rite}&moment=${moment}&date=${selectedDate}`
+        `/api/liturgia?rite=${rite}&moment=${moment}&date=${selectedDate}${langParam}`
       );
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -259,7 +274,8 @@ export function LiturgiaReader() {
 
   useEffect(() => {
     fetchLiturgy();
-  }, [rite, moment, selectedDate]);
+  }, [rite, moment, selectedDate, selectedLang]);
+
 
   // Gestione cambio data veloce (Oggi, Ieri, Domani)
   const changeDateByDays = (days: number) => {
@@ -721,10 +737,35 @@ export function LiturgiaReader() {
           </button>
         </div>
 
-        {/* Strumenti Lettura (Dimensione Font + Interlinea + Modalità Chiesa + Copia) */}
+        {/* Strumenti Lettura (Lingua + Dimensione Font + Interlinea + Modalità Chiesa + Copia) */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Selettore Lingua / Rito (attivo per Rito Romano) */}
+          {rite === "romano" && (
+            <div className="relative flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2 py-1">
+              <span className="text-xs mr-1">🌐</span>
+              <select
+                value={selectedLang}
+                onChange={(e) => {
+                  const newLang = e.target.value;
+                  setSelectedLang(newLang);
+                  try {
+                    localStorage.setItem("liturgia_pref_lang", newLang);
+                  } catch {}
+                }}
+                className="bg-transparent text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer pr-1"
+              >
+                {LITURGICAL_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.flag} {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Dimensione Font */}
           <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
+
             <button
               onClick={() => handleFontSizeChange(-1)}
               disabled={fontSize <= 14}

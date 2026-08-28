@@ -10,23 +10,24 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category") || "ordinario";
   const id = searchParams.get("id");
+  const lang = searchParams.get("lang") || "it";
 
-  const cacheKey = `${category}_${id || "list"}`;
+  const cacheKey = `${lang}_${category}_${id || "list"}`;
   const cached = cache[cacheKey];
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return NextResponse.json(cached.data);
   }
 
   try {
-    let url = `https://www.ibreviary.com/m2/messale.php?s=${category}&lang=it`;
+    let url = `https://www.ibreviary.com/m2/messale.php?s=${category}&lang=${lang}`;
     if (id) {
       url += `&id=${id}`;
     }
 
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.26",
-        Cookie: "language=it;",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.28",
+        Cookie: `language=${lang};`,
       },
       next: { revalidate: 86400 },
     });
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(data);
     }
   } catch (error: any) {
-    console.error("Errore API Messale Online:", error);
+    console.error("Errore API Messale Online Multilingua:", error);
     return NextResponse.json(
       { error: error?.message || "Impossibile recuperare i testi del Messale Online" },
       { status: 500 }

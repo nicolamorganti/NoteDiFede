@@ -569,8 +569,10 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // 3. RITO ROMANO
-      // Per la Santa Messa in Rito Romano: usa LaChiesa.it che supporta qualsiasi data specifica (passata, oggi, futura)
-      if (moment === "messa") {
+      const lang = searchParams.get("lang") || "it";
+
+      // Per la Santa Messa in Rito Romano in italiano: usa LaChiesa.it per qualsiasi data
+      if (moment === "messa" && lang === "it") {
         try {
           const lachiesaData = await fetchRomanoMessaFromLaChiesa(isoDate);
           return NextResponse.json(
@@ -578,6 +580,7 @@ export async function GET(request: NextRequest) {
               rite: "romano",
               moment: "messa",
               date: isoDate,
+              lang: "it",
               liturgicalInfo: lachiesaData.liturgicalInfo,
               contentHtml: lachiesaData.contentHtml,
               source: "LaChiesa.it (Ufficiale CEI per qualsiasi data)",
@@ -593,10 +596,10 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Liturgia delle Ore o Fallback Rito Romano via iBreviary
+      // Liturgia delle Ore o Multilingua via iBreviary
       let url = "";
       if (moment === "messa") {
-        url = "https://www.ibreviary.com/m2/letture.php?s=letture&lang=it";
+        url = `https://www.ibreviary.com/m2/letture.php?s=letture&lang=${lang}`;
       } else {
         let s = "lodi";
         if (moment === "ufficio") s = "ufficio_delle_letture";
@@ -605,16 +608,17 @@ export async function GET(request: NextRequest) {
         else if (moment === "vespri") s = "vespri";
         else if (moment === "compieta") s = "compieta";
 
-        url = `https://www.ibreviary.com/m2/breviario.php?lang=it&s=${s}`;
+        url = `https://www.ibreviary.com/m2/breviario.php?lang=${lang}&s=${s}`;
       }
 
       const res = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Accept-Language": "it-IT,it;q=0.9",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.28",
+          Cookie: `language=${lang};`,
         },
         next: { revalidate: 1800 },
       });
+
 
       if (!res.ok) {
         throw new Error(`Errore recupero rito romano (${res.status})`);
