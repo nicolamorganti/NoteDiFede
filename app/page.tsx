@@ -101,10 +101,11 @@ export default function LoginPage() {
         // Il middleware si occuperà di aggiornare il cookie.
         // Possiamo fare direttamente il push alla dashboard.
 
-        setSuccess("Accesso consentito. Ingresso nel repertorio in corso...");
+        setSuccess("Accesso consentito. Ingresso in corso...");
         setTimeout(() => {
-          router.push("/canti");
-        }, 1000);
+          router.push("/liturgia");
+        }, 800);
+
       }
     } catch (err: any) {
       console.error(err);
@@ -344,9 +345,10 @@ export default function LoginPage() {
           {/* Guest Access Button */}
           <button
             type="button"
-            onClick={() => router.push("/canti")}
+            onClick={() => router.push("/liturgia")}
             className="w-full rounded-2xl border-2 border-[#8a755d] bg-transparent py-3 text-sm font-semibold text-[#8a755d] transition duration-300 hover:bg-[#8a755d]/5 hover:text-[#5c4a37] hover:border-[#5c4a37] active:scale-[0.98] flex items-center justify-center gap-2"
           >
+
             <svg
               className="h-4 w-4 shrink-0"
               fill="none"

@@ -386,10 +386,30 @@ async function fetchAmbrosianoFromGas(formattedDateItalian: string, moment: stri
  * Parser per le letture della Messa in Rito Romano da LaChiesa.it per QUALSIASI data (passata, oggi, futura)
  */
 function parseLaChiesaHtml(rawHtml: string) {
-  const titleMatch = rawHtml.match(/<title>([^<]+)<\/title>/i);
-  let liturgicalInfo = titleMatch
-    ? titleMatch[1].replace(/^LaChiesa:\s*/i, "").trim()
-    : "Liturgia del Giorno - Rito Romano";
+  let saint = "";
+  let grado = "";
+  let colore = "";
+
+  const saintMatch = rawHtml.match(/Scheda Agiografica:\s*<b>(?:<a[^>]*>)?([^<]+)/i);
+  if (saintMatch) saint = saintMatch[1].trim();
+
+  const gradoMatch = rawHtml.match(/Grado della Celebrazione:\s*<b>([^<]+)<\/b>/i);
+  if (gradoMatch) grado = gradoMatch[1].trim();
+
+  const coloreMatch = rawHtml.match(/Colore liturgico:\s*<b>([^<]+)<\/b>/i);
+  if (coloreMatch) colore = coloreMatch[1].trim();
+
+  let liturgicalInfo = "Rito Romano Ufficiale (CEI)";
+  if (saint) {
+    liturgicalInfo = `${saint}${grado ? ` · ${grado.toLowerCase()}` : ""}${colore ? ` (colore: ${colore.toLowerCase()})` : ""} - Rito Romano`;
+  } else if (grado) {
+    liturgicalInfo = `${grado}${colore ? ` (colore: ${colore.toLowerCase()})` : ""} - Rito Romano`;
+  } else {
+    const titleMatch = rawHtml.match(/<title>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      liturgicalInfo = titleMatch[1].replace(/^LaChiesa:\s*/i, "").trim() + " - Rito Romano";
+    }
+  }
 
   const sectionMatches = [
     ...rawHtml.matchAll(
@@ -434,10 +454,55 @@ function parseLaChiesaHtml(rawHtml: string) {
   };
 }
 
+
+const cachedRomanoCelebrations: Record<string, string> = {};
+
+async function fetchRomanoCelebrationTitle(isoDate: string): Promise<string> {
+  if (cachedRomanoCelebrations[isoDate]) {
+    return cachedRomanoCelebrations[isoDate];
+  }
+  try {
+    const cleanDate = isoDate.replace(/-/g, "");
+    const res = await fetch(`https://www.lachiesa.it/calendario/Detailed/${cleanDate}.shtml`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.37" },
+      next: { revalidate: 86400 },
+    });
+    if (res.ok) {
+      const html = await res.text();
+      let saint = "";
+      let grado = "";
+      let colore = "";
+
+      const saintMatch = html.match(/Scheda Agiografica:\s*<b>(?:<a[^>]*>)?([^<]+)/i);
+      if (saintMatch) saint = saintMatch[1].trim();
+
+      const gradoMatch = html.match(/Grado della Celebrazione:\s*<b>([^<]+)<\/b>/i);
+      if (gradoMatch) grado = gradoMatch[1].trim();
+
+      const coloreMatch = html.match(/Colore liturgico:\s*<b>([^<]+)<\/b>/i);
+      if (coloreMatch) colore = coloreMatch[1].trim();
+
+      if (saint) {
+        const title = `${saint}${grado ? ` · ${grado.toLowerCase()}` : ""}${colore ? ` (${colore.toLowerCase()})` : ""} - Rito Romano`;
+        cachedRomanoCelebrations[isoDate] = title;
+        return title;
+      } else if (grado) {
+        const title = `${grado}${colore ? ` (${colore.toLowerCase()})` : ""} - Rito Romano`;
+        cachedRomanoCelebrations[isoDate] = title;
+        return title;
+      }
+    }
+  } catch (err) {
+    console.warn("Errore recupero santo del giorno da LaChiesa:", err);
+  }
+  return "Rito Romano Ufficiale (CEI)";
+}
+
 /**
  * Recupera la Santa Messa in Rito Romano per una data specifica da LaChiesa.it
  */
 async function fetchRomanoMessaFromLaChiesa(isoDate: string) {
+
   const cleanDate = isoDate.replace(/-/g, "");
   const url = `https://www.lachiesa.it/calendario/Detailed/${cleanDate}.shtml`;
 
@@ -636,21 +701,25 @@ export async function GET(request: NextRequest) {
       }
 
       const sanitized = sanitizeHtml(content);
+      const celebrationTitle = await fetchRomanoCelebrationTitle(isoDate);
+
 
       return NextResponse.json(
         {
           rite: "romano",
           moment,
           date: isoDate,
-          liturgicalInfo: "Rito Romano Ufficiale (CEI)",
+          liturgicalInfo: celebrationTitle,
           contentHtml: sanitized,
         },
+
         {
           headers: {
             "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
           },
         }
       );
+
     }
   } catch (err: any) {
     console.error("Errore recupero liturgia:", err);

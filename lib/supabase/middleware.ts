@@ -50,12 +50,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Se è loggato e sta nella pagina di login (/), reindirizza al catalogo
+  // Se è loggato e sta nella pagina di login (/), reindirizza alla liturgia
   if (user && request.nextUrl.pathname === "/") {
     const url = request.nextUrl.clone();
-    url.pathname = "/canti";
+    url.pathname = "/liturgia";
     return NextResponse.redirect(url);
   }
+
 
   return supabaseResponse;
 }
