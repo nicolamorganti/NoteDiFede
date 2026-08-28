@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
+import { QuoteImageModal } from "@/components/quote-image-modal";
+
 
 
 
@@ -158,9 +160,58 @@ export function LiturgiaReader() {
   const [copiedOmelia, setCopiedOmelia] = useState<boolean>(false);
   const [omeliaElapsedSeconds, setOmeliaElapsedSeconds] = useState<number>(0);
 
+  // Stato Generatore Card Stato WhatsApp
+  const [quoteModalOpen, setQuoteModalOpen] = useState<boolean>(false);
+  const [selectedQuoteText, setSelectedQuoteText] = useState<string>("");
+  const [selectionPos, setSelectionPos] = useState<{ top: number; left: number } | null>(null);
+
   const readerContainerRef = useRef<HTMLDivElement | null>(null);
   const omeliaSectionRef = useRef<HTMLDivElement | null>(null);
   const omeliaAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Gestione selezione testo per creazione stato
+  useEffect(() => {
+    const handleSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed) {
+        setSelectionPos(null);
+        return;
+      }
+
+      const text = selection.toString().trim();
+      if (text.length < 5) {
+        setSelectionPos(null);
+        return;
+      }
+
+      // Verifica che la selezione sia all'interno del contenitore di lettura
+      if (readerContainerRef.current) {
+        try {
+          const range = selection.getRangeAt(0);
+          if (readerContainerRef.current.contains(range.commonAncestorContainer)) {
+            const rect = range.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              setSelectionPos({
+                top: Math.max(10, rect.top - 46),
+                left: Math.max(20, rect.left + rect.width / 2),
+              });
+              setSelectedQuoteText(text);
+              return;
+            }
+          }
+        } catch {
+          // Ignora errori di range
+        }
+      }
+      setSelectionPos(null);
+    };
+
+    document.addEventListener("selectionchange", handleSelection);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelection);
+    };
+  }, []);
+
 
   // Inizializza preferenze da localStorage
   useEffect(() => {
@@ -924,6 +975,25 @@ export function LiturgiaReader() {
             )}
           </button>
 
+          {/* Pulsante Crea Stato WhatsApp */}
+          <button
+            onClick={() => {
+              const sel = window.getSelection()?.toString().trim();
+              if (sel && sel.length >= 4) {
+                setSelectedQuoteText(sel);
+              } else {
+                // Prendi un testo di esempio dalla liturgia o l'antifona
+                setSelectedQuoteText("Nella tua immensa misericordia è riposta ogni mia speranza; donami tu, Signore, ciò che comandi, comandami ciò che vuoi.");
+              }
+              setQuoteModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition cursor-pointer shadow-2xs"
+            title="Crea immagine per Stato WhatsApp o social dal testo selezionato"
+          >
+            <span>📸</span>
+            <span className="hidden sm:inline">Crea Stato</span>
+          </button>
+
           {/* Ricarica */}
           <button
             onClick={fetchLiturgy}
@@ -934,6 +1004,7 @@ export function LiturgiaReader() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
+
         </div>
       </div>
 
@@ -1167,6 +1238,46 @@ export function LiturgiaReader() {
           color: ${isChurchMode ? "#fde047" : "#5c4a37"};
         }
       `}</style>
+
+      {/* Tooltip Flottante di Creazione Stato WhatsApp su selezione testo */}
+
+      {selectionPos && selectedQuoteText && (
+        <div
+          style={{
+            position: "fixed",
+            top: `${selectionPos.top}px`,
+            left: `${selectionPos.left}px`,
+            transform: "translateX(-50%)",
+            zIndex: 45,
+          }}
+          className="animate-in fade-in zoom-in-95 duration-150"
+        >
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault(); // impedisce la deselezione del testo al click
+              setQuoteModalOpen(true);
+              setSelectionPos(null);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2c241c] hover:bg-[#433628] text-[#f7f2ea] text-xs font-bold shadow-2xl border border-[#ebdcc8] transition cursor-pointer hover:scale-105"
+          >
+            <span>📸</span>
+            <span>Crea Stato WhatsApp</span>
+          </button>
+        </div>
+      )}
+
+      {/* Modale Generatore Card Stato WhatsApp */}
+      <QuoteImageModal
+        isOpen={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        initialText={selectedQuoteText}
+        moment={moment}
+        rite={rite}
+        dateStr={selectedDate}
+        liturgicalTitle={liturgicalInfo}
+      />
     </div>
   );
 }
+
