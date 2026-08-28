@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 
 interface NewsItem {
   id: string;
@@ -16,7 +16,7 @@ interface NewsItem {
   categories: string[];
 }
 
-// 1. Ordine richiesto: Tutte, Vaticano, CEI, Roma, Milano
+// 1. Ordine canonico richiesto: Tutte, Vaticano, CEI, Roma, Milano
 const SOURCES_CONFIG = [
   { id: "all", label: "Tutte le fonti", icon: "🌐", color: "#8a755d" },
   { id: "vaticano", label: "Vatican News", icon: "📡", color: "#ca8a04" },
@@ -51,12 +51,18 @@ function formatRelativeTime(isoDateStr: string): string {
 }
 
 export function NotizieView() {
+  const [mounted, setMounted] = useState<boolean>(false);
   const [allNews, setAllNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    fetchNews();
+  }, []);
 
   const fetchNews = async (forceRefresh: boolean = false) => {
     setLoading(true);
@@ -77,36 +83,27 @@ export function NotizieView() {
     }
   };
 
-  useEffect(() => {
-    fetchNews();
-  }, []);
+  // Conteggio articoli per sorgente
+  const sourceCounts: Record<string, number> = { all: allNews.length };
+  allNews.forEach((item) => {
+    sourceCounts[item.sourceId] = (sourceCounts[item.sourceId] || 0) + 1;
+  });
 
-  // Conteggio dinamico per ogni sorgente
-  const sourceCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: allNews.length };
-    allNews.forEach((item) => {
-      counts[item.sourceId] = (counts[item.sourceId] || 0) + 1;
-    });
-    return counts;
-  }, [allNews]);
-
-  // Filtraggio istantaneo e rigoroso
-  const filteredNews = useMemo(() => {
-    return allNews.filter((item) => {
-      const matchesSource = selectedSource === "all" || item.sourceId === selectedSource;
-      if (!matchesSource) return false;
-
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-
+  // Filtraggio diretto durante il render
+  const cleanQ = searchQuery.toLowerCase().trim();
+  const filteredNews = allNews.filter((item) => {
+    if (selectedSource !== "all" && item.sourceId !== selectedSource) {
+      return false;
+    }
+    if (cleanQ) {
       const matchesSearch =
-        item.title.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.categories.some((c) => c.toLowerCase().includes(q));
-
-      return matchesSearch;
-    });
-  }, [allNews, selectedSource, searchQuery]);
+        item.title.toLowerCase().includes(cleanQ) ||
+        item.description.toLowerCase().includes(cleanQ) ||
+        item.categories.some((c) => c.toLowerCase().includes(cleanQ));
+      if (!matchesSearch) return false;
+    }
+    return true;
+  });
 
   const handleShare = async (item: NewsItem) => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -133,12 +130,21 @@ export function NotizieView() {
     }
   };
 
+  if (!mounted) {
+    return (
+      <div className="p-10 text-center space-y-3 rounded-2xl bg-[#fbf8f3] border border-[#e2d5c4]">
+        <div className="inline-block w-7 h-7 border-3 border-[#8a755d] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs sm:text-sm font-medium text-[#6b5d4e]">Caricamento Notizie Ecclesiali...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-5 max-w-5xl mx-auto pb-16">
       {/* Header Compatto (senza slider orizzontali invasivi) */}
-      <div className="rounded-2xl sm:rounded-3xl bg-[#fbf8f3] border border-[#ebdcc8] p-4 sm:p-6 shadow-2xs">
+      <div className="rounded-2xl sm:rounded-3xl bg-[#fbf8f3] border border-[#ebdcc8] p-4 sm:p-5 shadow-2xs">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#6e5a45] text-white shadow-xs">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -184,8 +190,8 @@ export function NotizieView() {
           </button>
         </div>
 
-        {/* Ricerca & Filtri a griglia flessibile (Wrap su mobile senza barre di scorrimento) */}
-        <div className="mt-3.5 sm:mt-4 space-y-2.5">
+        {/* Ricerca & Filtri con Flex Wrap (Nessuna barra orizzontale) */}
+        <div className="mt-3.5 space-y-2.5">
           {/* Input di Ricerca Compatto */}
           <div className="relative">
             <svg
@@ -219,7 +225,7 @@ export function NotizieView() {
             )}
           </div>
 
-          {/* Filtro Fonti Pills con Flex Wrap Compatto (Ordine: Tutte, Vaticano, CEI, Roma, Milano) */}
+          {/* Filtro Fonti Pills con Flex Wrap (Ordine: Tutte, Vaticano, CEI, Roma, Milano) */}
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             {SOURCES_CONFIG.map((src) => {
               const isSelected = selectedSource === src.id;
@@ -228,15 +234,17 @@ export function NotizieView() {
                 <button
                   key={src.id}
                   type="button"
-                  onClick={() => setSelectedSource(src.id)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition shadow-2xs cursor-pointer select-none ${
+                  onClick={() => {
+                    setSelectedSource(src.id);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-2xs cursor-pointer select-none ${
                     isSelected
-                      ? "bg-[#2c241c] text-white shadow-sm ring-1.5 ring-[#8a755d]/40"
+                      ? "bg-[#2c241c] text-white shadow-sm ring-2 ring-[#8a755d]/50"
                       : "bg-white hover:bg-[#f7f2ea] text-[#5c4e3f] border border-[#e2d5c4]"
                   }`}
                 >
                   <span className="text-xs">{src.icon}</span>
-                  <span className="truncate">{src.label}</span>
+                  <span>{src.label}</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
                       isSelected ? "bg-white/20 text-[#fde047]" : "bg-[#f0e6d6] text-[#6b5d4e]"

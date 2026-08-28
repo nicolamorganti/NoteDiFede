@@ -1,10 +1,12 @@
 import { Metadata } from "next";
 import { NotizieView } from "@/components/notizie-view";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Notizie & Attualità Ecclesiale | Note di Fede",
   description:
-    "Aggiornamenti in tempo reale e feed ufficiali dalla Diocesi di Milano, dalla Santa Sede (Vatican News), dalla CEI e dalla Diocesi di Roma.",
+    "Aggiornamenti in tempo reale e feed ufficiali dalla Santa Sede (Vatican News), dalla CEI, dalla Diocesi di Roma e dalla Diocesi di Milano.",
 };
 
 export default function NotiziePage() {
