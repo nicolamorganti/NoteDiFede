@@ -21,8 +21,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app"),
-  title: "Note di Fede — Musica Liturgica & Preghiera",
-  description: "Note musicali e annotazioni di fede: canti liturgici, celebrazioni, liturgia delle ore, Bibbia e meditazioni per tutta la comunità.",
+  title: "Note di Fede — Musica per l'anima, parole per il cuore",
+  description: "Musica per l'anima, parole per il cuore: canti liturgici, celebrazioni, liturgia delle ore, Bibbia e meditazioni sulla Parola.",
   applicationName: "Note di Fede",
   appleWebApp: {
     capable: true,
@@ -37,11 +37,12 @@ export const metadata: Metadata = {
     apple: "/icons/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Note di Fede — Musica Liturgica & Preghiera",
-    description: "Note musicali e annotazioni di fede: canti liturgici, celebrazioni, liturgia delle ore e meditazioni sulla Parola.",
+    title: "Note di Fede — Musica per l'anima, parole per il cuore",
+    description: "Musica per l'anima, parole per il cuore: canti liturgici, celebrazioni, liturgia delle ore e meditazioni sulla Parola.",
     siteName: "Note di Fede",
   },
 };
+
 
 
 

@@ -2,10 +2,11 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Note di Fede — Musica Liturgica & Preghiera",
+    name: "Note di Fede — Musica per l'anima, parole per il cuore",
     short_name: "Note di Fede",
-    description: "Note musicali e annotazioni di fede: canti liturgici, celebrazioni, liturgia delle ore e meditazioni sulla Parola.",
+    description: "Musica per l'anima, parole per il cuore: canti liturgici, celebrazioni, liturgia delle ore e meditazioni sulla Parola.",
     start_url: "/",
+
 
     display: "standalone",
     background_color: "#fdfbf7",

@@ -158,8 +158,8 @@ export default function LoginPage() {
             <div className="mx-auto h-[1px] w-24 bg-gradient-to-r from-transparent via-[#aa9576] to-transparent" />
           </div>
 
-          <p className="mx-auto max-w-sm text-xs leading-relaxed text-[#736555]">
-            <span className="font-semibold text-[#5c4a37]">Note musicali</span> per la liturgia e <span className="font-semibold text-[#5c4a37]">annotazioni di fede</span> per la preghiera quotidiana: canti sacri, celebrazioni, liturgia delle ore e meditazioni sulla Parola.
+          <p className="mx-auto max-w-sm text-sm font-serif italic text-[#5c4a37]">
+            Musica per l&apos;anima, parole per il cuore
           </p>
 
           <p className="mx-auto max-w-xs text-xs italic text-[#8a755d] pt-0.5">
@@ -167,6 +167,7 @@ export default function LoginPage() {
             <span className="block mt-0.5 text-[10px] not-italic font-medium uppercase tracking-[0.1em] text-[#aa9576]">— S. Agostino</span>
           </p>
         </div>
+
 
 
         {/* Card di Login / Registrazione */}

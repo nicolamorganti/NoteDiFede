@@ -72,10 +72,11 @@ function AppShellInner({ children }: { children: ReactNode }) {
                 </div>
               </Link>
 
-              <p className="max-w-xs text-xs leading-5 text-[#685d53]">
-                Note musicali per la liturgia e annotazioni di fede per la preghiera quotidiana di tutta la comunità.
+              <p className="max-w-xs text-xs font-serif italic text-[#685d53]">
+                Musica per l&apos;anima, parole per il cuore.
               </p>
             </div>
+
 
 
             <nav className="grid gap-2">
