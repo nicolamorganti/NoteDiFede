@@ -25,18 +25,36 @@ function cleanInfoText(raw: string): string {
 }
 
 /**
+ * Calcola una finestra temporale ampia (-1 giorno 20:00 / +1 giorno 04:00)
+ * per evitare disallineamenti di fuso orario UTC vs CEST (Milano UTC+2) a mezzanotte.
+ */
+function getDateWindow(dateStr: string) {
+  const d = new Date(dateStr + "T12:00:00Z");
+  const prev = new Date(d);
+  prev.setDate(prev.getDate() - 1);
+  const next = new Date(d);
+  next.setDate(next.getDate() + 1);
+
+  const prevStr = prev.toISOString().split("T")[0];
+  const nextStr = next.toISOString().split("T")[0];
+
+  return {
+    after: `${prevStr}T20:00:00`,
+    before: `${nextStr}T04:00:00`,
+  };
+}
+
+/**
  * Recupera le Letture della Santa Messa Ambrosiana direttamente dalla REST API ufficiale di chiesadimilano.it
  */
 async function fetchAmbrosianoMessaFromChiesaDiMilano(dateStr: string) {
-  // Categorie WordPress associate all'Almanacco Letture Rito Ambrosiano (Anno A, B, C)
   const catIds = "4041,4044,4047,4045,7357,22737,4051,4049,5414,20537,4042,4048,6462,21704,10047,8463,9385";
-  const after = `${dateStr}T00:00:00`;
-  const before = `${dateStr}T23:59:59`;
-  const url = `https://www.chiesadimilano.it/wp-json/wp/v2/posts?categories=${catIds}&after=${after}&before=${before}`;
+  const { after, before } = getDateWindow(dateStr);
+  const url = `https://www.chiesadimilano.it/wp-json/wp/v2/posts?categories=${catIds}&after=${after}&before=${before}&per_page=15`;
 
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.8.8",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.5",
       Accept: "application/json",
     },
     next: { revalidate: 1800 },
@@ -48,20 +66,35 @@ async function fetchAmbrosianoMessaFromChiesaDiMilano(dateStr: string) {
 
   const items = await res.json();
   if (!Array.isArray(items) || items.length === 0) {
+    // Se la data è futura, chiesadimilano.it pubblica giorno per giorno a mezzanotte
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (dateStr > todayStr) {
+      return {
+        liturgicalInfo: "Santa Messa - Rito Ambrosiano (Data futura)",
+        contentHtml: `<div class="p-6 rounded-2xl border border-[#e5d7c5] bg-[#faf6f0] text-center space-y-3">
+          <p class="font-serif text-base font-bold text-[#5c4a37]">Letture Messa Rito Ambrosiano non ancora pubblicate</p>
+          <p class="text-xs text-[#8a755d] max-w-md mx-auto">
+            La Diocesi di Milano pubblica le letture ufficiali della Santa Messa giorno per giorno alla mezzanotte. Per questa data futura i testi saranno disponibili il giorno stesso.
+          </p>
+        </div>`,
+      };
+    }
     throw new Error("Nessuna lettura della Messa ambrosiana trovata su chiesadimilano.it per questa data");
   }
 
-  const post = items[0];
-  const title = cleanInfoText(post.title?.rendered || "");
-  const summary = cleanInfoText(post.acf?.summary || "");
-  const overtitle = cleanInfoText(post.acf?.overtitle || "");
+  // Cerca il post con la data esatta richiesta (tenendo conto del fuso orario)
+  const matchedPost = items.find((p: any) => p.date?.startsWith(dateStr)) || items[0];
+
+  const title = cleanInfoText(matchedPost.title?.rendered || "");
+  const summary = cleanInfoText(matchedPost.acf?.summary || "");
+  const overtitle = cleanInfoText(matchedPost.acf?.overtitle || "");
 
   let liturgicalInfo = "Santa Messa - Rito Ambrosiano";
   if (title) {
     liturgicalInfo = `${title}${summary ? ` · ${summary}` : ""}${overtitle ? ` (${overtitle})` : ""} - Messa Rito Ambrosiano`;
   }
 
-  const contentHtml = post.content?.rendered || "";
+  const contentHtml = matchedPost.content?.rendered || "";
   if (!contentHtml) {
     throw new Error("Contenuto delle letture della Messa vuoto su chiesadimilano.it");
   }
@@ -79,7 +112,7 @@ async function fetchAmbrosianoMessaFromIbreviary() {
   const url = "https://www.ibreviary.com/m2/messale.php?r=AMB";
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.8.8",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.5",
       "Accept-Language": "it-IT,it;q=0.9",
     },
     next: { revalidate: 1800 },
@@ -109,13 +142,12 @@ async function fetchAmbrosianoMessaFromIbreviary() {
  * Recupera la Liturgia delle Ore Ambrosiana direttamente dalla REST API ufficiale di chiesadimilano.it
  */
 async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string) {
-  const after = `${dateStr}T00:00:00`;
-  const before = `${dateStr}T23:59:59`;
-  const url = `https://www.chiesadimilano.it/wp-json/wp/v2/giorno_liturgia_ore?after=${after}&before=${before}`;
+  const { after, before } = getDateWindow(dateStr);
+  const url = `https://www.chiesadimilano.it/wp-json/wp/v2/giorno_liturgia_ore?after=${after}&before=${before}&per_page=15`;
 
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.8.8",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.5",
       Accept: "application/json",
     },
     next: { revalidate: 1800 },
@@ -130,10 +162,12 @@ async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string
     throw new Error("Nessun post liturgico trovato su chiesadimilano.it per la data richiesta");
   }
 
-  const post = items[0];
-  const title = cleanInfoText(post.title?.rendered || "");
-  const summary = cleanInfoText(post.acf?.summary || "");
-  const overtitle = cleanInfoText(post.acf?.overtitle || "");
+  // Cerca il post corrispondente al giorno richiesto
+  const matchedPost = items.find((p: any) => p.date?.startsWith(dateStr)) || items[0];
+
+  const title = cleanInfoText(matchedPost.title?.rendered || "");
+  const summary = cleanInfoText(matchedPost.acf?.summary || "");
+  const overtitle = cleanInfoText(matchedPost.acf?.overtitle || "");
 
   let liturgicalInfo = "Rito Ambrosiano (Diocesi di Milano)";
   if (title) {
@@ -141,11 +175,11 @@ async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string
   }
 
   let contentHtml = "";
-  if (moment === "ufficio") contentHtml = post.acf?.udl || "";
-  else if (moment === "lodi") contentHtml = post.acf?.lm || "";
-  else if (moment === "ora_media") contentHtml = post.acf?.om || "";
-  else if (moment === "vespri") contentHtml = post.acf?.vespri || "";
-  else if (moment === "compieta") contentHtml = post.acf?.compieta || "";
+  if (moment === "ufficio") contentHtml = matchedPost.acf?.udl || "";
+  else if (moment === "lodi") contentHtml = matchedPost.acf?.lm || "";
+  else if (moment === "ora_media") contentHtml = matchedPost.acf?.om || "";
+  else if (moment === "vespri") contentHtml = matchedPost.acf?.vespri || "";
+  else if (moment === "compieta") contentHtml = matchedPost.acf?.compieta || "";
 
   if (!contentHtml) {
     throw new Error(`Momento ${moment} non disponibile nei dati di chiesadimilano.it`);
@@ -180,111 +214,234 @@ async function fetchAmbrosianoFromGas(formattedDateItalian: string, moment: stri
     throw new Error(`Errore dal server ambrosiano (${textRes.status})`);
   }
 
-  const rawHtml = await textRes.text();
-  let infoText = "Rito Ambrosiano - Diocesi di Milano";
+  let rawHtml = await textRes.text();
+  let liturgicalInfo = "Rito Ambrosiano";
   if (infoRes && infoRes.ok) {
     const rawInfo = await infoRes.text();
-    const cleaned = cleanInfoText(rawInfo);
-    if (cleaned) {
-      infoText = `${cleaned} (Rito Ambrosiano)`;
+    const cleanInfo = cleanInfoText(rawInfo);
+    if (cleanInfo && !cleanInfo.includes("Errore")) {
+      liturgicalInfo = cleanInfo;
     }
   }
 
   return {
-    liturgicalInfo: infoText,
+    liturgicalInfo,
     contentHtml: sanitizeHtml(rawHtml),
   };
 }
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const rite = searchParams.get("rite") || "ambrosiano";
-  const moment = searchParams.get("moment") || "lodi";
-  const dateStr = searchParams.get("date");
+/**
+ * Parser per le letture della Messa in Rito Romano da LaChiesa.it per QUALSIASI data (passata, oggi, futura)
+ */
+function parseLaChiesaHtml(rawHtml: string) {
+  const titleMatch = rawHtml.match(/<title>([^<]+)<\/title>/i);
+  let liturgicalInfo = titleMatch
+    ? titleMatch[1].replace(/^LaChiesa:\s*/i, "").trim()
+    : "Liturgia del Giorno - Rito Romano";
 
-  let targetDate = new Date();
-  if (dateStr) {
-    const parsed = new Date(dateStr);
-    if (!isNaN(parsed.getTime())) {
-      targetDate = parsed;
+  const sectionMatches = [
+    ...rawHtml.matchAll(
+      /<div class="section">([\s\S]*?)<\/div>\s*(?=<div class="section"|<div id="footer"|<footer|$)/gi
+    ),
+  ];
+
+  let formattedSections: string[] = [];
+
+  for (const m of sectionMatches) {
+    const sHtml = m[1];
+    const tMatch = sHtml.match(/<div class="section-title">([\s\S]*?)<\/div>/i);
+    const title = tMatch ? tMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+    if (title === "Omelie") continue; // salta i link alle omelie
+
+    const cMatch = sHtml.match(/<div class="section-content">([\s\S]*?)<\/div>\s*$/i) || [null, sHtml];
+    let content = cMatch[1] || "";
+
+    content = content
+      .replace(/<div class="section-title">[\s\S]*?<\/div>/gi, "")
+      .replace(
+        /<div class="section-content-mini">([\s\S]*?)<\/div>/gi,
+        '<p class="rubrica" style="color:#b91c1c; font-style:italic; font-size:0.9em; margin-bottom:0.4em;">$1</p>'
+      )
+      .replace(/<div class="section-content-testo">/gi, "")
+      .replace(/<\/div>/gi, "")
+      .replace(/<a[^>]*href="[^"]*bibbia\.php[^"]*"[^>]*>([\s\S]*?)<\/a>/gi, "<strong>$1</strong>")
+      .trim();
+
+    if (title) {
+      formattedSections.push(`<p><strong>${title.toUpperCase()}</strong></p>\n${content}`);
+    } else if (content) {
+      formattedSections.push(content);
     }
   }
 
-  const day = String(targetDate.getDate()).padStart(2, "0");
-  const month = String(targetDate.getMonth() + 1).padStart(2, "0");
-  const year = targetDate.getFullYear();
-  const isoDate = `${year}-${month}-${day}`;
-  const formattedDateItalian = `${day}/${month}/${year}`;
+  return {
+    liturgicalInfo,
+    contentHtml: sanitizeHtml(
+      formattedSections.join("\n<hr class='my-4 border-[#e2d5c4]' />\n")
+    ),
+  };
+}
 
+/**
+ * Recupera la Santa Messa in Rito Romano per una data specifica da LaChiesa.it
+ */
+async function fetchRomanoMessaFromLaChiesa(isoDate: string) {
+  const cleanDate = isoDate.replace(/-/g, "");
+  const url = `https://www.lachiesa.it/calendario/Detailed/${cleanDate}.shtml`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.5",
+      Accept: "text/html,application/xhtml+xml,application/xml",
+    },
+    next: { revalidate: 3600 },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Errore HTTP ${res.status} da LaChiesa.it per la Messa in Rito Romano`);
+  }
+
+  const html = await res.text();
+  const parsed = parseLaChiesaHtml(html);
+
+  if (!parsed.contentHtml || parsed.contentHtml.length < 50) {
+    throw new Error("Contenuto delle letture non trovato su LaChiesa.it");
+  }
+
+  return parsed;
+}
+
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const rite = searchParams.get("rite") || "ambrosiano";
+    const moment = searchParams.get("moment") || "lodi";
+    const dateParam = searchParams.get("date");
+
+    const today = new Date();
+    let isoDate = today.toISOString().split("T")[0];
+    let formattedDateItalian = "";
+
+    if (dateParam) {
+      const parts = dateParam.split("-");
+      if (parts.length === 3) {
+        isoDate = dateParam;
+        formattedDateItalian = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+
+    if (!formattedDateItalian) {
+      const dd = String(today.getDate()).padStart(2, "0");
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const yyyy = today.getFullYear();
+      formattedDateItalian = `${dd}/${mm}/${yyyy}`;
+    }
+
     if (rite === "ambrosiano") {
       // 1. GESTIONE SANTA MESSA AMBROSIANA
       if (moment === "messa") {
         try {
-          const cdmMessa = await fetchAmbrosianoMessaFromChiesaDiMilano(isoDate);
-          return NextResponse.json({
-            rite: "ambrosiano",
-            moment: "messa",
-            date: isoDate,
-            liturgicalInfo: cdmMessa.liturgicalInfo,
-            contentHtml: cdmMessa.contentHtml,
-            source: "chiesadimilano.it (Ufficiale Letture Messa)",
-          }, {
-            headers: {
-              "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          const cdmMessaData = await fetchAmbrosianoMessaFromChiesaDiMilano(isoDate);
+          return NextResponse.json(
+            {
+              rite: "ambrosiano",
+              moment: "messa",
+              date: isoDate,
+              liturgicalInfo: cdmMessaData.liturgicalInfo,
+              contentHtml: cdmMessaData.contentHtml,
+              source: "chiesadimilano.it (Almanacco Letture)",
             },
-          });
+            {
+              headers: {
+                "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+              },
+            }
+          );
         } catch (cdmErr) {
           console.warn("Fallback su iBreviary per Messa Ambrosiana:", cdmErr);
-          const ibMessa = await fetchAmbrosianoMessaFromIbreviary();
-          return NextResponse.json({
-            rite: "ambrosiano",
-            moment: "messa",
-            date: isoDate,
-            liturgicalInfo: ibMessa.liturgicalInfo,
-            contentHtml: ibMessa.contentHtml,
-            source: "ibreviary-ambrosiano",
-          }, {
-            headers: {
-              "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          const ibData = await fetchAmbrosianoMessaFromIbreviary();
+          return NextResponse.json(
+            {
+              rite: "ambrosiano",
+              moment: "messa",
+              date: isoDate,
+              liturgicalInfo: ibData.liturgicalInfo,
+              contentHtml: ibData.contentHtml,
+              source: "ibreviary-fallback",
             },
-          });
+            {
+              headers: {
+                "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+              },
+            }
+          );
         }
       }
 
       // 2. GESTIONE LITURGIA DELLE ORE AMBROSIANA (Ufficio, Lodi, Ora Media, Vespri, Compieta)
       try {
         const cdmData = await fetchAmbrosianoFromChiesaDiMilano(isoDate, moment);
-        return NextResponse.json({
-          rite: "ambrosiano",
-          moment,
-          date: isoDate,
-          liturgicalInfo: cdmData.liturgicalInfo,
-          contentHtml: cdmData.contentHtml,
-          source: "chiesadimilano.it (Ufficiale)",
-        }, {
-          headers: {
-            "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+        return NextResponse.json(
+          {
+            rite: "ambrosiano",
+            moment,
+            date: isoDate,
+            liturgicalInfo: cdmData.liturgicalInfo,
+            contentHtml: cdmData.contentHtml,
+            source: "chiesadimilano.it (Ufficiale)",
           },
-        });
+          {
+            headers: {
+              "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+            },
+          }
+        );
       } catch (cdmErr) {
         console.warn("Fallback su Google Apps Script per Liturgia Ore Ambrosiana:", cdmErr);
         const gasData = await fetchAmbrosianoFromGas(formattedDateItalian, moment);
-        return NextResponse.json({
-          rite: "ambrosiano",
-          moment,
-          date: isoDate,
-          liturgicalInfo: gasData.liturgicalInfo,
-          contentHtml: gasData.contentHtml,
-          source: "gas-fallback",
-        }, {
-          headers: {
-            "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+        return NextResponse.json(
+          {
+            rite: "ambrosiano",
+            moment,
+            date: isoDate,
+            liturgicalInfo: gasData.liturgicalInfo,
+            contentHtml: gasData.contentHtml,
+            source: "gas-fallback",
           },
-        });
+          {
+            headers: {
+              "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+            },
+          }
+        );
       }
     } else {
-      // 3. RITO ROMANO via iBreviary
+      // 3. RITO ROMANO
+      // Per la Santa Messa in Rito Romano: usa LaChiesa.it che supporta qualsiasi data specifica (passata, oggi, futura)
+      if (moment === "messa") {
+        try {
+          const lachiesaData = await fetchRomanoMessaFromLaChiesa(isoDate);
+          return NextResponse.json(
+            {
+              rite: "romano",
+              moment: "messa",
+              date: isoDate,
+              liturgicalInfo: lachiesaData.liturgicalInfo,
+              contentHtml: lachiesaData.contentHtml,
+              source: "LaChiesa.it (Ufficiale CEI per qualsiasi data)",
+            },
+            {
+              headers: {
+                "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+              },
+            }
+          );
+        } catch (lachiesaErr) {
+          console.warn("Fallback su iBreviary per Messa in Rito Romano:", lachiesaErr);
+        }
+      }
+
+      // Liturgia delle Ore o Fallback Rito Romano via iBreviary
       let url = "";
       if (moment === "messa") {
         url = "https://www.ibreviary.com/m2/letture.php?s=letture&lang=it";
@@ -324,17 +481,20 @@ export async function GET(request: NextRequest) {
 
       const sanitized = sanitizeHtml(content);
 
-      return NextResponse.json({
-        rite: "romano",
-        moment,
-        date: isoDate,
-        liturgicalInfo: "Rito Romano Ufficiale (CEI)",
-        contentHtml: sanitized,
-      }, {
-        headers: {
-          "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+      return NextResponse.json(
+        {
+          rite: "romano",
+          moment,
+          date: isoDate,
+          liturgicalInfo: "Rito Romano Ufficiale (CEI)",
+          contentHtml: sanitized,
         },
-      });
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          },
+        }
+      );
     }
   } catch (err: any) {
     console.error("Errore recupero liturgia:", err);
