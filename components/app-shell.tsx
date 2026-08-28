@@ -56,7 +56,15 @@ function AppShellInner({ children }: { children: ReactNode }) {
       badge: "Attivo",
       icon: "🎵",
     },
+    {
+      href: "/notizie",
+      label: "Notizie & Attualità",
+      subtitle: "Milano, Vaticano, CEI, Roma",
+      badge: "News",
+      icon: "📰",
+    },
   ];
+
 
 
   // Mostra il link Impostazioni solo se è Maestro o Responsabile
