@@ -31,7 +31,14 @@ export function PreghieraNav() {
       icon: "📕",
       description: "Seconda Edizione Ufficiale 2024 (Diocesi di Milano / ITL)",
     },
+    {
+      href: "/preghiera/messale-romano",
+      label: "Messale Romano",
+      icon: "📘",
+      description: "Terza Edizione Ufficiale 2020 (CEI)",
+    },
   ];
+
 
 
   return (
