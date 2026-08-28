@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.25",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.26",
         Cookie: "language=it;",
       },
       next: { revalidate: 86400 },
@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
         .replace(/-\s*Menu\s*-/gi, "")
         .replace(/<img[^>]*>/gi, "")
         .replace(/href="[^"]*"/gi, "")
+        .replace(/<p>\s*(?:<br\s*\/?>|\s|&nbsp;)*<\/p>/gi, "")
+        .replace(/(?:<br\s*\/?>\s*){3,}/gi, "<br /><br />")
         .replace(/class="rubrica"/gi, 'class="messale-rubrica"')
         .replace(/class="titolo"/gi, 'class="messale-titolo"')
         .replace(/class="sezione"/gi, 'class="messale-sezione"')

@@ -309,6 +309,7 @@ export function MessaleRomanoReader() {
   const [isLoadingOnline, setIsLoadingOnline] = useState<boolean>(false);
   const [onlineSearch, setOnlineSearch] = useState<string>("");
   const [fontSize, setFontSize] = useState<number>(17);
+  const [lineSpacingMode, setLineSpacingMode] = useState<"compact" | "normal" | "spacious">("normal");
   const [isChurchMode, setIsChurchMode] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
@@ -361,13 +362,14 @@ export function MessaleRomanoReader() {
               .replace(/<p[^>]*>\s*<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>\s*<\/p>/gi, "")
               .replace(/<p[^>]*>\s*-\s*Menu\s*-\s*<\/p>/gi, "")
               .replace(/<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>/gi, "")
-              .replace(/-\s*Menu\s*-/gi, "");
+              .replace(/-\s*Menu\s*-/gi, "")
+              .replace(/<p>\s*(?:<br\s*\/?>|\s|&nbsp;)*<\/p>/gi, "")
+              .replace(/(?:<br\s*\/?>\s*){3,}/gi, "<br /><br />");
             setOnlineHtml(clean);
           }
           setIsLoadingOnline(false);
         }
       })
-
       .catch((err) => {
         console.error("Errore caricamento testo:", err);
         if (isMounted) setIsLoadingOnline(false);
@@ -421,6 +423,33 @@ export function MessaleRomanoReader() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const cycleLineSpacing = () => {
+    if (lineSpacingMode === "compact") setLineSpacingMode("normal");
+    else if (lineSpacingMode === "normal") setLineSpacingMode("spacious");
+    else setLineSpacingMode("compact");
+  };
+
+  const spacingLabel =
+    lineSpacingMode === "compact"
+      ? "Compatta"
+      : lineSpacingMode === "normal"
+      ? "Normale"
+      : "Ampia";
+
+  const lineHeightValue =
+    lineSpacingMode === "compact"
+      ? "1.35"
+      : lineSpacingMode === "normal"
+      ? "1.6"
+      : "1.85";
+
+  const paragraphMarginValue =
+    lineSpacingMode === "compact"
+      ? "0.3em"
+      : lineSpacingMode === "normal"
+      ? "0.65em"
+      : "1.05em";
 
   return (
     <div className="space-y-6 pb-24 max-w-5xl mx-auto">
@@ -505,7 +534,7 @@ export function MessaleRomanoReader() {
             ))}
           </div>
 
-          {/* Barra Strumenti: Ricerca nel sottomenu, Font Size, Copia & Modalità Notturna */}
+          {/* Barra Strumenti: Ricerca nel sottomenu, Font Size, Interlinea, Copia & Modalità Notturna */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-3.5 shadow-xs">
             {/* Ricerca (se la categoria ha una lista di elementi) */}
             {onlineCategory !== "ordinario" ? (
@@ -526,13 +555,13 @@ export function MessaleRomanoReader() {
             )}
 
             {/* Controlli Lettore */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Dimensione Font */}
               <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
                 <button
                   onClick={() => setFontSize((s) => Math.max(14, s - 1))}
                   disabled={fontSize <= 14}
-                  className="px-2 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
+                  className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
                   title="Riduci font"
                 >
                   A-
@@ -541,12 +570,24 @@ export function MessaleRomanoReader() {
                 <button
                   onClick={() => setFontSize((s) => Math.min(26, s + 1))}
                   disabled={fontSize >= 26}
-                  className="px-2 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
+                  className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
                   title="Aumenta font"
                 >
                   A+
                 </button>
               </div>
+
+              {/* Regolazione Interlinea e Spaziatura */}
+              <button
+                onClick={cycleLineSpacing}
+                className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+                title="Cambia interlinea (Compatta / Normale / Ampia)"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                <span>{spacingLabel}</span>
+              </button>
 
               {/* Copia Testo */}
               <button
@@ -591,7 +632,7 @@ export function MessaleRomanoReader() {
 
           {/* Contenuto Testuale Formattato */}
           <div
-            className={`messale-online-content rounded-3xl border p-6 sm:p-10 shadow-lg space-y-6 transition leading-relaxed ${
+            className={`messale-online-content rounded-3xl border p-6 sm:p-10 shadow-lg transition ${
               isChurchMode
                 ? "border-[#3f3a36] bg-[#181614] text-[#ece8e2]"
                 : "border-[#e0d6c7] bg-[#fefdfb] text-[#2c2621]"
@@ -605,26 +646,30 @@ export function MessaleRomanoReader() {
               </div>
             ) : (
               <div
-                className="prose max-w-none font-serif [&_p]:my-3 [&_p]:leading-relaxed"
+                className="prose max-w-none font-serif"
                 dangerouslySetInnerHTML={{ __html: onlineHtml }}
               />
             )}
           </div>
 
-          {/* Stili Scoped per Messale Online (supporto perfetto modalità giorno / notte) */}
+          {/* Stili Scoped per Messale Online (supporto perfetto modalità giorno / notte & interlinea) */}
           <style jsx global>{`
             .messale-online-content {
               word-break: break-word;
               color: ${isChurchMode ? "#f5f5f4" : "#2c2621"};
             }
             .messale-online-content p,
-            .messale-online-content span,
             .messale-online-content .messale-testo,
             .messale-online-content .body_2,
             .messale-online-content .body_3 {
               color: ${isChurchMode ? "#f5f5f4 !important" : "#2c2621 !important"};
               font-family: inherit;
-              line-height: 1.7;
+              line-height: ${lineHeightValue};
+              margin-bottom: ${paragraphMarginValue};
+              margin-top: 0.15em;
+            }
+            .messale-online-content span {
+              line-height: inherit;
             }
             .messale-online-content .messale-rubrica,
             .messale-online-content .rubrica {
@@ -634,17 +679,16 @@ export function MessaleRomanoReader() {
               font-size: 0.82em;
               text-transform: uppercase;
               letter-spacing: 0.04em;
-              display: block;
-              margin-top: 0.8em;
-              margin-bottom: 0.3em;
-              line-height: 1.4;
+              display: inline;
+              line-height: ${lineHeightValue};
             }
             .messale-online-content .messale-dialogo,
             .messale-online-content .body_1 {
               color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
               font-family: system-ui, -apple-system, sans-serif;
               font-weight: 700;
-              margin-right: 0.25rem;
+              display: inline;
+              margin-right: 0.15rem;
             }
             .messale-online-content .messale-titolo,
             .messale-online-content .titolo,
@@ -656,10 +700,10 @@ export function MessaleRomanoReader() {
               font-weight: 700;
               font-size: 1.25em;
               color: ${isChurchMode ? "#fbbf24 !important" : "#5c4a37 !important"};
-              margin-top: 1.2em;
-              margin-bottom: 0.4em;
+              margin-top: 1em;
+              margin-bottom: 0.3em;
               border-bottom: 1px solid ${isChurchMode ? "#332b24" : "#ebdcc8"};
-              padding-bottom: 0.3em;
+              padding-bottom: 0.25em;
             }
             .messale-online-content .messale-sezione,
             .messale-online-content .sezione {
@@ -670,7 +714,11 @@ export function MessaleRomanoReader() {
               text-transform: uppercase;
               letter-spacing: 0.08em;
               color: ${isChurchMode ? "#f59e0b !important" : "#aa9576 !important"};
-              margin-bottom: 0.25em;
+              margin-bottom: 0.2em;
+            }
+            .messale-online-content hr {
+              border-color: ${isChurchMode ? "#332b24" : "#ede3d5"};
+              margin: 0.9em 0;
             }
           `}</style>
 
@@ -686,7 +734,6 @@ export function MessaleRomanoReader() {
             </a>
           </div>
         </div>
-
       )}
 
       {/* ========================================================================= */}
@@ -907,42 +954,44 @@ export function MessaleRomanoReader() {
                     className="group flex flex-col justify-between p-5 rounded-3xl border border-[#e0d6c7] bg-[#fffdfa] hover:bg-[#fbf7f0] hover:border-[#aa9576] transition shadow-sm hover:shadow-md cursor-pointer space-y-4"
                   >
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl group-hover:scale-110 transition-transform">
-                            {sec.icon}
-                          </span>
-                          <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[#aa9576] bg-[#f4ece0] px-2 py-0.5 rounded-md">
-                            {sec.pageRangeLabel}
-                          </span>
-                        </div>
-                        <span className="text-xs text-[#8a755d] font-semibold group-hover:translate-x-1 transition-transform">
-                          Esplora →
-                        </span>
-                      </div>
-
-                      <h3 className="font-serif text-lg font-bold text-[#3f3933] group-hover:text-[#5c4a37] transition-colors">
-                        {sec.title}
-                      </h3>
-                      <p className="text-xs font-sans text-[#8a755d] font-medium leading-relaxed">
-                        {sec.subtitle}
-                      </p>
-                      <p className="text-xs text-[#6e5f52] line-clamp-2 leading-relaxed">
-                        {sec.description}
-                      </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl group-hover:scale-110 transition-transform">
+                        {sec.icon}
+                      </span>
+                      <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[#aa9576] bg-[#f4ece0] px-2 py-0.5 rounded-md">
+                        {sec.pageRangeLabel}
+                      </span>
                     </div>
-
-                    <div className="pt-3 border-t border-[#f0e6d9] flex items-center justify-between text-[11px] text-[#8a755d]">
-                      <span className="font-sans font-medium text-emerald-700">✓ Visualizzatore integrato</span>
-                      <span className="font-bold text-[#5c4a37]">Apri Sezione 📖</span>
-                    </div>
+                    <span className="text-xs text-[#8a755d] font-semibold group-hover:translate-x-1 transition-transform">
+                      Esplora →
+                    </span>
                   </div>
-                ))}
+
+                  <h3 className="font-serif text-lg font-bold text-[#3f3933] group-hover:text-[#5c4a37] transition-colors">
+                    {sec.title}
+                  </h3>
+                  <p className="text-xs font-sans text-[#8a755d] font-medium leading-relaxed">
+                    {sec.subtitle}
+                  </p>
+                  <p className="text-xs text-[#6e5f52] line-clamp-2 leading-relaxed">
+                    {sec.description}
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-[#f0e6d9] flex items-center justify-between text-[11px] text-[#8a755d]">
+                  <span className="font-sans font-medium text-emerald-700">✓ Visualizzatore integrato</span>
+                  <span className="font-bold text-[#5c4a37]">Apri Sezione 📖</span>
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
     </div>
+  )}
+</div>
   );
 }
+
+
