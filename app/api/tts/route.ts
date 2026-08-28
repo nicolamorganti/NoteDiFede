@@ -8,16 +8,17 @@ export const dynamic = "force-dynamic";
 const audioCache: Record<string, { audioBase64: string; timestamp: number }> = {};
 const CACHE_TTL = 1000 * 60 * 60 * 48; // 48 ore
 
-// Mappatura voci neurali realistiche Microsoft Azure per lingua (voce solenne, profonda, matura e misurata)
+// Mappatura voci neurali realistiche Microsoft Azure (Voce 100% nativa italiana pura, senza cambio di accento)
 const VOICE_MAP: Record<string, { voice: string; rate: string; pitch: string }> = {
-  it: { voice: "it-IT-GiuseppeMultilingualNeural", rate: "-10%", pitch: "-6Hz" }, // Voce matura, paterna, profonda e solenne
-  la: { voice: "it-IT-GiuseppeMultilingualNeural", rate: "-12%", pitch: "-6Hz" }, // Pronuncia latina ecclesiastica solenne
+  it: { voice: "it-IT-DiegoNeural", rate: "-10%", pitch: "-6Hz" }, // 100% Italiano puro, tono basso, profondo e calmo
+  la: { voice: "it-IT-DiegoNeural", rate: "-12%", pitch: "-6Hz" }, // Pronuncia latina ecclesiastica con dizione italiana perfetta
   en: { voice: "en-US-BrianNeural", rate: "-8%", pitch: "-4Hz" },
   es: { voice: "es-ES-AlvaroNeural", rate: "-8%", pitch: "-4Hz" },
   fr: { voice: "fr-FR-HenriNeural", rate: "-8%", pitch: "-4Hz" },
   pt: { voice: "pt-PT-DuarteNeural", rate: "-8%", pitch: "-4Hz" },
   ro: { voice: "ro-RO-EmilNeural", rate: "-8%", pitch: "-4Hz" },
 };
+
 
 export async function POST(request: NextRequest) {
   try {
