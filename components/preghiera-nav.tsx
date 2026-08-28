@@ -25,7 +25,14 @@ export function PreghieraNav() {
       icon: "📜",
       description: "Antico e Nuovo Testamento - Testo Ufficiale CEI 2008",
     },
+    {
+      href: "/preghiera/messale",
+      label: "Messale Ambrosiano",
+      icon: "📕",
+      description: "Seconda Edizione Ufficiale 2024 (Diocesi di Milano / ITL)",
+    },
   ];
+
 
   return (
     <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-[#ede4d8] border border-[#ddd0c0] shadow-inner mb-6">
