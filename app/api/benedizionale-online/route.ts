@@ -52,12 +52,14 @@ export async function GET(request: NextRequest) {
         .replace(/href="[^"]*"/gi, "")
         .replace(/<p>\s*(?:<br\s*\/?>|\s|&nbsp;)*<\/p>/gi, "")
         .replace(/(?:<br\s*\/?>\s*){3,}/gi, "<br /><br />")
+        .replace(/class="rubrica\s+body_1"|class="body_1\s+rubrica"/gi, 'class="benedizionale-rubrica"')
         .replace(/class="rubrica"/gi, 'class="benedizionale-rubrica"')
         .replace(/class="titolo"/gi, 'class="benedizionale-titolo"')
         .replace(/class="sezione"/gi, 'class="benedizionale-sezione"')
-        .replace(/class="body_1"/gi, 'class="benedizionale-dialogo"')
+        .replace(/class="body_1"/gi, 'class="benedizionale-testo"')
         .replace(/class="body_2"/gi, 'class="benedizionale-testo"')
         .replace(/class="body_3"/gi, 'class="benedizionale-testo"');
+
 
       const data = { html: contentHtml };
       cache[cacheKey] = { data, timestamp: Date.now() };

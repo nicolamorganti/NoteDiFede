@@ -807,10 +807,14 @@ export function BenedizionaleReader() {
             }
             .benedizionale-online-content p,
             .benedizionale-online-content .benedizionale-testo,
+            .benedizionale-online-content .body_1,
             .benedizionale-online-content .body_2,
             .benedizionale-online-content .body_3 {
               color: ${isChurchMode ? "#f5f5f4 !important" : "#2c2621 !important"};
               font-family: inherit;
+              font-style: normal;
+              text-transform: none !important;
+              letter-spacing: normal !important;
               line-height: ${lineHeightValue};
               margin-bottom: ${paragraphMarginValue};
               margin-top: 0.15em;
@@ -821,22 +825,22 @@ export function BenedizionaleReader() {
             .benedizionale-online-content .benedizionale-rubrica,
             .benedizionale-online-content .rubrica {
               color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
-              font-family: system-ui, -apple-system, sans-serif;
-              font-weight: 700;
-              font-size: 0.82em;
-              text-transform: uppercase;
-              letter-spacing: 0.04em;
+              font-family: inherit;
+              font-style: italic;
+              font-weight: 500;
+              font-size: 0.95em;
+              text-transform: none !important;
+              letter-spacing: normal !important;
               display: inline;
               line-height: ${lineHeightValue};
             }
-            .benedizionale-online-content .benedizionale-dialogo,
-            .benedizionale-online-content .body_1 {
+            .benedizionale-online-content .benedizionale-dialogo {
               color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
-              font-family: system-ui, -apple-system, sans-serif;
               font-weight: 700;
               display: inline;
               margin-right: 0.15rem;
             }
+
             .benedizionale-online-content .benedizionale-titolo,
             .benedizionale-online-content .titolo,
             .benedizionale-online-content h1,
