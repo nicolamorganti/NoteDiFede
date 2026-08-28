@@ -8,15 +8,15 @@ export const dynamic = "force-dynamic";
 const audioCache: Record<string, { audioBase64: string; timestamp: number }> = {};
 const CACHE_TTL = 1000 * 60 * 60 * 48; // 48 ore
 
-// Mappatura voci neurali realistiche Microsoft Azure per lingua
-const VOICE_MAP: Record<string, { voice: string; rate?: string; pitch?: string }> = {
-  it: { voice: "it-IT-DiegoNeural", rate: "-4%" }, // Voce maschile calda e solenne, ideale per la liturgia
-  la: { voice: "it-IT-DiegoNeural", rate: "-6%" }, // Pronuncia latina ecclesiastica romana perfetta
-  en: { voice: "en-US-BrianNeural", rate: "-3%" },
-  es: { voice: "es-ES-AlvaroNeural", rate: "-3%" },
-  fr: { voice: "fr-FR-HenriNeural", rate: "-3%" },
-  pt: { voice: "pt-PT-DuarteNeural", rate: "-3%" },
-  ro: { voice: "ro-RO-EmilNeural", rate: "-3%" },
+// Mappatura voci neurali realistiche Microsoft Azure per lingua (voce solenne, profonda, matura e misurata)
+const VOICE_MAP: Record<string, { voice: string; rate: string; pitch: string }> = {
+  it: { voice: "it-IT-GiuseppeMultilingualNeural", rate: "-10%", pitch: "-6Hz" }, // Voce matura, paterna, profonda e solenne
+  la: { voice: "it-IT-GiuseppeMultilingualNeural", rate: "-12%", pitch: "-6Hz" }, // Pronuncia latina ecclesiastica solenne
+  en: { voice: "en-US-BrianNeural", rate: "-8%", pitch: "-4Hz" },
+  es: { voice: "es-ES-AlvaroNeural", rate: "-8%", pitch: "-4Hz" },
+  fr: { voice: "fr-FR-HenriNeural", rate: "-8%", pitch: "-4Hz" },
+  pt: { voice: "pt-PT-DuarteNeural", rate: "-8%", pitch: "-4Hz" },
+  ro: { voice: "ro-RO-EmilNeural", rate: "-8%", pitch: "-4Hz" },
 };
 
 export async function POST(request: NextRequest) {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     // Genera Hash univoco del testo per l'Audio-Cache
     const hashKey = crypto
       .createHash("sha256")
-      .update(`${cleanText}_${voiceConfig.voice}_${voiceConfig.rate}`)
+      .update(`${cleanText}_${voiceConfig.voice}_${voiceConfig.rate}_${voiceConfig.pitch}`)
       .digest("hex");
 
     // 1. Controlla se è già presente in Cache Condivisa
@@ -51,8 +51,10 @@ export async function POST(request: NextRequest) {
     // 2. Sintetizza con Voci Neurali HD di Microsoft Edge / Azure (Qualità Studio, zero costi)
     const communicate = new Communicate(cleanText, {
       voice: voiceConfig.voice,
-      rate: voiceConfig.rate || "-4%",
+      rate: voiceConfig.rate,
+      pitch: voiceConfig.pitch,
     });
+
 
     const chunks: Buffer[] = [];
     for await (const chunk of communicate.stream()) {
