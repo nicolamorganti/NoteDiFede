@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 interface NewsItem {
   id: string;
@@ -16,7 +16,7 @@ interface NewsItem {
   categories: string[];
 }
 
-// 1. Ordine esatto richiesto: Tutte, Vaticano, CEI, Roma, Milano
+// 1. Ordine canonico: Tutte, Vaticano, CEI, Roma, Milano
 const SOURCES_CONFIG = [
   { id: "all", label: "Tutte le fonti", icon: "🌐" },
   { id: "vaticano", label: "Vatican News", icon: "📡" },
@@ -52,20 +52,20 @@ function formatRelativeTime(isoDateStr: string): string {
 
 export function NotizieView() {
   const [mounted, setMounted] = useState<boolean>(false);
-  const [news, setNews] = useState<NewsItem[]>([]);
+  const [allNews, setAllNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Caricamento del feed mirato direttamente dal server API
-  const fetchNews = async (sourceId: string, forceRefresh: boolean = false) => {
+  // Scarica tutti i feed aggregati
+  const fetchAllNews = async (forceRefresh: boolean = false) => {
     setLoading(true);
     setError(null);
     try {
       const refreshParam = forceRefresh ? "&refresh=true" : "";
-      const res = await fetch(`/api/notizie?source=${sourceId}&_t=${Date.now()}${refreshParam}`, {
+      const res = await fetch(`/api/notizie?source=all&_t=${Date.now()}${refreshParam}`, {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",
@@ -76,7 +76,7 @@ export function NotizieView() {
       if (!res.ok) throw new Error(`Errore HTTP ${res.status}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Impossibile recuperare le notizie");
-      setNews(data.news || []);
+      setAllNews(data.news || []);
     } catch (err: any) {
       console.error("Errore fetch notizie:", err);
       setError(err.message || "Errore durante il caricamento delle notizie.");
@@ -85,26 +85,23 @@ export function NotizieView() {
     }
   };
 
-  // Inizializzazione da URL o memoria locale
+  // Inizializzazione montaggio & preferenza salvata
   useEffect(() => {
     setMounted(true);
-    let initialSource = "all";
     if (typeof window !== "undefined") {
       const urlParam = new URLSearchParams(window.location.search).get("source");
       const saved = localStorage.getItem("notizie_pref_source");
       if (urlParam && SOURCES_CONFIG.some((s) => s.id === urlParam)) {
-        initialSource = urlParam;
+        setSelectedSource(urlParam);
       } else if (saved && SOURCES_CONFIG.some((s) => s.id === saved)) {
-        initialSource = saved;
+        setSelectedSource(saved);
       }
     }
-    setSelectedSource(initialSource);
-    fetchNews(initialSource, false);
+    fetchAllNews(false);
   }, []);
 
-  // Cambio sorgente: memorizza e interroga direttamente il relativo feed
+  // Selezione del filtro istantanea (con salvataggio preferenza e URL)
   const handleSelectSource = (sourceId: string) => {
-    if (sourceId === selectedSource && !loading) return;
     setSelectedSource(sourceId);
     if (typeof window !== "undefined") {
       localStorage.setItem("notizie_pref_source", sourceId);
@@ -114,21 +111,32 @@ export function NotizieView() {
       } else {
         url.searchParams.set("source", sourceId);
       }
-      window.history.pushState({}, "", url.toString());
+      window.history.replaceState({}, "", url.toString());
     }
-    fetchNews(sourceId, false);
   };
 
-  // Filtraggio testuale locale sui risultati correnti della sorgente
+  // Conteggio articoli per ogni singola sorgente
+  const sourceCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: allNews.length };
+    allNews.forEach((item) => {
+      counts[item.sourceId] = (counts[item.sourceId] || 0) + 1;
+    });
+    return counts;
+  }, [allNews]);
+
+  // Conteggio visibile in base alla ricerca testuale e sorgente
   const cleanQ = searchQuery.toLowerCase().trim();
-  const displayedNews = cleanQ
-    ? news.filter(
-        (item) =>
-          item.title.toLowerCase().includes(cleanQ) ||
-          item.description.toLowerCase().includes(cleanQ) ||
-          item.categories.some((c) => c.toLowerCase().includes(cleanQ))
-      )
-    : news;
+  const visibleCount = useMemo(() => {
+    return allNews.filter((item) => {
+      if (selectedSource !== "all" && item.sourceId !== selectedSource) return false;
+      if (!cleanQ) return true;
+      return (
+        item.title.toLowerCase().includes(cleanQ) ||
+        item.description.toLowerCase().includes(cleanQ) ||
+        item.categories.some((c) => c.toLowerCase().includes(cleanQ))
+      );
+    }).length;
+  }, [allNews, selectedSource, cleanQ]);
 
   const handleShare = async (item: NewsItem) => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -193,9 +201,9 @@ export function NotizieView() {
           {/* Bottone Aggiorna Feed */}
           <button
             type="button"
-            onClick={() => fetchNews(selectedSource, true)}
+            onClick={() => fetchAllNews(true)}
             disabled={loading}
-            title="Aggiorna Notizie da feed RSS"
+            title="Aggiorna Notizie da tutti i feed RSS"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#d8c5ad] bg-white hover:bg-[#ebdcc8] text-[#4a3b2c] text-xs font-semibold transition shadow-2xs shrink-0 cursor-pointer disabled:opacity-50"
           >
             <svg
@@ -234,7 +242,7 @@ export function NotizieView() {
             </svg>
             <input
               type="text"
-              placeholder="Cerca tra le notizie caricate (es. Papa, Caritas, GMG...)"
+              placeholder="Cerca tra le notizie (es. Papa, Arcivescovo, Caritas...)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-8 py-2 bg-white border border-[#d8c5ad] rounded-xl text-xs sm:text-sm text-[#2c241c] placeholder:text-[#a89987] focus:outline-hidden focus:ring-2 focus:ring-[#8a755d] shadow-2xs"
@@ -254,12 +262,13 @@ export function NotizieView() {
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             {SOURCES_CONFIG.map((src) => {
               const isSelected = selectedSource === src.id;
+              const count = sourceCounts[src.id] || 0;
               return (
                 <button
                   key={src.id}
                   type="button"
                   onClick={() => handleSelectSource(src.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-2xs cursor-pointer select-none ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition shadow-2xs cursor-pointer select-none ${
                     isSelected
                       ? "bg-[#2c241c] text-white shadow-sm ring-2 ring-[#8a755d]/50 font-semibold"
                       : "bg-white hover:bg-[#f7f2ea] text-[#5c4e3f] border border-[#e2d5c4]"
@@ -267,11 +276,13 @@ export function NotizieView() {
                 >
                   <span className="text-xs">{src.icon}</span>
                   <span>{src.label}</span>
-                  {isSelected && (
-                    <span className="text-[10px] bg-white/20 text-[#fde047] px-1.5 py-0.2 rounded-full font-mono font-bold">
-                      {displayedNews.length}
-                    </span>
-                  )}
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      isSelected ? "bg-white/20 text-[#fde047]" : "bg-[#f0e6d6] text-[#6b5d4e]"
+                    }`}
+                  >
+                    {count}
+                  </span>
                 </button>
               );
             })}
@@ -280,11 +291,11 @@ export function NotizieView() {
       </div>
 
       {/* Contenuto / Griglia Notizie */}
-      {loading ? (
+      {loading && allNews.length === 0 ? (
         <div className="p-10 text-center space-y-3 rounded-2xl bg-[#fbf8f3] border border-[#e2d5c4]">
           <div className="inline-block w-7 h-7 border-3 border-[#8a755d] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-xs sm:text-sm font-medium text-[#6b5d4e]">
-            Caricamento notizie {selectedSource !== "all" ? `per ${SOURCES_CONFIG.find((s) => s.id === selectedSource)?.label}` : "da tutti i feed"}...
+            Caricamento notizie dai feed in corso...
           </p>
         </div>
       ) : error ? (
@@ -293,165 +304,182 @@ export function NotizieView() {
           <p className="text-xs opacity-90">{error}</p>
           <button
             type="button"
-            onClick={() => fetchNews(selectedSource, true)}
+            onClick={() => fetchAllNews(true)}
             className="mt-2 px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-xl hover:bg-red-700 transition cursor-pointer"
           >
             Riprova
           </button>
         </div>
-      ) : displayedNews.length === 0 ? (
+      ) : visibleCount === 0 ? (
         <div className="p-10 text-center space-y-2 rounded-2xl bg-[#fbf8f3] border border-[#e2d5c4] text-[#6b5d4e]">
           <p className="text-xl">📰</p>
-          <p className="text-xs sm:text-sm font-medium">Nessuna notizia trovata per questa ricerca.</p>
-          {searchQuery && (
+          <p className="text-xs sm:text-sm font-medium">Nessuna notizia trovata per i filtri correnti.</p>
+          {(selectedSource !== "all" || searchQuery) && (
             <button
               type="button"
-              onClick={() => setSearchQuery("")}
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedSource("all");
+              }}
               className="px-3 py-1.5 rounded-xl border border-[#d8c5ad] bg-white hover:bg-[#ebdcc8] text-xs font-medium mt-1.5 cursor-pointer"
             >
-              Azzera ricerca
+              Mostra tutte le notizie ({allNews.length})
             </button>
           )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
-          {displayedNews.map((item) => (
-            <article
-              key={item.id}
-              className="flex flex-col justify-between bg-white rounded-2xl border border-[#ebdcc8] shadow-2xs hover:shadow-sm transition-all duration-150 overflow-hidden group hover:border-[#d8c5ad]"
-            >
-              {/* Immagine Copertina se presente */}
-              {item.imageUrl && (
-                <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-[#f4ece1]">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-102 transition duration-200"
-                    loading="lazy"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
-                  <div className="absolute top-2.5 left-2.5">
-                    <span
-                      className="px-2 py-0.5 rounded-md text-white text-[10px] font-bold tracking-wide shadow-sm"
-                      style={{ backgroundColor: item.sourceBadgeColor }}
-                    >
-                      {item.sourceName}
-                    </span>
-                  </div>
-                </div>
-              )}
+          {allNews.map((item) => {
+            // Controllo diretto CSS di visibilità: 0 latenza, instant switch
+            const matchesSource = selectedSource === "all" || item.sourceId === selectedSource;
+            const matchesSearch =
+              !cleanQ ||
+              item.title.toLowerCase().includes(cleanQ) ||
+              item.description.toLowerCase().includes(cleanQ) ||
+              item.categories.some((c) => c.toLowerCase().includes(cleanQ));
 
-              {/* Corpo Card */}
-              <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
-                <div className="space-y-2">
-                  {/* Intestazione metadati (quando non c'è immagine) */}
-                  {!item.imageUrl && (
-                    <div className="flex items-center justify-between gap-2">
+            const isVisible = matchesSource && matchesSearch;
+
+            return (
+              <article
+                key={item.id}
+                data-source={item.sourceId}
+                style={{ display: isVisible ? "flex" : "none" }}
+                className="flex-col justify-between bg-white rounded-2xl border border-[#ebdcc8] shadow-2xs hover:shadow-sm transition-all duration-150 overflow-hidden group hover:border-[#d8c5ad]"
+              >
+                {/* Immagine Copertina se presente */}
+                {item.imageUrl && (
+                  <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-[#f4ece1]">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-102 transition duration-200"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <div className="absolute top-2.5 left-2.5">
                       <span
-                        className="px-2 py-0.5 rounded-md text-white text-[10px] font-bold tracking-wide"
+                        className="px-2 py-0.5 rounded-md text-white text-[10px] font-bold tracking-wide shadow-sm"
                         style={{ backgroundColor: item.sourceBadgeColor }}
                       >
                         {item.sourceName}
                       </span>
-                      <span className="text-[11px] text-[#8a755d] flex items-center gap-1 font-sans">
+                    </div>
+                  </div>
+                )}
+
+                {/* Corpo Card */}
+                <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div className="space-y-2">
+                    {/* Intestazione metadati (quando non c'è immagine) */}
+                    {!item.imageUrl && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className="px-2 py-0.5 rounded-md text-white text-[10px] font-bold tracking-wide"
+                          style={{ backgroundColor: item.sourceBadgeColor }}
+                        >
+                          {item.sourceName}
+                        </span>
+                        <span className="text-[11px] text-[#8a755d] flex items-center gap-1 font-sans">
+                          <span>📅</span>
+                          <span>{formatRelativeTime(item.isoDate)}</span>
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Data quando c'è immagine */}
+                    {item.imageUrl && (
+                      <div className="text-[11px] text-[#8a755d] flex items-center gap-1 font-sans">
                         <span>📅</span>
                         <span>{formatRelativeTime(item.isoDate)}</span>
-                      </span>
-                    </div>
-                  )}
+                      </div>
+                    )}
 
-                  {/* Data quando c'è immagine */}
-                  {item.imageUrl && (
-                    <div className="text-[11px] text-[#8a755d] flex items-center gap-1 font-sans">
-                      <span>📅</span>
-                      <span>{formatRelativeTime(item.isoDate)}</span>
-                    </div>
-                  )}
+                    {/* Titolo */}
+                    <h2 className="font-serif font-bold text-base sm:text-lg text-[#2c241c] leading-snug group-hover:text-[#8a755d] transition">
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="focus:outline-hidden hover:underline"
+                      >
+                        {item.title}
+                      </a>
+                    </h2>
 
-                  {/* Titolo */}
-                  <h2 className="font-serif font-bold text-base sm:text-lg text-[#2c241c] leading-snug group-hover:text-[#8a755d] transition">
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="focus:outline-hidden hover:underline"
-                    >
-                      {item.title}
-                    </a>
-                  </h2>
-
-                  {/* Estratto Descrizione */}
-                  {item.description && (
-                    <p className="text-xs text-[#5c4e3f] leading-relaxed line-clamp-2 sm:line-clamp-3">
-                      {item.description}
-                    </p>
-                  )}
-                </div>
-
-                {/* Footer Card: Categorie e Azioni */}
-                <div className="pt-2.5 border-t border-[#f3ebd8] flex items-center justify-between gap-2">
-                  {/* Categorie Tags */}
-                  <div className="flex items-center gap-1 overflow-hidden">
-                    {item.categories.length > 0 ? (
-                      item.categories.map((cat, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center text-[10px] bg-[#fbf8f3] text-[#786653] px-1.5 py-0.5 rounded-md border border-[#ebdcc8] truncate max-w-[110px]"
-                        >
-                          <span className="mr-1 text-[8px]">🏷️</span>
-                          <span className="truncate">{cat}</span>
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[10px] text-[#a89987] italic">Notizia ecclesiale</span>
+                    {/* Estratto Descrizione */}
+                    {item.description && (
+                      <p className="text-xs text-[#5c4e3f] leading-relaxed line-clamp-2 sm:line-clamp-3">
+                        {item.description}
+                      </p>
                     )}
                   </div>
 
-                  {/* Bottoni Azione */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleShare(item)}
-                      title="Condividi notizia"
-                      className="h-7 w-7 inline-flex items-center justify-center rounded-lg text-[#786653] hover:bg-[#f3ebd8] hover:text-[#2c241c] transition cursor-pointer"
-                    >
-                      {copiedId === item.id ? (
-                        <span className="text-xs font-bold text-green-600">✓</span>
+                  {/* Footer Card: Categorie e Azioni */}
+                  <div className="pt-2.5 border-t border-[#f3ebd8] flex items-center justify-between gap-2">
+                    {/* Categorie Tags */}
+                    <div className="flex items-center gap-1 overflow-hidden">
+                      {item.categories.length > 0 ? (
+                        item.categories.map((cat, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center text-[10px] bg-[#fbf8f3] text-[#786653] px-1.5 py-0.5 rounded-md border border-[#ebdcc8] truncate max-w-[110px]"
+                          >
+                            <span className="mr-1 text-[8px]">🏷️</span>
+                            <span className="truncate">{cat}</span>
+                          </span>
+                        ))
                       ) : (
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <span className="text-[10px] text-[#a89987] italic">Notizia ecclesiale</span>
+                      )}
+                    </div>
+
+                    {/* Bottoni Azione */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleShare(item)}
+                        title="Condividi notizia"
+                        className="h-7 w-7 inline-flex items-center justify-center rounded-lg text-[#786653] hover:bg-[#f3ebd8] hover:text-[#2c241c] transition cursor-pointer"
+                      >
+                        {copiedId === item.id ? (
+                          <span className="text-xs font-bold text-green-600">✓</span>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                            />
+                          </svg>
+                        )}
+                      </button>
+
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#2c241c] hover:bg-[#4a3b2c] text-[#f7f2ea] text-xs font-medium transition shadow-2xs"
+                      >
+                        <span>Leggi</span>
+                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
                           />
                         </svg>
-                      )}
-                    </button>
-
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#2c241c] hover:bg-[#4a3b2c] text-[#f7f2ea] text-xs font-medium transition shadow-2xs"
-                    >
-                      <span>Leggi</span>
-                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
-                    </a>
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
