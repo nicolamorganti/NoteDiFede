@@ -74,27 +74,29 @@ async function getAmbrosianoCalendarMap(): Promise<{
     const htmlOre = await resOre.text();
 
     const messaMap: Record<string, string> = {};
-    const messaMatches = [
-      ...htmlMessa.matchAll(/<a[^>]*href="([^"]+)"[^>]*data-date="(\d{4})-(\d{1,2})-(\d{1,2})"[^>]*>/gi),
-    ];
-    for (const m of messaMatches) {
-      const url = m[1];
-      const year = m[2];
-      const month = m[3].padStart(2, "0");
-      const day = m[4].padStart(2, "0");
-      messaMap[`${year}-${month}-${day}`] = url;
+    const messaLinks = [...htmlMessa.matchAll(/<a\s+[^>]*>/gi)];
+    for (const tag of messaLinks) {
+      const hrefMatch = tag[0].match(/href=["']([^"']+)["']/i);
+      const dateMatch = tag[0].match(/data-date=["'](\d{4})-(\d{1,2})-(\d{1,2})["']/i);
+      if (hrefMatch && dateMatch) {
+        const y = dateMatch[1];
+        const m = dateMatch[2].padStart(2, "0");
+        const d = dateMatch[3].padStart(2, "0");
+        messaMap[`${y}-${m}-${d}`] = hrefMatch[1];
+      }
     }
 
     const oreMap: Record<string, string> = {};
-    const oreMatches = [
-      ...htmlOre.matchAll(/<a[^>]*href="([^"]+)"[^>]*data-date="(\d{4})-(\d{1,2})-(\d{1,2})"[^>]*>/gi),
-    ];
-    for (const m of oreMatches) {
-      const url = m[1];
-      const year = m[2];
-      const month = m[3].padStart(2, "0");
-      const day = m[4].padStart(2, "0");
-      oreMap[`${year}-${month}-${day}`] = url;
+    const oreLinks = [...htmlOre.matchAll(/<a\s+[^>]*>/gi)];
+    for (const tag of oreLinks) {
+      const hrefMatch = tag[0].match(/href=["']([^"']+)["']/i);
+      const dateMatch = tag[0].match(/data-date=["'](\d{4})-(\d{1,2})-(\d{1,2})["']/i);
+      if (hrefMatch && dateMatch) {
+        const y = dateMatch[1];
+        const m = dateMatch[2].padStart(2, "0");
+        const d = dateMatch[3].padStart(2, "0");
+        oreMap[`${y}-${m}-${d}`] = hrefMatch[1];
+      }
     }
 
     cachedMessaCalendar = messaMap;
@@ -127,8 +129,14 @@ function extractMessaFromHtml(html: string) {
     html.match(/<div[^>]*class=['"][^'"]*entry-content[^'"]*['"][^>]*>([\s\S]*?)<\/div>/i);
 
   const contentHtml = contentMatch ? contentMatch[1].trim() : "";
+  const colore = getAmbrosianColor(title, riassunto, title);
+  const liturgicalInfo = `${title}${riassunto ? ` · ${riassunto}` : ""} (colore: ${colore}) - Rito Ambrosiano`;
+
   return {
-    liturgicalInfo: `${title}${riassunto ? ` (${riassunto})` : ""} - Messa Rito Ambrosiano`,
+    title,
+    riassunto,
+    liturgicalInfo,
+    temporalInfo: title,
     contentHtml,
   };
 }
@@ -141,25 +149,42 @@ function extractOreFromHtml(html: string, moment: string) {
     ? titleMatch[1].replace(/<[^>]+>/g, "").replace(/ - Chiesa di Milano.*/i, "").trim()
     : "Liturgia delle Ore - Rito Ambrosiano";
 
-  let tabId = "LODI";
-  if (moment === "ufficio") tabId = "UDL";
-  else if (moment === "lodi") tabId = "LODI";
-  else if (moment === "ora_media") tabId = "OM";
-  else if (moment === "vespri") tabId = "VESPRI";
-  else if (moment === "compieta") tabId = "COMPIETA";
+  const riassuntoMatch = html.match(/<div class=['"]riassunto['"]>([\s\S]*?)<\/div>/i);
+  const riassunto = riassuntoMatch ? cleanInfoText(riassuntoMatch[1]) : "";
 
+  // Pattern flessibile per ID che gestisce sia "OM" che "ORAMEDIA", sia "VESPRI" che "VESPR0" o "VESPRO"
+  let idPattern = "LODI";
+  if (moment === "ufficio") idPattern = "UDL|UFFICIO";
+  else if (moment === "lodi") idPattern = "LODI|LODIMATTUTINE";
+  else if (moment === "ora_media") idPattern = "OM|ORAMEDIA|ORA_MEDIA";
+  else if (moment === "vespri") idPattern = "VESPRI|VESPR0|VESPRO";
+  else if (moment === "compieta") idPattern = "COMPIETA";
+
+  const allNextIds = "(?:UDL|UFFICIO|LODI|LODIMATTUTINE|OM|ORAMEDIA|ORA_MEDIA|VESPRI|VESPR0|VESPRO|COMPIETA)";
   const regex = new RegExp(
-    `<div[^>]*id="${tabId}"[^>]*>([\\s\\S]*?)<\\/div>\\s*(?=<div[^>]*id="(?:UDL|LODI|OM|VESPRI|COMPIETA)"|<\\/div>\\s*<\\/div>|$)`,
+    `<div[^>]*id=["'](?:${idPattern})["'][^>]*>([\\s\\S]*?)(?=<div[^>]*class=["'][^"']*spaziolodi[^"']*["']|<div[^>]*id=["']${allNextIds}["']|<\\/div>\\s*<\\/div>\\s*<\\/div>|$)`,
     "i"
   );
   const match = html.match(regex);
   const contentHtml = match ? match[1].trim() : "";
 
+  const colore = getAmbrosianColor(title, riassunto, title);
+  let liturgicalInfo = "";
+  if (title) {
+    liturgicalInfo = `${title}${riassunto ? ` · ${riassunto}` : ""} (colore: ${colore}) - Rito Ambrosiano`;
+  } else {
+    liturgicalInfo = `Liturgia delle Ore (colore: ${colore}) - Rito Ambrosiano`;
+  }
+
   return {
-    liturgicalInfo: `${title} - Rito Ambrosiano`,
+    title,
+    riassunto,
+    liturgicalInfo,
+    temporalInfo: title,
     contentHtml,
   };
 }
+
 
 function getAmbrosianColor(saint: string, grado: string, temporal: string): string {
   const s = (saint + " " + grado).toLowerCase();
@@ -305,11 +330,12 @@ async function fetchAmbrosianoMessaFromChiesaDiMilano(dateStr: string) {
       const extracted = extractMessaFromHtml(directHtml);
       if (extracted.contentHtml && extracted.contentHtml.length > 50) {
         return {
-          liturgicalInfo: meta.liturgicalInfo || extracted.liturgicalInfo,
-          temporalInfo: meta.temporal,
+          liturgicalInfo: (meta.saint || meta.temporal) ? meta.liturgicalInfo : extracted.liturgicalInfo,
+          temporalInfo: meta.temporal || extracted.temporalInfo || extracted.title,
           contentHtml: sanitizeHtml(extracted.contentHtml),
         };
       }
+
     }
   }
 
@@ -412,12 +438,13 @@ async function fetchAmbrosianoFromChiesaDiMilano(dateStr: string, moment: string
       const extracted = extractOreFromHtml(directHtml, moment);
       if (extracted.contentHtml && extracted.contentHtml.length > 50) {
         return {
-          liturgicalInfo: meta.liturgicalInfo || extracted.liturgicalInfo,
-          temporalInfo: meta.temporal,
+          liturgicalInfo: (meta.saint || meta.temporal) ? meta.liturgicalInfo : extracted.liturgicalInfo,
+          temporalInfo: meta.temporal || extracted.temporalInfo || extracted.title,
           contentHtml: sanitizeHtml(extracted.contentHtml),
         };
       }
     }
+
   }
 
   throw new Error(`Nessun testo per ${moment} del Rito Ambrosiano trovato su chiesadimilano.it`);

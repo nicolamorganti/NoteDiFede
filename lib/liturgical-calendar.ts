@@ -108,19 +108,21 @@ export function getLiturgicalDayDetails(
         const weeksAfterPentecost = Math.floor(daysSincePentecost / 7) + 1;
         salterioSettimana = ((weeksAfterPentecost - 1) % 4) + 1;
 
-        // Se ad agosto inoltrato (22-28 agosto)
-        const month = d.getUTCMonth(); // 7 = Agosto
+        const month = d.getUTCMonth(); // 7 = Agosto, 8 = Settembre
         const day = d.getUTCDate();
         if (month === 7 && day >= 23 && day <= 28) {
           tempoLiturgico = "Settimana che precede il Martirio di san Giovanni il Precursore";
         } else if (month === 7 && day === 29) {
           tempoLiturgico = "Martirio di san Giovanni il Precursore";
-        } else if (month >= 8 && month <= 9) {
-          tempoLiturgico = "Tempo dopo il Martirio di san Giovanni il Precursore";
+        } else if ((month === 7 && day >= 30) || month === 8 || month === 9) {
+          const weeksAfterMartirio = Math.floor((d.getTime() - new Date(Date.UTC(year, 7, 29, 12, 0, 0)).getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
+          const numStr = ROMAN_NUMERALS[weeksAfterMartirio] || String(weeksAfterMartirio);
+          tempoLiturgico = `${numStr} settimana dopo il Martirio di san Giovanni il Precursore`;
         } else {
           const numStr = ROMAN_NUMERALS[weeksAfterPentecost] || String(weeksAfterPentecost);
           tempoLiturgico = `${numStr} settimana dopo Pentecoste`;
         }
+
       } else {
         // Settimane del Tempo Ordinario post-Pentecoste
         const weekOfTO = Math.min(34, Math.max(1, Math.floor((daysSincePentecost + 56) / 7) + 1));
