@@ -260,6 +260,13 @@ export function BenedizionaleReader() {
 
   // Stato per la consultazione testuale online (iBreviary)
   const [selectedLang, setSelectedLang] = useState<string>("it");
+  const [isDualMode, setIsDualMode] = useState<boolean>(false);
+  const [secondaryLang, setSecondaryLang] = useState<string>("la");
+  const [secondaryOnlineId, setSecondaryOnlineId] = useState<string | null>(null);
+  const [secondaryItems, setSecondaryItems] = useState<{ id: string; title: string }[]>([]);
+  const [secondaryOnlineHtml, setSecondaryOnlineHtml] = useState<string>("");
+  const [isLoadingSecondary, setIsLoadingSecondary] = useState<boolean>(false);
+
   const [onlineItems, setOnlineItems] = useState<{ id: string; title: string }[]>([]);
   const [selectedOnlineId, setSelectedOnlineId] = useState<string | null>("125");
   const [onlineHtml, setOnlineHtml] = useState<string>("");
@@ -275,17 +282,39 @@ export function BenedizionaleReader() {
     try {
       const savedLang = localStorage.getItem("liturgia_pref_lang");
       if (savedLang) setSelectedLang(savedLang);
+      const savedDual = localStorage.getItem("benedizionale_dual_mode");
+      if (savedDual === "true") setIsDualMode(true);
+      const savedSecLang = localStorage.getItem("benedizionale_secondary_lang");
+      if (savedSecLang) setSecondaryLang(savedSecLang);
     } catch {}
   }, []);
 
   const handleLangChange = (newLang: string) => {
     setSelectedLang(newLang);
+    if (secondaryLang === newLang) {
+      setSecondaryLang(newLang === "la" ? "it" : "la");
+    }
     try {
       localStorage.setItem("liturgia_pref_lang", newLang);
     } catch {}
   };
 
-  // Carica la lista dei riti e benedizioni
+  const handleSecondaryLangChange = (newLang: string) => {
+    setSecondaryLang(newLang);
+    try {
+      localStorage.setItem("benedizionale_secondary_lang", newLang);
+    } catch {}
+  };
+
+  const toggleDualMode = () => {
+    const next = !isDualMode;
+    setIsDualMode(next);
+    try {
+      localStorage.setItem("benedizionale_dual_mode", String(next));
+    } catch {}
+  };
+
+  // Carica la lista dei riti e benedizioni (Primaria)
   useEffect(() => {
     if (mainTab !== "online") return;
 
@@ -314,7 +343,32 @@ export function BenedizionaleReader() {
     };
   }, [mainTab, selectedLang]);
 
-  // Carica il testo del rito selezionato
+  // Carica la lista dei riti per la lingua secondaria (Testo a Fronte)
+  useEffect(() => {
+    if (mainTab !== "online" || !isDualMode) return;
+
+    let isMounted = true;
+    fetch(`/api/benedizionale-online?lang=${secondaryLang}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.items) {
+          setSecondaryItems(data.items);
+          const primaryIndex = onlineItems.findIndex((it) => it.id === selectedOnlineId);
+          if (primaryIndex >= 0 && data.items[primaryIndex]) {
+            setSecondaryOnlineId(data.items[primaryIndex].id);
+          } else if (data.items.length > 0) {
+            setSecondaryOnlineId(data.items[0].id);
+          }
+        }
+      })
+      .catch((err) => console.error("Errore caricamento lista secondaria benedizionale:", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mainTab, secondaryLang, isDualMode, selectedOnlineId, onlineItems]);
+
+  // Carica il testo del rito selezionato (Primaria)
   useEffect(() => {
     if (mainTab !== "online" || !selectedOnlineId) return;
 
@@ -346,6 +400,40 @@ export function BenedizionaleReader() {
       isMounted = false;
     };
   }, [mainTab, selectedOnlineId, selectedLang]);
+
+  // Carica il testo del rito secondario (Testo a Fronte)
+  useEffect(() => {
+    if (mainTab !== "online" || !isDualMode || !secondaryOnlineId) return;
+
+    let isMounted = true;
+    setIsLoadingSecondary(true);
+    fetch(`/api/benedizionale-online?id=${secondaryOnlineId}&lang=${secondaryLang}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted) {
+          if (data.html) {
+            const clean = data.html
+              .replace(/<p[^>]*>\s*<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>\s*<\/p>/gi, "")
+              .replace(/<p[^>]*>\s*-\s*Menu\s*-\s*<\/p>/gi, "")
+              .replace(/<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>/gi, "")
+              .replace(/-\s*Menu\s*-/gi, "")
+              .replace(/<p>\s*(?:<br\s*\/?>|\s|&nbsp;)*<\/p>/gi, "")
+              .replace(/(?:<br\s*\/?>\s*){3,}/gi, "<br /><br />");
+            setSecondaryOnlineHtml(clean);
+          }
+          setIsLoadingSecondary(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Errore caricamento testo secondario benedizionale:", err);
+        if (isMounted) setIsLoadingSecondary(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mainTab, secondaryOnlineId, secondaryLang, isDualMode]);
+
 
 
   const categories = [
@@ -530,6 +618,18 @@ export function BenedizionaleReader() {
                 </button>
               </div>
 
+              {/* Pulsante Testo a Fronte Bilingue */}
+              <button
+                onClick={toggleDualMode}
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                  isDualMode
+                    ? "bg-[#5c4a37] border-[#4a3c2c] text-amber-200 shadow-xs"
+                    : "bg-[#fbf8f4] border-[#d9cdbf] text-[#5c4a37] hover:bg-[#ede4d6]"
+                }`}
+                title="Attiva/disattiva visualizzazione a due colonne con testo a fronte bilingue"
+              >
+                <span>📖 Testo a Fronte</span>
+              </button>
 
               {/* Regolazione Interlinea e Spaziatura */}
               <button
@@ -582,27 +682,112 @@ export function BenedizionaleReader() {
             ))}
           </div>
 
-          {/* Contenuto Testuale Formattato */}
-          <div
-            className={`benedizionale-online-content rounded-3xl border p-6 sm:p-10 shadow-lg transition ${
-              isChurchMode
-                ? "border-[#3f3a36] bg-[#181614] text-[#ece8e2]"
-                : "border-[#e0d6c7] bg-[#fefdfb] text-[#2c2621]"
-            }`}
-            style={{ fontSize: `${fontSize}px` }}
-          >
-            {isLoadingOnline ? (
-              <div className="flex items-center justify-center py-16 gap-3 text-sm text-[#8a755d]">
-                <span className="inline-block animate-spin text-xl">⏳</span>
-                <span>Caricamento del rito di benedizione...</span>
-              </div>
-            ) : (
+          {/* Contenuto Testuale Formattato (Singola o Doppia Colonna) */}
+          {isDualMode ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Colonna Sinistra: Lingua Primaria */}
               <div
-                className="prose max-w-none font-serif"
-                dangerouslySetInnerHTML={{ __html: onlineHtml }}
-              />
-            )}
-          </div>
+                className={`benedizionale-online-content rounded-3xl border p-5 sm:p-7 shadow-md transition flex flex-col ${
+                  isChurchMode
+                    ? "border-[#3f3a36] bg-[#181614] text-[#ece8e2]"
+                    : "border-[#e0d6c7] bg-[#fefdfb] text-[#2c2621]"
+                }`}
+                style={{ fontSize: `${fontSize}px` }}
+              >
+                <div className="flex items-center justify-between border-b pb-2 mb-4 border-[#e4dcce]/40">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">🌐</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#aa9576]">
+                      {LITURGICAL_LANGUAGES.find((l) => l.code === selectedLang)?.flag}{" "}
+                      {LITURGICAL_LANGUAGES.find((l) => l.code === selectedLang)?.name}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-[#8a755d] bg-[#f5ece0] px-2 py-0.5 rounded-md">
+                    Testo Base
+                  </span>
+                </div>
+
+                {isLoadingOnline ? (
+                  <div className="flex items-center justify-center py-16 gap-3 text-sm text-[#8a755d]">
+                    <span className="inline-block animate-spin text-xl">⏳</span>
+                    <span>Caricamento del rito...</span>
+                  </div>
+                ) : (
+                  <div
+                    className="prose max-w-none font-serif flex-1"
+                    dangerouslySetInnerHTML={{ __html: onlineHtml }}
+                  />
+                )}
+              </div>
+
+              {/* Colonna Destra: Lingua Secondaria a Fronte */}
+              <div
+                className={`benedizionale-online-content rounded-3xl border p-5 sm:p-7 shadow-md transition flex flex-col ${
+                  isChurchMode
+                    ? "border-[#3f3a36] bg-[#1a1715] text-[#ece8e2]"
+                    : "border-[#e0d6c7] bg-[#faf6ef] text-[#2c2621]"
+                }`}
+                style={{ fontSize: `${fontSize}px` }}
+              >
+                <div className="flex items-center justify-between border-b pb-2 mb-4 border-[#e4dcce]/40">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">⚖️</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#aa9576]">
+                      A Fronte:
+                    </span>
+                    <select
+                      value={secondaryLang}
+                      onChange={(e) => handleSecondaryLangChange(e.target.value)}
+                      className="bg-[#f0e4d2] border border-[#d8c5ad] rounded-lg px-2 py-0.5 text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer"
+                    >
+                      {LITURGICAL_LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.flag} {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="text-[10px] font-mono text-[#8a755d] bg-[#ebdcc8] px-2 py-0.5 rounded-md">
+                    Traduzione / Ritus
+                  </span>
+                </div>
+
+                {isLoadingSecondary ? (
+                  <div className="flex items-center justify-center py-16 gap-3 text-sm text-[#8a755d]">
+                    <span className="inline-block animate-spin text-xl">⏳</span>
+                    <span>Caricamento rito a fronte...</span>
+                  </div>
+                ) : (
+                  <div
+                    className="prose max-w-none font-serif flex-1"
+                    dangerouslySetInnerHTML={{ __html: secondaryOnlineHtml }}
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div
+              className={`benedizionale-online-content rounded-3xl border p-6 sm:p-10 shadow-lg transition ${
+                isChurchMode
+                  ? "border-[#3f3a36] bg-[#181614] text-[#ece8e2]"
+                  : "border-[#e0d6c7] bg-[#fefdfb] text-[#2c2621]"
+              }`}
+              style={{ fontSize: `${fontSize}px` }}
+            >
+              {isLoadingOnline ? (
+                <div className="flex items-center justify-center py-16 gap-3 text-sm text-[#8a755d]">
+                  <span className="inline-block animate-spin text-xl">⏳</span>
+                  <span>Caricamento del rito di benedizione...</span>
+                </div>
+              ) : (
+                <div
+                  className="prose max-w-none font-serif"
+                  dangerouslySetInnerHTML={{ __html: onlineHtml }}
+                />
+              )}
+            </div>
+          )}
+
 
           {/* Stili Scoped per Benedizionale Online (supporto perfetto modalità giorno / notte & interlinea) */}
           <style jsx global>{`

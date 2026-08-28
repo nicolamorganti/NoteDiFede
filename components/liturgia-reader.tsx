@@ -127,6 +127,10 @@ export function LiturgiaReader() {
   const [moment, setMoment] = useState<LiturgyMoment>("lodi");
   const [selectedDate, setSelectedDate] = useState<string>(getTodayIsoString());
   const [selectedLang, setSelectedLang] = useState<string>("it");
+  const [isDualMode, setIsDualMode] = useState<boolean>(false);
+  const [secondaryLang, setSecondaryLang] = useState<string>("la");
+  const [contentHtmlSecondary, setContentHtmlSecondary] = useState<string>("");
+  const [loadingSecondary, setLoadingSecondary] = useState<boolean>(false);
 
   // Preferenze di lettura
   const [fontSize, setFontSize] = useState<number>(17); // 14 to 26 px
@@ -139,7 +143,6 @@ export function LiturgiaReader() {
   const [contentHtml, setContentHtml] = useState<string>("");
   const [liturgicalInfo, setLiturgicalInfo] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
-
 
   // Stato Supporto alla Comprensione (Omelia Card. Martini)
   const [omeliaLoading, setOmeliaLoading] = useState<boolean>(false);
@@ -160,6 +163,13 @@ export function LiturgiaReader() {
       if (savedRite === "ambrosiano" || savedRite === "romano") {
         setRite(savedRite);
       }
+      const savedLang = localStorage.getItem("liturgia_pref_lang");
+      if (savedLang) setSelectedLang(savedLang);
+      const savedDual = localStorage.getItem("liturgia_dual_mode");
+      if (savedDual === "true") setIsDualMode(true);
+      const savedSecLang = localStorage.getItem("liturgia_secondary_lang");
+      if (savedSecLang) setSecondaryLang(savedSecLang);
+
       const savedSize = localStorage.getItem("liturgia_font_size");
       if (savedSize) {
         const num = parseInt(savedSize, 10);
@@ -180,6 +190,31 @@ export function LiturgiaReader() {
       setMoment(getAutomaticMoment());
     }
   }, []);
+
+  const handleLangChange = (newLang: string) => {
+    setSelectedLang(newLang);
+    if (secondaryLang === newLang) {
+      setSecondaryLang(newLang === "la" ? "it" : "la");
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("liturgia_pref_lang", newLang);
+    }
+  };
+
+  const handleSecondaryLangChange = (newLang: string) => {
+    setSecondaryLang(newLang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("liturgia_secondary_lang", newLang);
+    }
+  };
+
+  const toggleDualMode = () => {
+    const next = !isDualMode;
+    setIsDualMode(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("liturgia_dual_mode", String(next));
+    }
+  };
 
   // Timer per l'elaborazione dell'omelia
   useEffect(() => {
@@ -240,7 +275,7 @@ export function LiturgiaReader() {
     });
   };
 
-  // Caricamento dei testi
+  // Caricamento dei testi (Primaria)
   const fetchLiturgy = async () => {
     setLoading(true);
     setError(null);
@@ -272,9 +307,36 @@ export function LiturgiaReader() {
     }
   };
 
+  // Caricamento testo a fronte per lingua secondaria (Rito Romano)
+  const fetchSecondaryLiturgy = async () => {
+    if (rite !== "romano" || !isDualMode) return;
+    setLoadingSecondary(true);
+
+    try {
+      const res = await fetch(
+        `/api/liturgia?rite=romano&moment=${moment}&date=${selectedDate}&lang=${secondaryLang}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setContentHtmlSecondary(data.contentHtml || "<p>Nessun testo secondario disponibile.</p>");
+      }
+    } catch (err) {
+      console.error("Errore fetch liturgia secondaria:", err);
+    } finally {
+      setLoadingSecondary(false);
+    }
+  };
+
   useEffect(() => {
     fetchLiturgy();
   }, [rite, moment, selectedDate, selectedLang]);
+
+  useEffect(() => {
+    if (isDualMode && rite === "romano") {
+      fetchSecondaryLiturgy();
+    }
+  }, [rite, moment, selectedDate, secondaryLang, isDualMode]);
+
 
 
   // Gestione cambio data veloce (Oggi, Ieri, Domani)
@@ -739,33 +801,40 @@ export function LiturgiaReader() {
 
         {/* Strumenti Lettura (Lingua + Dimensione Font + Interlinea + Modalità Chiesa + Copia) */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Selettore Lingua / Rito (attivo per Rito Romano) */}
+          {/* Selettore Lingua & Testo a Fronte (attivo per Rito Romano) */}
           {rite === "romano" && (
-            <div className="relative flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2 py-1">
-              <span className="text-xs mr-1">🌐</span>
-              <select
-                value={selectedLang}
-                onChange={(e) => {
-                  const newLang = e.target.value;
-                  setSelectedLang(newLang);
-                  try {
-                    localStorage.setItem("liturgia_pref_lang", newLang);
-                  } catch {}
-                }}
-                className="bg-transparent text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer pr-1"
+            <>
+              <div className="relative flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2 py-1">
+                <span className="text-xs mr-1">🌐</span>
+                <select
+                  value={selectedLang}
+                  onChange={(e) => handleLangChange(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer pr-1"
+                >
+                  {LITURGICAL_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.flag} {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={toggleDualMode}
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                  isDualMode
+                    ? "bg-[#5c4a37] border-[#4a3c2c] text-amber-200 shadow-xs"
+                    : "bg-[#fbf8f4] border-[#d9cdbf] text-[#5c4a37] hover:bg-[#ede4d6]"
+                }`}
+                title="Attiva/disattiva visualizzazione a due colonne con testo a fronte bilingue"
               >
-                {LITURGICAL_LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.flag} {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <span>📖 Testo a Fronte</span>
+              </button>
+            </>
           )}
 
           {/* Dimensione Font */}
           <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
-
             <button
               onClick={() => handleFontSizeChange(-1)}
               disabled={fontSize <= 14}
@@ -888,6 +957,78 @@ export function LiturgiaReader() {
               Riprova
             </button>
           </div>
+        ) : isDualMode && rite === "romano" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Colonna Sinistra (Lingua Primaria) */}
+            <div className="flex flex-col border-b lg:border-b-0 lg:border-r pb-6 lg:pb-0 lg:pr-6 border-[#e4dcce]/50">
+              <div className="flex items-center justify-between border-b pb-2 mb-4 border-[#e4dcce]/40">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">🌐</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#aa9576]">
+                    {LITURGICAL_LANGUAGES.find((l) => l.code === selectedLang)?.flag}{" "}
+                    {LITURGICAL_LANGUAGES.find((l) => l.code === selectedLang)?.name}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-[#8a755d] bg-[#f5ece0] px-2 py-0.5 rounded-md">
+                  Testo Primario
+                </span>
+              </div>
+              <article
+                className="liturgia-content prose max-w-none font-serif flex-1"
+                style={{
+                  fontSize: `${fontSize}px`,
+                  lineHeight: lineHeightValue,
+                }}
+              >
+                <div dangerouslySetInnerHTML={{ __html: splitContent.before }} />
+                {renderSupportoComprensione()}
+                {splitContent.after && (
+                  <div dangerouslySetInnerHTML={{ __html: splitContent.after }} />
+                )}
+              </article>
+            </div>
+
+            {/* Colonna Destra (Lingua Secondaria a Fronte) */}
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between border-b pb-2 mb-4 border-[#e4dcce]/40">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">⚖️</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#aa9576]">
+                    A Fronte:
+                  </span>
+                  <select
+                    value={secondaryLang}
+                    onChange={(e) => handleSecondaryLangChange(e.target.value)}
+                    className="bg-[#f0e4d2] border border-[#d8c5ad] rounded-lg px-2 py-0.5 text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer"
+                  >
+                    {LITURGICAL_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.flag} {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-[10px] font-mono text-[#8a755d] bg-[#ebdcc8] px-2 py-0.5 rounded-md">
+                  Traditio / Lingua a Fronte
+                </span>
+              </div>
+              {loadingSecondary ? (
+                <div className="py-16 text-center text-xs text-[#8a755d] flex items-center justify-center gap-2">
+                  <span className="animate-spin text-base">⏳</span>
+                  <span>Caricamento testo a fronte...</span>
+                </div>
+              ) : (
+                <article
+                  className="liturgia-content prose max-w-none font-serif flex-1"
+                  style={{
+                    fontSize: `${fontSize}px`,
+                    lineHeight: lineHeightValue,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: contentHtmlSecondary }}
+                />
+              )}
+            </div>
+          </div>
         ) : (
           <article
             className="liturgia-content prose max-w-none font-serif"
@@ -909,6 +1050,7 @@ export function LiturgiaReader() {
           </article>
         )}
       </div>
+
 
       {/* Stili CSS dedicati per la formattazione dei testi liturgici */}
       <style jsx global>{`
