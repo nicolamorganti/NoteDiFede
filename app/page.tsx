@@ -150,7 +150,7 @@ export default function LoginPage() {
 
           <div className="space-y-2">
             <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#8a755d]">
-              Archivio musica liturgica
+              Musica Sacra & Preghiera
             </span>
             <h1 className="font-serif text-3xl font-normal tracking-wide text-[#3f3933] sm:text-4xl">
               Note di Fede
@@ -158,11 +158,16 @@ export default function LoginPage() {
             <div className="mx-auto h-[1px] w-24 bg-gradient-to-r from-transparent via-[#aa9576] to-transparent" />
           </div>
 
-          <p className="mx-auto max-w-xs text-sm leading-relaxed text-[#736555] italic">
+          <p className="mx-auto max-w-sm text-xs leading-relaxed text-[#736555]">
+            <span className="font-semibold text-[#5c4a37]">Note musicali</span> per la liturgia e <span className="font-semibold text-[#5c4a37]">annotazioni di fede</span> per la preghiera quotidiana: canti sacri, celebrazioni, liturgia delle ore e meditazioni sulla Parola.
+          </p>
+
+          <p className="mx-auto max-w-xs text-xs italic text-[#8a755d] pt-0.5">
             &ldquo;Il cantare è proprio di chi ama.&rdquo;
-            <span className="block mt-1 text-[11px] not-italic font-medium uppercase tracking-[0.1em] text-[#8a755d]">— S. Agostino</span>
+            <span className="block mt-0.5 text-[10px] not-italic font-medium uppercase tracking-[0.1em] text-[#aa9576]">— S. Agostino</span>
           </p>
         </div>
+
 
         {/* Card di Login / Registrazione */}
         <div className="rounded-3xl border border-[#e4dcce] bg-[#fffdfa]/95 p-6 shadow-xl shadow-[#8a755d]/10 backdrop-blur-sm sm:p-8">

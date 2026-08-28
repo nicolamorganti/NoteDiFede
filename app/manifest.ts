@@ -1,11 +1,12 @@
-﻿import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Note di Fede - Portale Coro",
+    name: "Note di Fede — Musica Liturgica & Preghiera",
     short_name: "Note di Fede",
-    description: "Archivio e gestione canti, celebrazioni e spartiti liturgici.",
+    description: "Note musicali e annotazioni di fede: canti liturgici, celebrazioni, liturgia delle ore e meditazioni sulla Parola.",
     start_url: "/",
+
     display: "standalone",
     background_color: "#fdfbf7",
     theme_color: "#5c4a37",

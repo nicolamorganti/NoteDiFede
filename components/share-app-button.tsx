@@ -12,10 +12,11 @@ export function ShareAppButton({ variant = "header", className = "" }: ShareAppB
 
   const handleShare = async () => {
     const shareData = {
-      title: "Note di Fede",
-      text: "Note di Fede — Portale per il Coro, Canti Liturgici, Liturgia delle Ore e Sacra Bibbia.",
+      title: "Note di Fede — Musica Liturgica & Preghiera",
+      text: "Note di Fede: note musicali e annotazioni di fede. Canti liturgici, liturgia delle ore, Bibbia e meditazione per tutta la comunità.",
       url: typeof window !== "undefined" ? window.location.origin : "https://notedifede.vercel.app",
     };
+
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {

@@ -64,7 +64,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <p className="text-lg font-semibold text-[#3f3933]">Portale Coro</p>
+                    <p className="text-lg font-semibold text-[#3f3933]">Portale Liturgico</p>
                     <span className="rounded-full bg-[#dfd3c3] border border-[#cfc1ad] px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#5c4a37]">
                       {APP_VERSION}
                     </span>
@@ -72,10 +72,11 @@ function AppShellInner({ children }: { children: ReactNode }) {
                 </div>
               </Link>
 
-              <p className="max-w-xs text-sm leading-6 text-[#685d53]">
-                Gestione dei canti, delle celebrazioni e degli spartiti liturgici.
+              <p className="max-w-xs text-xs leading-5 text-[#685d53]">
+                Note musicali per la liturgia e annotazioni di fede per la preghiera quotidiana di tutta la comunità.
               </p>
             </div>
+
 
             <nav className="grid gap-2">
               {navigation.map((item) => {
@@ -166,8 +167,9 @@ function AppShellInner({ children }: { children: ReactNode }) {
                   Area Riservata
                 </p>
                 <h1 className="text-xl font-serif font-normal text-[#3f3933]">
-                  Coro Liturgico
+                  Musica Sacra & Liturgia
                 </h1>
+
               </div>
               <div className="flex items-center gap-3">
                 <ShareAppButton variant="header" />
