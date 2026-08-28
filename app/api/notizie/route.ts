@@ -17,22 +17,22 @@ export interface NewsItem {
 }
 
 const SOURCES: {
-  id: "milano" | "vaticano" | "roma" | "cei";
+  id: "vaticano" | "cei" | "roma" | "milano";
   name: string;
   url: string;
   badgeColor: string;
 }[] = [
   {
-    id: "milano",
-    name: "Diocesi di Milano",
-    url: "https://www.chiesadimilano.it/feed",
-    badgeColor: "#dc2626", // Rosso Ambrosiano
-  },
-  {
     id: "vaticano",
     name: "Vatican News",
     url: "https://www.vaticannews.va/it.rss.xml",
     badgeColor: "#eab308", // Giallo Vaticano
+  },
+  {
+    id: "cei",
+    name: "Chiesa Cattolica (CEI)",
+    url: "https://www.chiesacattolica.it/feed/",
+    badgeColor: "#2563eb", // Blu CEI
   },
   {
     id: "roma",
@@ -41,12 +41,13 @@ const SOURCES: {
     badgeColor: "#9333ea", // Viola/Porpora Romano
   },
   {
-    id: "cei",
-    name: "Chiesa Cattolica (CEI)",
-    url: "https://www.chiesacattolica.it/feed/",
-    badgeColor: "#2563eb", // Blu CEI
+    id: "milano",
+    name: "Diocesi di Milano",
+    url: "https://www.chiesadimilano.it/feed",
+    badgeColor: "#dc2626", // Rosso Ambrosiano
   },
 ];
+
 
 function cleanHtmlEntities(text: string): string {
   if (!text) return "";
