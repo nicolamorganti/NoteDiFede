@@ -22,6 +22,7 @@ interface LiturgicalColorDetails {
   bgColor: string;
   textColor: string;
   citationColor: string;
+  isWhiteBg?: boolean;
 }
 
 function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): LiturgicalColorDetails {
@@ -43,6 +44,7 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
       bgColor: "#2a1014",
       textColor: "#fef08a",
       citationColor: "#fecaca",
+      isWhiteBg: false,
     };
   }
 
@@ -60,6 +62,7 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
       bgColor: "#221128",
       textColor: "#fde047",
       citationColor: "#e9d5ff",
+      isWhiteBg: false,
     };
   }
 
@@ -86,9 +89,10 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     return {
       colorName: "Bianco",
       icon: "⚪",
-      bgColor: "#1f1d1a",
-      textColor: "#facc15",
-      citationColor: "#f5ebe0",
+      bgColor: "#ffffff",
+      textColor: "#1a1510", // Contrasto scuro nobiliare perfetto su fondo bianco
+      citationColor: "#7a5c3e",
+      isWhiteBg: true,
     };
   }
 
@@ -99,6 +103,7 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     bgColor: "#0f2316",
     textColor: "#fef08a",
     citationColor: "#dcfce7",
+    isWhiteBg: false,
   };
 }
 
@@ -209,7 +214,7 @@ export function QuoteImageModal({
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, width, height);
 
-    // Sfondo sfumato leggero per profondità
+    // Sfondo sfumato e cornici dedicate
     if (theme === "parchment") {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, "#fbf8f3");
@@ -221,6 +226,19 @@ export function QuoteImageModal({
       ctx.strokeStyle = "#e2d5c4";
       ctx.lineWidth = width * 0.015;
       ctx.strokeRect(width * 0.025, height * 0.025, width * 0.95, height * 0.95);
+    } else if (theme === "liturgical_dynamic" && dynamicColor.isWhiteBg) {
+      // Sfondo Bianco Festivo Luminoso (Seta Avorio / Bianco con cornice oro brillante)
+      const grad = ctx.createLinearGradient(0, 0, width, height);
+      grad.addColorStop(0, "#ffffff");
+      grad.addColorStop(0.5, "#faf7f1");
+      grad.addColorStop(1, "#f4ede2");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Cornice dorata festiva
+      ctx.strokeStyle = "#d4af37";
+      ctx.lineWidth = width * 0.012;
+      ctx.strokeRect(width * 0.028, height * 0.028, width * 0.944, height * 0.944);
     } else if (theme === "dark") {
       const grad = ctx.createRadialGradient(width / 2, height / 2, width * 0.2, width / 2, height / 2, width * 0.7);
       grad.addColorStop(0, "#252525");
@@ -228,10 +246,10 @@ export function QuoteImageModal({
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
     } else {
-      // Sfumatura radiale sottile per i temi colorati
+      // Sfondi liturgici scuri (Verde bosco, Rosso rubino, Viola imperiale, Porpora)
       const grad = ctx.createRadialGradient(width / 2, height / 2, width * 0.15, width / 2, height / 2, width * 0.75);
       grad.addColorStop(0, "rgba(255, 255, 255, 0.04)");
-      grad.addColorStop(1, "rgba(0, 0, 0, 0.25)");
+      grad.addColorStop(1, "rgba(0, 0, 0, 0.35)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
     }
