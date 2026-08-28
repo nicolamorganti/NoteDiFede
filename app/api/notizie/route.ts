@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export interface NewsItem {
   id: string;
-  sourceId: "milano" | "vaticano" | "roma" | "cei";
+  sourceId: "vaticano" | "cei" | "roma" | "milano";
   sourceName: string;
   sourceBadgeColor: string;
   title: string;
@@ -47,7 +47,6 @@ const SOURCES: {
     badgeColor: "#dc2626", // Rosso Ambrosiano
   },
 ];
-
 
 function cleanHtmlEntities(text: string): string {
   if (!text) return "";
@@ -104,10 +103,9 @@ function parseRssXml(xml: string, source: (typeof SOURCES)[0]): NewsItem[] {
         }
       }
     } catch {
-      // fallback a data corrente
+      // fallback
     }
 
-    // Estrazione immagine (enclosure, media:content, oppure primo img tag)
     const enclosureMatch = itemXml.match(/<enclosure[^>]*url=["']([^"']+)["'][^>]*>/i);
     const mediaContentMatch = itemXml.match(/<media:content[^>]*url=["']([^"']+)["'][^>]*>/i);
     const imgInDescMatch = (descMatch ? descMatch[1] : "").match(/<img[^>]*src=["']([^"']+)["']/i);
@@ -117,7 +115,6 @@ function parseRssXml(xml: string, source: (typeof SOURCES)[0]): NewsItem[] {
       imageUrl = imageUrl.replace(/&amp;/g, "&");
     }
 
-    // Categorie
     const catMatches = [...itemXml.matchAll(/<category>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/category>/gi)];
     const categories = catMatches
       .map((cm) => cleanHtmlEntities(cm[1]))
@@ -143,61 +140,60 @@ function parseRssXml(xml: string, source: (typeof SOURCES)[0]): NewsItem[] {
   return items;
 }
 
-// In-memory cache
-let cachedNews: { data: NewsItem[]; timestamp: number } | null = null;
+// In-memory cache per source
+const sourceCaches: Record<string, { data: NewsItem[]; timestamp: number }> = {};
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minuti
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const sourceFilter = searchParams.get("source") || "all";
+    const sourceFilter = (searchParams.get("source") || "all") as "all" | "vaticano" | "cei" | "roma" | "milano";
     const query = (searchParams.get("q") || "").toLowerCase().trim();
     const isRefresh = searchParams.get("refresh") === "true";
 
     const now = Date.now();
-    let allNews: NewsItem[] = [];
+    const sourcesToFetch =
+      sourceFilter === "all"
+        ? SOURCES
+        : SOURCES.filter((s) => s.id === sourceFilter);
 
-    if (cachedNews && !isRefresh && now - cachedNews.timestamp < CACHE_TTL_MS) {
-      allNews = cachedNews.data;
-    } else {
-
-      const fetchPromises = SOURCES.map(async (source) => {
-        try {
-          const res = await fetch(source.url, {
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.42 (RSS Reader)",
-              Accept: "application/rss+xml, application/xml, text/xml, */*",
-            },
-            next: { revalidate: 900 },
-          });
-          if (!res.ok) {
-            console.warn(`Feed ${source.name} status ${res.status}`);
-            return [];
-          }
-          const xml = await res.text();
-          return parseRssXml(xml, source);
-        } catch (err) {
-          console.error(`Errore fetch feed ${source.name}:`, err);
-          return [];
-        }
-      });
-
-      const results = await Promise.all(fetchPromises);
-      allNews = results.flat().sort((a, b) => new Date(b.isoDate).getTime() - new Date(a.isoDate).getTime());
-
-      if (allNews.length > 0) {
-        cachedNews = { data: allNews, timestamp: now };
+    const fetchPromises = sourcesToFetch.map(async (source) => {
+      const cached = sourceCaches[source.id];
+      if (cached && !isRefresh && now - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data;
       }
-    }
 
-    let filtered = allNews;
+      try {
+        const res = await fetch(source.url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.46 (RSS Reader)",
+            Accept: "application/rss+xml, application/xml, text/xml, */*",
+          },
+          next: { revalidate: isRefresh ? 0 : 900 },
+        });
 
-    if (sourceFilter !== "all") {
-      filtered = filtered.filter((item) => item.sourceId === sourceFilter);
-    }
+        if (!res.ok) {
+          console.warn(`Feed ${source.name} status ${res.status}`);
+          return cached ? cached.data : [];
+        }
+
+        const xml = await res.text();
+        const parsed = parseRssXml(xml, source);
+        if (parsed.length > 0) {
+          sourceCaches[source.id] = { data: parsed, timestamp: now };
+        }
+        return parsed;
+      } catch (err) {
+        console.error(`Errore fetch feed ${source.name}:`, err);
+        return cached ? cached.data : [];
+      }
+    });
+
+    const results = await Promise.all(fetchPromises);
+    let allNews = results.flat().sort((a, b) => new Date(b.isoDate).getTime() - new Date(a.isoDate).getTime());
 
     if (query) {
-      filtered = filtered.filter(
+      allNews = allNews.filter(
         (item) =>
           item.title.toLowerCase().includes(query) ||
           item.description.toLowerCase().includes(query) ||
@@ -208,14 +204,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        count: filtered.length,
-        totalAvailable: allNews.length,
-        sources: SOURCES.map((s) => ({ id: s.id, name: s.name })),
-        news: filtered,
+        source: sourceFilter,
+        count: allNews.length,
+        news: allNews,
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=900, stale-while-revalidate=1800",
+          "Cache-Control": isRefresh ? "no-store" : "public, s-maxage=900, stale-while-revalidate=1800",
         },
       }
     );

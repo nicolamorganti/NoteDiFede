@@ -16,13 +16,13 @@ interface NewsItem {
   categories: string[];
 }
 
-// 1. Ordine canonico richiesto: Tutte, Vaticano, CEI, Roma, Milano
+// 1. Ordine esatto richiesto: Tutte, Vaticano, CEI, Roma, Milano
 const SOURCES_CONFIG = [
-  { id: "all", label: "Tutte le fonti", icon: "🌐", color: "#8a755d" },
-  { id: "vaticano", label: "Vatican News", icon: "📡", color: "#ca8a04" },
-  { id: "cei", label: "Chiesa Italiana (CEI)", icon: "📰", color: "#2563eb" },
-  { id: "roma", label: "Diocesi di Roma", icon: "🏛️", color: "#9333ea" },
-  { id: "milano", label: "Diocesi di Milano", icon: "⛪", color: "#dc2626" },
+  { id: "all", label: "Tutte le fonti", icon: "🌐" },
+  { id: "vaticano", label: "Vatican News", icon: "📡" },
+  { id: "cei", label: "Chiesa Italiana (CEI)", icon: "📰" },
+  { id: "roma", label: "Diocesi di Roma", icon: "🏛️" },
+  { id: "milano", label: "Diocesi di Milano", icon: "⛪" },
 ];
 
 function formatRelativeTime(isoDateStr: string): string {
@@ -52,29 +52,26 @@ function formatRelativeTime(isoDateStr: string): string {
 
 export function NotizieView() {
   const [mounted, setMounted] = useState<boolean>(false);
-  const [allNews, setAllNews] = useState<NewsItem[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    fetchNews();
-  }, []);
-
-  const fetchNews = async (forceRefresh: boolean = false) => {
+  // Caricamento del feed mirato direttamente dal server API
+  const fetchNews = async (sourceId: string, forceRefresh: boolean = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/notizie${forceRefresh ? "?refresh=true" : ""}`, {
+      const refreshParam = forceRefresh ? "&refresh=true" : "";
+      const res = await fetch(`/api/notizie?source=${sourceId}${refreshParam}`, {
         cache: "no-store",
       });
       if (!res.ok) throw new Error(`Errore HTTP ${res.status}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Impossibile recuperare le notizie");
-      setAllNews(data.news || []);
+      setNews(data.news || []);
     } catch (err: any) {
       console.error("Errore fetch notizie:", err);
       setError(err.message || "Errore durante il caricamento delle notizie.");
@@ -83,27 +80,50 @@ export function NotizieView() {
     }
   };
 
-  // Conteggio articoli per sorgente
-  const sourceCounts: Record<string, number> = { all: allNews.length };
-  allNews.forEach((item) => {
-    sourceCounts[item.sourceId] = (sourceCounts[item.sourceId] || 0) + 1;
-  });
+  // Inizializzazione da URL o memoria locale
+  useEffect(() => {
+    setMounted(true);
+    let initialSource = "all";
+    if (typeof window !== "undefined") {
+      const urlParam = new URLSearchParams(window.location.search).get("source");
+      const saved = localStorage.getItem("notizie_pref_source");
+      if (urlParam && SOURCES_CONFIG.some((s) => s.id === urlParam)) {
+        initialSource = urlParam;
+      } else if (saved && SOURCES_CONFIG.some((s) => s.id === saved)) {
+        initialSource = saved;
+      }
+    }
+    setSelectedSource(initialSource);
+    fetchNews(initialSource, false);
+  }, []);
 
-  // Filtraggio diretto durante il render
+  // Cambio sorgente: memorizza e interroga direttamente il relativo feed
+  const handleSelectSource = (sourceId: string) => {
+    if (sourceId === selectedSource && !loading) return;
+    setSelectedSource(sourceId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("notizie_pref_source", sourceId);
+      const url = new URL(window.location.href);
+      if (sourceId === "all") {
+        url.searchParams.delete("source");
+      } else {
+        url.searchParams.set("source", sourceId);
+      }
+      window.history.pushState({}, "", url.toString());
+    }
+    fetchNews(sourceId, false);
+  };
+
+  // Filtraggio testuale locale sui risultati correnti della sorgente
   const cleanQ = searchQuery.toLowerCase().trim();
-  const filteredNews = allNews.filter((item) => {
-    if (selectedSource !== "all" && item.sourceId !== selectedSource) {
-      return false;
-    }
-    if (cleanQ) {
-      const matchesSearch =
-        item.title.toLowerCase().includes(cleanQ) ||
-        item.description.toLowerCase().includes(cleanQ) ||
-        item.categories.some((c) => c.toLowerCase().includes(cleanQ));
-      if (!matchesSearch) return false;
-    }
-    return true;
-  });
+  const displayedNews = cleanQ
+    ? news.filter(
+        (item) =>
+          item.title.toLowerCase().includes(cleanQ) ||
+          item.description.toLowerCase().includes(cleanQ) ||
+          item.categories.some((c) => c.toLowerCase().includes(cleanQ))
+      )
+    : news;
 
   const handleShare = async (item: NewsItem) => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -115,7 +135,7 @@ export function NotizieView() {
         });
         return;
       } catch {
-        // fallback a clipboard
+        // fallback
       }
     }
 
@@ -165,12 +185,12 @@ export function NotizieView() {
             </div>
           </div>
 
-          {/* Bottone Aggiorna Compatto */}
+          {/* Bottone Aggiorna Feed */}
           <button
             type="button"
-            onClick={() => fetchNews(true)}
+            onClick={() => fetchNews(selectedSource, true)}
             disabled={loading}
-            title="Aggiorna Notizie dai feed RSS"
+            title="Aggiorna Notizie da feed RSS"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#d8c5ad] bg-white hover:bg-[#ebdcc8] text-[#4a3b2c] text-xs font-semibold transition shadow-2xs shrink-0 cursor-pointer disabled:opacity-50"
           >
             <svg
@@ -186,11 +206,11 @@ export function NotizieView() {
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            <span className="hidden xs:inline">{loading ? "Caricamento..." : "Aggiorna"}</span>
+            <span className="hidden xs:inline">{loading ? "Aggiornamento..." : "Aggiorna"}</span>
           </button>
         </div>
 
-        {/* Ricerca & Filtri con Flex Wrap (Nessuna barra orizzontale) */}
+        {/* Ricerca & Filtri con Flex Wrap (Ordine: Tutte, Vaticano, CEI, Roma, Milano) */}
         <div className="mt-3.5 space-y-2.5">
           {/* Input di Ricerca Compatto */}
           <div className="relative">
@@ -209,7 +229,7 @@ export function NotizieView() {
             </svg>
             <input
               type="text"
-              placeholder="Cerca tra le notizie (es. Papa, Arcivescovo, Caritas...)"
+              placeholder="Cerca tra le notizie caricate (es. Papa, Caritas, GMG...)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-8 py-2 bg-white border border-[#d8c5ad] rounded-xl text-xs sm:text-sm text-[#2c241c] placeholder:text-[#a89987] focus:outline-hidden focus:ring-2 focus:ring-[#8a755d] shadow-2xs"
@@ -225,33 +245,28 @@ export function NotizieView() {
             )}
           </div>
 
-          {/* Filtro Fonti Pills con Flex Wrap (Ordine: Tutte, Vaticano, CEI, Roma, Milano) */}
+          {/* Filtro Fonti Pills con Flex Wrap Compatto */}
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             {SOURCES_CONFIG.map((src) => {
               const isSelected = selectedSource === src.id;
-              const count = sourceCounts[src.id] || 0;
               return (
                 <button
                   key={src.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedSource(src.id);
-                  }}
+                  onClick={() => handleSelectSource(src.id)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition shadow-2xs cursor-pointer select-none ${
                     isSelected
-                      ? "bg-[#2c241c] text-white shadow-sm ring-2 ring-[#8a755d]/50"
+                      ? "bg-[#2c241c] text-white shadow-sm ring-2 ring-[#8a755d]/50 font-semibold"
                       : "bg-white hover:bg-[#f7f2ea] text-[#5c4e3f] border border-[#e2d5c4]"
                   }`}
                 >
                   <span className="text-xs">{src.icon}</span>
                   <span>{src.label}</span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                      isSelected ? "bg-white/20 text-[#fde047]" : "bg-[#f0e6d6] text-[#6b5d4e]"
-                    }`}
-                  >
-                    {count}
-                  </span>
+                  {isSelected && (
+                    <span className="text-[10px] bg-white/20 text-[#fde047] px-1.5 py-0.2 rounded-full font-mono font-bold">
+                      {displayedNews.length}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -260,10 +275,12 @@ export function NotizieView() {
       </div>
 
       {/* Contenuto / Griglia Notizie */}
-      {loading && allNews.length === 0 ? (
+      {loading ? (
         <div className="p-10 text-center space-y-3 rounded-2xl bg-[#fbf8f3] border border-[#e2d5c4]">
           <div className="inline-block w-7 h-7 border-3 border-[#8a755d] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs sm:text-sm font-medium text-[#6b5d4e]">Caricamento e aggregazione notizie in corso...</p>
+          <p className="text-xs sm:text-sm font-medium text-[#6b5d4e]">
+            Caricamento notizie {selectedSource !== "all" ? `per ${SOURCES_CONFIG.find((s) => s.id === selectedSource)?.label}` : "da tutti i feed"}...
+          </p>
         </div>
       ) : error ? (
         <div className="p-6 text-center space-y-2 rounded-2xl bg-red-50 border border-red-200 text-red-800">
@@ -271,37 +288,34 @@ export function NotizieView() {
           <p className="text-xs opacity-90">{error}</p>
           <button
             type="button"
-            onClick={() => fetchNews(true)}
+            onClick={() => fetchNews(selectedSource, true)}
             className="mt-2 px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-xl hover:bg-red-700 transition cursor-pointer"
           >
             Riprova
           </button>
         </div>
-      ) : filteredNews.length === 0 ? (
+      ) : displayedNews.length === 0 ? (
         <div className="p-10 text-center space-y-2 rounded-2xl bg-[#fbf8f3] border border-[#e2d5c4] text-[#6b5d4e]">
           <p className="text-xl">📰</p>
-          <p className="text-xs sm:text-sm font-medium">Nessuna notizia trovata per il filtro o la ricerca selezionata.</p>
-          {(selectedSource !== "all" || searchQuery) && (
+          <p className="text-xs sm:text-sm font-medium">Nessuna notizia trovata per questa ricerca.</p>
+          {searchQuery && (
             <button
               type="button"
-              onClick={() => {
-                setSearchQuery("");
-                setSelectedSource("all");
-              }}
+              onClick={() => setSearchQuery("")}
               className="px-3 py-1.5 rounded-xl border border-[#d8c5ad] bg-white hover:bg-[#ebdcc8] text-xs font-medium mt-1.5 cursor-pointer"
             >
-              Mostra tutte le notizie ({allNews.length})
+              Azzera ricerca
             </button>
           )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
-          {filteredNews.map((item) => (
+          {displayedNews.map((item) => (
             <article
               key={item.id}
               className="flex flex-col justify-between bg-white rounded-2xl border border-[#ebdcc8] shadow-2xs hover:shadow-sm transition-all duration-150 overflow-hidden group hover:border-[#d8c5ad]"
             >
-              {/* Immagine Copertina Compatta se presente */}
+              {/* Immagine Copertina se presente */}
               {item.imageUrl && (
                 <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-[#f4ece1]">
                   <img
@@ -324,7 +338,7 @@ export function NotizieView() {
                 </div>
               )}
 
-              {/* Corpo Card Compatto */}
+              {/* Corpo Card */}
               <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
                 <div className="space-y-2">
                   {/* Intestazione metadati (quando non c'è immagine) */}
