@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
 import { BIBLE_BOOKS, BibleBook } from "@/lib/bibbia-books";
-import { BibleApiResponse, BibleVerse } from "@/app/api/bibbia/route";
+import { BibleApiResponse, BibleVerse, BibleCrossRef, BibleFootnote } from "@/app/api/bibbia/route";
+
 
 export type LineSpacingOption = "compact" | "normal" | "relaxed";
 
@@ -47,6 +48,11 @@ export function BibbiaReader() {
   const [copied, setCopied] = useState<boolean>(false);
   const [selectedVerseNum, setSelectedVerseNum] = useState<number | null>(null);
 
+  // Stato Audio & Passi Paralleli (Scrutatio)
+  const [showAudioPlayer, setShowAudioPlayer] = useState<boolean>(false);
+  const [activeCrossRefVerseNum, setActiveCrossRefVerseNum] = useState<number | null>(null);
+  const [showFootnotes, setShowFootnotes] = useState<boolean>(true);
+
   // Stato Lectio Divina con Gemini
   const [lectioLoading, setLectioLoading] = useState<boolean>(false);
   const [lectioText, setLectioText] = useState<string | null>(null);
@@ -59,8 +65,23 @@ export function BibbiaReader() {
   const lectioSectionRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-
   const currentBook = BIBLE_BOOKS.find((b) => b.id === selectedBookId) || BIBLE_BOOKS[0];
+
+  const handleNavigateToRef = (ref: BibleCrossRef) => {
+    if (ref.bookCode && ref.chapter) {
+      setSelectedBookId(ref.bookCode);
+      const targetBook = BIBLE_BOOKS.find((b) => b.id === ref.bookCode);
+      if (targetBook) {
+        setTestamentFilter(targetBook.testament);
+      }
+      setChapter(ref.chapter);
+      setActiveCrossRefVerseNum(null);
+      if (readerContainerRef.current) {
+        readerContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
+
 
   // Inizializza preferenze da localStorage
   useEffect(() => {
@@ -100,10 +121,13 @@ export function BibbiaReader() {
     setLoading(true);
     setError(null);
     setSelectedVerseNum(null);
+    setActiveCrossRefVerseNum(null);
+    setShowAudioPlayer(false);
     // Reset lectio on chapter change
     setLectioText(null);
     setLectioError(null);
     setShowLectio(false);
+
 
     try {
       const res = await fetch(`/api/bibbia?book=${encodeURIComponent(bId)}&chapter=${chapNum}`);
@@ -603,7 +627,7 @@ export function BibbiaReader() {
             style={{ fontSize: `${fontSize}px`, lineHeight: lineHeightValue }}
           >
             {/* Intestazione Capitolo */}
-            <div className="border-b pb-4 mb-6 text-center space-y-1" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+            <div className="border-b pb-5 mb-6 text-center space-y-2" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
               <span className="text-xs uppercase tracking-widest font-sans font-bold text-[#aa9576]">
                 {chapterData.category} · CEI 2008
               </span>
@@ -613,37 +637,203 @@ export function BibbiaReader() {
               <p className="text-base font-sans font-semibold text-[#8a755d]">
                 Capitolo {chapterData.chapter}
               </p>
+
+              {/* Player Audio Proclamazione (da Scrutatio / Gloria.tv) */}
+              {chapterData.audioEmbedUrl && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAudioPlayer(!showAudioPlayer)}
+                    className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-xs transition hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      backgroundColor: isChurchMode ? "#292420" : "#f7f0e4",
+                      borderColor: isChurchMode ? "#443e38" : "#dac7b0",
+                      color: isChurchMode ? "#fde047" : "#5c4a37",
+                    }}
+                  >
+                    <span>{showAudioPlayer ? "⏸️ Chiudi Player Audio" : "🎧 Ascolta la Lettura Proclamata"}</span>
+                  </button>
+
+                  {showAudioPlayer && (
+                    <div
+                      className="mt-3 max-w-md mx-auto overflow-hidden rounded-2xl border shadow-md p-1 transition"
+                      style={{
+                        backgroundColor: isChurchMode ? "#1e1a17" : "#fffdfa",
+                        borderColor: isChurchMode ? "#443e38" : "#ebdcc8",
+                      }}
+                    >
+                      <iframe
+                        src={chapterData.audioEmbedUrl}
+                        width="100%"
+                        height="64"
+                        frameBorder="0"
+                        scrolling="no"
+                        allow="autoplay; encrypted-media"
+                        title={`Audio ${chapterData.bookName} ${chapterData.chapter}`}
+                        className="block w-full rounded-xl"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Versetti */}
+            {/* Versetti con Passi Paralleli */}
             <div className="space-y-3">
               {chapterData.verses.map((v) => {
                 const isSelected = selectedVerseNum === v.num;
+                const isRefsOpen = activeCrossRefVerseNum === v.num;
+                const hasRefs = v.crossRefs && v.crossRefs.length > 0;
+
                 return (
-                  <p
+                  <div
                     key={v.num}
-                    onClick={() => setSelectedVerseNum(isSelected ? null : v.num)}
-                    className={`transition-colors rounded-xl px-2.5 py-1.5 cursor-pointer ${
-                      isSelected
+                    className={`transition-colors rounded-2xl p-2.5 sm:p-3 ${
+                      isSelected || isRefsOpen
                         ? isChurchMode
-                          ? "bg-[#2d2824] ring-1 ring-amber-400"
-                          : "bg-[#f5ecdd] ring-1 ring-[#aa9576]"
+                          ? "bg-[#2d2824] ring-1 ring-amber-400/80"
+                          : "bg-[#f5ecdd] ring-1 ring-[#aa9576]/80"
                         : "hover:bg-black/5 dark:hover:bg-white/5"
                     }`}
                     style={{ marginBottom: paragraphMarginValue }}
                   >
-                    <sup
-                      className={`select-none mr-1.5 font-sans font-bold text-[0.72em] ${
-                        isChurchMode ? "text-amber-400" : "text-[#99221b]"
-                      }`}
+                    <p
+                      onClick={() => setSelectedVerseNum(isSelected ? null : v.num)}
+                      className="cursor-pointer"
                     >
-                      {v.num}
-                    </sup>
-                    <span className="whitespace-pre-line">{v.text}</span>
-                  </p>
+                      <sup
+                        className={`select-none mr-1.5 font-sans font-bold text-[0.72em] ${
+                          isChurchMode ? "text-amber-400" : "text-[#99221b]"
+                        }`}
+                      >
+                        {v.num}
+                      </sup>
+                      <span className="whitespace-pre-line">{v.text}</span>
+
+                      {/* Pulsantino Passi Paralleli (Cross References) */}
+                      {hasRefs && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveCrossRefVerseNum(isRefsOpen ? null : v.num);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 ml-2 text-[11px] font-sans font-semibold transition align-middle hover:scale-105 shadow-xs"
+                          style={{
+                            backgroundColor: isChurchMode ? "#3d352f" : "#ebdcc8",
+                            color: isChurchMode ? "#fde047" : "#5c4a37",
+                            border: `1px solid ${isChurchMode ? "#584e46" : "#d8c5ad"}`,
+                          }}
+                          title={`${v.crossRefs?.length} passi paralleli collegati`}
+                        >
+                          <span>🔗</span>
+                          <span>{v.crossRefs?.length}</span>
+                        </button>
+                      )}
+                    </p>
+
+                    {/* Pannello Espandibile dei Passi Paralleli */}
+                    {isRefsOpen && hasRefs && (
+                      <div
+                        className="mt-3 p-3 sm:p-4 rounded-2xl border shadow-inner transition space-y-2 animate-in fade-in duration-200"
+                        style={{
+                          backgroundColor: isChurchMode ? "#1f1b18" : "#fffdfa",
+                          borderColor: isChurchMode ? "#443e38" : "#e0d3c1",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-[#aa9576]">
+                            🔗 Passi Paralleli & Riferimenti al versetto {v.num}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveCrossRefVerseNum(null)}
+                            className="text-xs text-[#8a755d] hover:text-rose-600 px-2 py-0.5 rounded-md"
+                          >
+                            ✕ Chiudi
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {v.crossRefs?.map((ref, rIdx) => (
+                            <button
+                              key={rIdx}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNavigateToRef(ref);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-sans font-bold transition hover:scale-105 shadow-xs"
+                              style={{
+                                backgroundColor: isChurchMode ? "#3a2d24" : "#f2e6d5",
+                                color: isChurchMode ? "#fbbf24" : "#5c4a37",
+                                border: `1px solid ${isChurchMode ? "#584435" : "#decaba"}`,
+                              }}
+                              title={ref.bookName ? `Vai a ${ref.bookName} ${ref.chapter}` : `Vedi ${ref.label}`}
+                            >
+                              <span>📖 {ref.label}</span>
+                              {ref.bookName && (
+                                <span className="text-[10px] opacity-75 font-normal">
+                                  ({ref.bookName})
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
+
+            {/* Note in Calce (Esegesi & Commento) */}
+            {chapterData.footnotes && chapterData.footnotes.length > 0 && (
+              <div className="my-10 pt-6 border-t" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📝</span>
+                    <h3 className="font-serif font-bold text-lg" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+                      Note al Testo & Esegesi (CEI / Gerusalemme)
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFootnotes(!showFootnotes)}
+                    className="rounded-full px-3 py-1 text-xs font-sans font-semibold border transition"
+                    style={{
+                      backgroundColor: isChurchMode ? "#2a2420" : "#f5ede0",
+                      borderColor: isChurchMode ? "#443e38" : "#dac7b0",
+                      color: isChurchMode ? "#fde047" : "#5c4a37",
+                    }}
+                  >
+                    {showFootnotes ? "Nascondi Note" : `Mostra Note (${chapterData.footnotes.length})`}
+                  </button>
+                </div>
+
+                {showFootnotes && (
+                  <div className="space-y-3">
+                    {chapterData.footnotes.map((fn, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 sm:p-4 rounded-2xl border text-xs leading-relaxed transition"
+                        style={{
+                          backgroundColor: isChurchMode ? "#1e1917" : "#fdfbf7",
+                          borderColor: isChurchMode ? "#3b342e" : "#ebdcc8",
+                          color: isChurchMode ? "#d4ceb8" : "#4a3e30",
+                        }}
+                      >
+                        <span className="font-sans font-bold text-[#99221b] mr-2">
+                          {fn.reference}:
+                        </span>
+                        <span className="font-serif text-[1.05em]">{fn.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
 
             {/* ========================================================================= */}
             {/* PULSANTE LECTIO DIVINA (CARDINALE CARLO MARIA MARTINI) */}
