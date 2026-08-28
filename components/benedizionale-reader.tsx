@@ -304,7 +304,30 @@ export function BenedizionaleReader() {
               </a>
             </div>
           </div>
+
+          {/* Viewer Incorporato On-line */}
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-sans font-bold uppercase tracking-wider text-[#aa9576]">
+                Anteprima e Consultazione On-line ({selectedSection.pageRangeLabel}):
+              </h4>
+              <span className="text-[11px] font-sans text-[#8a755d]">
+                Caricamento estratto leggero ⚡
+              </span>
+            </div>
+            <div className="w-full h-[700px] rounded-2xl overflow-hidden border border-[#decbb8] bg-[#ede5d8] shadow-inner">
+              <iframe
+                src={`/api/pdf/extract?doc=benedizionale&from=${selectedSection.startPage}&to=${selectedSection.endPage}&name=${encodeURIComponent(
+                  selectedSection.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".pdf"
+                )}#toolbar=1&navpanes=0`}
+                className="w-full h-full border-0"
+                title={`Benedizionale - ${selectedSection.title}`}
+              />
+            </div>
+          </div>
         </div>
+
+
       ) : (
         /* Griglia delle Sezioni */
         <div className="space-y-6">
