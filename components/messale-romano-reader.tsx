@@ -357,11 +357,17 @@ export function MessaleRomanoReader() {
       .then((data) => {
         if (isMounted) {
           if (data.html) {
-            setOnlineHtml(data.html);
+            const clean = data.html
+              .replace(/<p[^>]*>\s*<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>\s*<\/p>/gi, "")
+              .replace(/<p[^>]*>\s*-\s*Menu\s*-\s*<\/p>/gi, "")
+              .replace(/<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>/gi, "")
+              .replace(/-\s*Menu\s*-/gi, "");
+            setOnlineHtml(clean);
           }
           setIsLoadingOnline(false);
         }
       })
+
       .catch((err) => {
         console.error("Errore caricamento testo:", err);
         if (isMounted) setIsLoadingOnline(false);

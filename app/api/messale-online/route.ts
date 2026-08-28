@@ -44,6 +44,10 @@ export async function GET(request: NextRequest) {
 
       // Pulizia e formattazione per lo stile Note di Fede
       contentHtml = contentHtml
+        .replace(/<p[^>]*>\s*<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>\s*<\/p>/gi, "")
+        .replace(/<p[^>]*>\s*-\s*Menu\s*-\s*<\/p>/gi, "")
+        .replace(/<a[^>]*>\s*-\s*Menu\s*-\s*<\/a>/gi, "")
+        .replace(/-\s*Menu\s*-/gi, "")
         .replace(/<img[^>]*>/gi, "")
         .replace(/href="[^"]*"/gi, "")
         .replace(/class="rubrica"/gi, 'class="text-red-700 font-semibold text-xs uppercase tracking-wider block my-2"')
@@ -54,6 +58,7 @@ export async function GET(request: NextRequest) {
         .replace(/class="body_3"/gi, 'class="text-[#3f3933] font-serif"');
 
       const data = { html: contentHtml };
+
       cache[cacheKey] = { data, timestamp: Date.now() };
       return NextResponse.json(data);
     } else {
