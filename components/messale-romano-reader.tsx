@@ -231,43 +231,50 @@ export function MessaleRomanoReader() {
             </div>
           </div>
 
-          {/* Azioni PDF Ufficiale */}
-          <div className="p-5 rounded-2xl bg-[#f4ece0] border border-[#dac7b0] flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="space-y-1 text-center sm:text-left">
-              <h5 className="font-serif font-bold text-sm text-[#5c4a37]">
-                Documento Ufficiale CEI ({selectedSection.sizeLabel})
-              </h5>
-              <p className="text-xs text-[#736555]">
-                Consulta il testo della Terza Edizione Italiana dai server ufficiali della Conferenza Episcopale Italiana.
-              </p>
+          {/* Azioni PDF Ufficiale & Portale CEI */}
+          <div className="p-6 rounded-3xl bg-[#f4ece0] border border-[#dac7b0] space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📥</span>
+                  <h5 className="font-serif font-bold text-base text-[#5c4a37]">
+                    Documento Ufficiale CEI ({selectedSection.sizeLabel})
+                  </h5>
+                </div>
+                <p className="text-xs text-[#736555] max-w-xl leading-relaxed">
+                  I server della Conferenza Episcopale Italiana forniscono il testo integrale in formato PDF ad alta definizione per la consultazione e la preghiera personale.
+                </p>
+              </div>
+
+              <a
+                href={selectedSection.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-[#4a3c2c] transition hover:scale-105 shrink-0"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Scarica / Apri PDF Ufficiale</span>
+              </a>
             </div>
 
-            <a
-              href={selectedSection.pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#4a3c2c] transition hover:scale-105"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              <span>Apri Documento Ufficiale CEI (PDF)</span>
-            </a>
-          </div>
-
-          {/* Viewer Incorporato */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-sans font-bold uppercase tracking-wider text-[#aa9576]">
-              Anteprima e Consultazione On-line:
-            </h4>
-            <div className="w-full h-[650px] rounded-2xl overflow-hidden border border-[#decbb8] bg-[#ede5d8] shadow-inner">
-              <iframe
-                src={`${selectedSection.pdfUrl}#toolbar=1&navpanes=0`}
-                className="w-full h-full border-0"
-                title={`Messale Romano - ${selectedSection.title}`}
-              />
+            <div className="pt-3 border-t border-[#e2d3c1] flex flex-wrap items-center justify-between gap-3 text-xs text-[#8a755d]">
+              <span>Editore: Fondazione di Religione Santi Francesco e Caterina</span>
+              <a
+                href="https://liturgico.chiesacattolica.it/messale-romanoterza-edizione-italiana/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-[#5c4a37] hover:underline flex items-center gap-1"
+              >
+                <span>Visita la pagina ufficiale CEI</span>
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
             </div>
           </div>
+
         </div>
       ) : (
         /* Griglia delle Sezioni */
