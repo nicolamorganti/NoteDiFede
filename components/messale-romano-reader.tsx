@@ -10,8 +10,6 @@ interface MessaleRomanoSection {
   description: string;
   category: string;
   icon: string;
-  pdfUrl: string;
-  sizeLabel: string;
   startPage: number;
   endPage: number;
   pageRangeLabel: string;
@@ -20,122 +18,279 @@ interface MessaleRomanoSection {
 
 const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
   {
+    id: "decreti-costituzione",
+    title: "Decreti Ufficiali, Presentazione CEI & Costituzione Apostolica",
+    subtitle: "Approvazione della 3ª Edizione Italiana e Costituzione di Papa Paolo VI",
+    description:
+      "I testi magisteriali di promulgazione: Decreto del Presidente della CEI, Decreti della Congregazione per il Culto Divino e la Disciplina dei Sacramenti, Presentazione dell'Episcopato Italiano e la Costituzione Apostolica «Missale Romanum» di Papa Paolo VI.",
+    category: "Magistero & Decreti",
+    icon: "📜",
+    startPage: 1,
+    endPage: 18,
+    pageRangeLabel: "Pagine V - XVI (PDF 1 - 18)",
+    highlights: [
+      "Decreto di conferma della Terza Edizione Italiana (Culto Divino)",
+      "Decreto del Presidente della Conferenza Episcopale Italiana",
+      "Presentazione dell'Episcopato Italiano alla 3ª edizione",
+      "Costituzione Apostolica «Missale Romanum» di Papa Paolo VI (1969)",
+    ],
+  },
+  {
     id: "ogmr",
     title: "Ordinamento Generale del Messale Romano (OGMR)",
     subtitle: "Principi teologici, norme liturgiche e compiti ministeriali",
     description:
-      "Il testo fondamentale che guida la teologia, la celebrazione, i ruoli dei ministri, i gesti, le posture e l'arte liturgica della Santa Messa secondo il Rito Romano rinnovato.",
+      "Il testo normativo fondamentale che guida la teologia, la celebrazione, i ruoli dei ministri, i gesti, le posture, l'altare, i vasi sacri e l'arte liturgica secondo il Rito Romano rinnovato.",
     category: "Norme Liturgiche",
     icon: "📑",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Pagine 1 - 92",
-    startPage: 1,
-    endPage: 92,
-    pageRangeLabel: "Pagine 1 - 92",
+    startPage: 19,
+    endPage: 56,
+    pageRangeLabel: "Pagine XVII - LIV (PDF 19 - 56)",
     highlights: [
       "Importanza e dignità della celebrazione eucaristica",
       "Struttura della Messa, suoi elementi e sue parti",
-      "Uffici e ministeri nella celebrazione della Messa",
-      "Disposizione e decoro della chiesa per la liturgia",
+      "Uffici e ministeri nella celebrazione (Sacerdote, Diacono, Lettori, Ministranti)",
+      "Disposizione e decoro della chiesa e dell'altare",
+      "Precisazioni della Conferenza Episcopale Italiana",
     ],
   },
   {
-    id: "anno-liturgico",
-    title: "Proprio del Tempo (Avvento, Natale, Quaresima, Pasqua)",
-    subtitle: "Formulari rinnovati dei tempi forti dell'Anno Liturgico",
+    id: "anno-liturgico-calendario",
+    title: "Norme Generali per l'Anno Liturgico & Calendario Romano",
+    subtitle: "Lettera «Mysterii paschalis», precedenze e tabella celebrazioni",
     description:
-      "Tutti i formulari delle domeniche e delle ferie dell'Avvento, del Tempo di Natale, della Quaresima, della Settimana Santa, del Triduo Pasquale e dei 50 giorni di Pasqua.",
+      "La Lettera Apostolica di Paolo VI, le norme per l'Anno Liturgico e i tempi (Avvento, Natale, Quaresima, Pasqua, Tempo Ordinario), le solennità, le feste, le memorie, la tabella delle precedenze e il Calendario Romano Generale con le feste d'Italia.",
+    category: "Norme Liturgiche",
+    icon: "🗓️",
+    startPage: 57,
+    endPage: 80,
+    pageRangeLabel: "Pagine LV - LXXVI (PDF 57 - 80)",
+    highlights: [
+      "Lettera Apostolica «Mysterii paschalis» di Paolo VI",
+      "Norme generali per l'ordinamento dell'Anno liturgico e del calendario",
+      "Tabella dei giorni liturgici disposti secondo l'ordine di precedenza",
+      "Calendario Romano Generale e Tabella annuale delle celebrazioni mobili",
+    ],
+  },
+  {
+    id: "proprio-tempo",
+    title: "Proprio del Tempo: Avvento, Natale, Quaresima, Triduo e Pasqua",
+    subtitle: "I tempi forti della salvezza dall'Avvento a Pentecoste",
+    description:
+      "Tutti i formulari completi delle domeniche e delle ferie per l'Avvento, il Tempo di Natale fino al Battesimo del Signore, la Quaresima (dalle Ceneri), la Settimana Santa, la Messa nella Cena del Signore, la Passione, la Veglia Pasquale e i 50 giorni di Pasqua.",
     category: "Anno Liturgico",
     icon: "🕯️",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Pagine 93 - 378",
-    startPage: 93,
-    endPage: 378,
-    pageRangeLabel: "Pagine 93 - 378",
+    startPage: 81,
+    endPage: 340,
+    pageRangeLabel: "Pagine 1 - 260 (PDF 81 - 340)",
     highlights: [
-      "Formulari dell'Avvento e del Tempo Natalizio",
-      "Quaresima, Mercoledì delle Ceneri e Settimana Santa",
-      "Veglia Pasquale e Domenica di Risurrezione",
-      "Tempo di Pasqua fino a Pentecoste",
-    ],
-  },
-  {
-    id: "ordinario-preghiere",
-    title: "Ordinario della Messa & Preghiere Eucaristiche",
-    subtitle: "Riti di Introduzione, Canone Romano, Canoni II-IV e Riconciliazione",
-    description:
-      "Il cuore della celebrazione: l'Atto Penitenziale con 'Signore, pietà (Kyrie eleison)', il Gloria con 'pace in terra agli uomini, amati dal Signore', il Padre Nostro ('non abbandonarci alla tentazione'), i Prefazi e le grandi Preghiere Eucaristiche.",
-    category: "Ordinario",
-    icon: "🍞",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Pagine 379 - 680",
-    startPage: 379,
-    endPage: 680,
-    pageRangeLabel: "Pagine 379 - 680",
-    highlights: [
-      "Nuova formula del 'Confesso a Dio onnipotente' (fratelli e sorelle)",
-      "Canone Romano (Preghiera Eucaristica I)",
-      "Preghiere Eucaristiche II, III e IV",
-      "Preghiere Eucaristiche della Riconciliazione e per Varie Necessità",
+      "Tempo di Avvento e Tempo di Natale",
+      "Quaresima e Settimana Santa",
+      "Triduo Pasquale (Cena del Signore, Passione, Veglia)",
+      "Tempo di Pasqua fino alla Domenica di Pentecoste",
     ],
   },
   {
     id: "tempo-ordinario",
-    title: "Tempo Ordinario (34 Settimane)",
-    subtitle: "Le orazioni, collette e preghiere per tutto l'anno liturgico",
+    title: "Tempo Ordinario: 34 Domeniche & Solennità del Signore",
+    subtitle: "Le 34 domeniche per annum e le grandi solennità del Signore",
     description:
-      "I formulari completi per le 34 domeniche del Tempo Ordinario e per le ferie del tempo per annum.",
+      "I formulari completi per le 34 domeniche del Tempo Ordinario, unitamente alle Solennità del Signore: Santissima Trinità, Santissimo Corpo e Sangue di Cristo (Corpus Domini), Sacratissimo Cuore di Gesù e Cristo Re dell'Universo.",
     category: "Anno Liturgico",
     icon: "🌿",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Pagine 681 - 790",
-    startPage: 681,
-    endPage: 790,
-    pageRangeLabel: "Pagine 681 - 790",
+    startPage: 341,
+    endPage: 386,
+    pageRangeLabel: "Pagine 261 - 306 (PDF 341 - 386)",
     highlights: [
-      "Orazioni collette rinnovate per le 34 domeniche",
-      "Orazioni sulle offerte e dopo la comunione",
-      "Formulari per le ferie del Tempo Ordinario",
+      "Formulari per le 34 domeniche del Tempo Ordinario",
+      "Santissima Trinità e SS.mo Corpo e Sangue di Cristo (Corpus Domini)",
+      "Sacratissimo Cuore di Gesù",
+      "Nostro Signore Gesù Cristo Re dell'Universo",
     ],
   },
   {
-    id: "santorale",
-    title: "Proprio e Comune dei Santi (CEI)",
-    subtitle: "Solennità, feste e memorie dei santi d'Italia e universali",
+    id: "rito-messa-preghiere",
+    title: "Rito della Messa con il Popolo & Preghiere Eucaristiche",
+    subtitle: "Riti d'Introduzione, Canone I-IV, Riconciliazione e Varie Necessità",
     description:
-      "Il calendario dei santi secondo il calendario universale e i patroni d'Italia (San Francesco d'Assisi, Santa Caterina da Siena, San Benedetto) e i nuovi santi canonizzati inseriti nella terza edizione.",
+      "Il cuore della celebrazione liturgica: Riti d'Introduzione con l'Atto Penitenziale («fratelli e sorelle»), Gloria («uomini, amati dal Signore»), Liturgia della Parola, Liturgia Eucaristica con Padre Nostro («non abbandonarci alla tentazione»), Prefazi, Canone Romano (I), Canoni II, III, IV, Preghiere della Riconciliazione e per Varie Necessità.",
+    category: "Ordinario & Canoni",
+    icon: "🍞",
+    startPage: 387,
+    endPage: 594,
+    pageRangeLabel: "Pagine 307 - 514 (PDF 387 - 594)",
+    highlights: [
+      "Rito della Messa con il popolo (Riti di Introduzione, Parola, Eucaristia, Comunione e Congedo)",
+      "Tutti i Prefazi del Tempo, dei Santi e delle Feste",
+      "Canone Romano (Preghiera Eucaristica I) e Preghiere Eucaristiche II, III, IV",
+      "Preghiere Eucaristiche della Riconciliazione (I e II)",
+      "Preghiera Eucaristica per le Messe «per varie necessità» (I - IV)",
+      "Benedizioni solenni e Orazioni sul popolo",
+    ],
+  },
+  {
+    id: "proprio-santi",
+    title: "Proprio dei Santi (Mese per Mese: Gennaio - Dicembre)",
+    subtitle: "Le celebrazioni dei santi nel corso dell'anno civile",
+    description:
+      "Tutti i formulari liturgici ordinati da Gennaio a Dicembre per le solennità, feste e memorie dei Santi del calendario universale e dei patroni d'Italia: S. Francesco d'Assisi, S. Caterina da Siena, S. Benedetto, S. Maria Maddalena, S. Pio da Pietrelcina e i nuovi santi.",
     category: "Santorale",
     icon: "👑",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Pagine 791 - 1050",
-    startPage: 791,
-    endPage: 1050,
-    pageRangeLabel: "Pagine 791 - 1050",
+    startPage: 595,
+    endPage: 774,
+    pageRangeLabel: "Pagine 515 - 694 (PDF 595 - 774)",
     highlights: [
+      "Gennaio - Dicembre con tutte le memorie obbligatorie e facoltative",
       "San Francesco d'Assisi e Santa Caterina da Siena (Patroni d'Italia)",
       "San Benedetto abate (Patrono d'Europa)",
-      "Memoria di Santa Maria Maddalena (elevata a festa)",
-      "Comune della Beata Vergine Maria e dei Martiri",
+      "Santa Maria Maddalena (elevata al grado di Festa)",
+      "San Pio da Pietrelcina e San Paolo VI",
     ],
   },
   {
-    id: "rituali-defunti",
-    title: "Messe Rituali, ad diversa, Votive e dei Defunti",
-    subtitle: "Sacramenti, grandi intenzioni ecclesiali, suffragio ed esequie",
+    id: "comuni-santi",
+    title: "Comuni dei Santi & Dedicazione della Chiesa",
+    subtitle: "Formulari comuni per Maria, Martiri, Pastori, Dottori, Vergini e Religiosi",
     description:
-      "I formulari completi per la celebrazione dei Sacramenti, le intenzioni per la Chiesa, la società e la pace, le Messe votive e il rito esequiale per i fedeli defunti.",
-    category: "Sacramenti & Suffragio",
-    icon: "🕯️",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Pagine 1051 - 1278",
-    startPage: 1051,
-    endPage: 1278,
-    pageRangeLabel: "Pagine 1051 - 1278",
+      "I formulari comuni utilizzabili per la celebrazione dei santi: Dedicazione della Chiesa, Beata Vergine Maria, Martiri, Pastori (Papi e Vescovi), Dottori della Chiesa, Vergini, Religiosi e Sante Donne.",
+    category: "Santorale",
+    icon: "🏛️",
+    startPage: 775,
+    endPage: 840,
+    pageRangeLabel: "Pagine 695 - 760 (PDF 775 - 840)",
     highlights: [
-      "Iniziazione Cristiana, Matrimonio e Ordinazioni",
-      "Messe per la pace, la giustizia e i bisogni civili",
-      "Messe votive della SS. Trinità, Spirito Santo e Maria",
-      "Liturgia delle esequie e suffragio per i defunti",
+      "Comune della Dedicazione di una chiesa",
+      "Comune della Beata Vergine Maria",
+      "Comune dei Martiri e dei Pastori",
+      "Comune dei Dottori della Chiesa, delle Vergini e dei Santi",
+    ],
+  },
+  {
+    id: "messe-rituali",
+    title: "Messe Rituali (Sacramenti & Ministeri Ecclesiali)",
+    subtitle: "Iniziazione cristiana, Unzione, Ordini, Matrimonio e Dedicazione",
+    description:
+      "I formulari completi per la celebrazione dei Sacramenti e dei Sacramentali: Scrutini battesimali, Battesimo, Confermazione, Prima Comunione, Unzione degli Infermi e Viatico, Ordinazioni (Vescovo, Presbiteri, Diaconi), Matrimonio, Benedizione Abbaziale, Consacrazione delle Vergini, Professione Religiosa, Ministeri di Lettori e Accoliti, Dedicazione di Chiesa e Altare.",
+    category: "Sacramenti & Riti",
+    icon: "✨",
+    startPage: 841,
+    endPage: 918,
+    pageRangeLabel: "Pagine 761 - 838 (PDF 841 - 918)",
+    highlights: [
+      "Sacramenti dell'Iniziazione Cristiana (Battesimo, Cresima, Eucaristia)",
+      "Unzione degli infermi e Viatico",
+      "Ordinazioni episcopali, presbiterali e diaconali",
+      "Celebrazione del Matrimonio e Anniversari",
+      "Professione religiosa e Dedicazione di una chiesa o altare",
+    ],
+  },
+  {
+    id: "varie-necessita",
+    title: "Messe e Orazioni per Varie Necessità",
+    subtitle: "Per la Santa Chiesa, per la Società Civile e per Diverse Necessità",
+    description:
+      "Formulari per le grandi intenzioni del mondo e della Chiesa: I. Per la Santa Chiesa (Papa, Vescovo, Sinodo, Sacerdoti, Vocazioni, Famiglia, Riconciliazione, Unità, Cristiani perseguitati); II. Per la Società Civile (Patria, Governanti, Lavoro, Semina, Raccolto, Pace e Giustizia, Guerra, Profughi, Fame, Terremoto, Pioggia); III. Per Diverse Necessità (Perdono dei peccati, Carità, Infermi, Moribondi, Rendimento di grazie).",
+    category: "Intenzioni Ecclesiali",
+    icon: "🌍",
+    startPage: 919,
+    endPage: 1002,
+    pageRangeLabel: "Pagine 839 - 922 (PDF 919 - 1002)",
+    highlights: [
+      "I. Per la Santa Chiesa (Papa, Vescovo, Ministri, Vocazioni, Famiglia, Pace, Unità dei Cristiani)",
+      "II. Per la Società Civile (Patria, Governanti, Santificazione del lavoro, Pace, Profughi, Calamità)",
+      "III. Per Diverse Necessità (Remissione peccati, Castità, Carità, Parenti, Infermi, Rendimento di grazie)",
+    ],
+  },
+  {
+    id: "messe-votive",
+    title: "Messe Votive (Trinità, Croce, Eucaristia, Spirito Santo, Maria)",
+    subtitle: "Messe in onore dei divini misteri, della Vergine, degli Angeli e Apostoli",
+    description:
+      "Formulari per la celebrazione votiva: Santissima Trinità, Misericordia di Dio, Nostro Signore Gesù Cristo Sommo ed Eterno Sacerdote, Mistero della Santa Croce, Santissima Eucaristia, Santissimo Nome di Gesù, Preziosissimo Sangue, Sacro Cuore, Spirito Santo, Maria Madre della Chiesa, Loreto, Santi Angeli, San Giovanni Battista, San Giuseppe, Santi Apostoli.",
+    category: "Messe Votive",
+    icon: "🕊️",
+    startPage: 1003,
+    endPage: 1030,
+    pageRangeLabel: "Pagine 923 - 950 (PDF 1003 - 1030)",
+    highlights: [
+      "SS. Trinità, Misericordia di Dio, Cristo Eterno Sacerdote",
+      "Santa Croce, Santissima Eucaristia e Preziosissimo Sangue",
+      "Spirito Santo e Sacratissimo Cuore di Gesù",
+      "Beata Vergine Maria (Madre della Chiesa, Loreto, Regina degli Apostoli)",
+      "Santi Angeli, San Giovanni Battista, San Giuseppe e Santi Apostoli",
+    ],
+  },
+  {
+    id: "messe-defunti",
+    title: "Messe dei Defunti (Esequie, Anniversari & Suffragi)",
+    subtitle: "Liturgia esequiale per adulti e fanciulli, anniversari e orazioni diverse",
+    description:
+      "Tutti i formulari per la liturgia funebre: Esequie (fuori e nel Tempo Pasquale), Esequie di bambini (battezzati e non ancora battezzati), Anniversari della morte, Commemorazioni diverse e Orazioni per il Papa, Vescovo, Sacerdoti, Diaconi, Religiosi, Genitori, Coniugi, defunti dopo lunga infermità o morte improvvisa.",
+    category: "Suffragio & Esequie",
+    icon: "🕯️",
+    startPage: 1031,
+    endPage: 1066,
+    pageRangeLabel: "Pagine 951 - 986 (PDF 1031 - 1066)",
+    highlights: [
+      "Messe esequiali (nel Tempo Pasquale e durante l'anno)",
+      "Esequie di bambini (battezzati e non ancora battezzati)",
+      "Messe nell'anniversario della morte",
+      "Orazioni per il Papa, Vescovi, Sacerdoti, Genitori e Benefattori defunti",
+    ],
+  },
+  {
+    id: "appendice-riti",
+    title: "Appendice: Riti Speciali, Preghiera Universale, Collette & Ferie",
+    subtitle: "Aspersione, Ministro Straordinario, Annuncio Pasqua e Orazioni feriali",
+    description:
+      "Rito per la benedizione e l'aspersione dell'acqua domenicale, Rito per incaricare volta per volta un fedele alla distribuzione dell'Eucaristia, Annuncio del giorno di Pasqua nell'Epifania, Formulari per la Preghiera Universale, Collette per domeniche e solennità, Orazioni per le ferie del Tempo Ordinario, Praeparatio ad Missam e Gratiarum actio post Missam.",
+    category: "Appendice Liturgica",
+    icon: "📖",
+    startPage: 1067,
+    endPage: 1192,
+    pageRangeLabel: "Pagine 987 - 1112 (PDF 1067 - 1192)",
+    highlights: [
+      "Benedizione e aspersione domenicale dell'acqua benedetta",
+      "Mandato straordinario occasionale per la distribuzione dell'Eucaristia",
+      "Annuncio del giorno della Pasqua (Epifania)",
+      "Formulari per la Preghiera dei fedeli (universale)",
+      "Collette per le ferie del Tempo Ordinario e Comune di Maria",
+      "Praeparatio ad Missam e Ringraziamento post Missam",
+    ],
+  },
+  {
+    id: "melodie",
+    title: "Melodie & Spartiti per il Rito della Messa",
+    subtitle: "Spartiti gregoriani e moderni per il celebrante, ministri e assemblea",
+    description:
+      "Tutta la sezione musicale ufficiale con notazione quadrata e moderna: Riti di Introduzione, Dialoghi della Liturgia della Parola, Prefazi con melodie solenni e semplici, Canone Romano e Canoni II-IV musicati, Riti di Comunione e formule di Congedo.",
+    category: "Musica Sacra",
+    icon: "🎼",
+    startPage: 1193,
+    endPage: 1254,
+    pageRangeLabel: "Pagine 1113 - 1174 (PDF 1193 - 1254)",
+    highlights: [
+      "Spartiti musicali per i Riti d'Introduzione e Saluti",
+      "Melodie per tutti i Prefazi (tono solenne e feriale)",
+      "Preghiere Eucaristiche I, II, III e IV musicate",
+      "Canti di comunione, Padre Nostro e formule di congedo",
+    ],
+  },
+  {
+    id: "indici",
+    title: "Indici Ufficiali del Messale Romano",
+    subtitle: "Indice dei Prefazi, Indice alfabetico dei Santi e Indice Generale",
+    description:
+      "Gli indici completi della Terza Edizione Italiana: Indice alfabetico dei Prefazi, Indice alfabetico delle celebrazioni nel Proprio dei Santi e l'Indice Generale ragionato dell'opera.",
+    category: "Indici & Consultazione",
+    icon: "🔍",
+    startPage: 1255,
+    endPage: 1278,
+    pageRangeLabel: "Pagine 1175 - 1190 (PDF 1255 - 1278)",
+    highlights: [
+      "Indice alfabetico e tematico dei Prefazi",
+      "Indice alfabetico di tutte le celebrazioni dei Santi",
+      "Indice Generale completo della 3ª Edizione Italiana",
     ],
   },
 ];
@@ -143,8 +298,26 @@ const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
 export function MessaleRomanoReader() {
   const [selectedSection, setSelectedSection] = useState<MessaleRomanoSection | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeCategory, setActiveCategory] = useState<string>("Tutte");
+
+  const categories = [
+    "Tutte",
+    "Magistero & Decreti",
+    "Norme Liturgiche",
+    "Anno Liturgico",
+    "Ordinario & Canoni",
+    "Santorale",
+    "Sacramenti & Riti",
+    "Intenzioni Ecclesiali",
+    "Messe Votive",
+    "Suffragio & Esequie",
+    "Appendice Liturgica",
+    "Musica Sacra",
+    "Indici & Consultazione",
+  ];
 
   const filteredSections = MESSALE_ROMANO_SECTIONS.filter((sec) => {
+    if (activeCategory !== "Tutte" && sec.category !== activeCategory) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
@@ -177,11 +350,11 @@ export function MessaleRomanoReader() {
             Messale Romano
           </h2>
           <span className="rounded-full bg-[#ebdcc8] border border-[#d9c5ac] px-2.5 py-0.5 text-xs font-bold text-[#5c4a37]">
-            Terza Edizione Italiana
+            {MESSALE_ROMANO_SECTIONS.length} Sezioni Ufficiali · 1278 Pagine
           </span>
         </div>
         <p className="text-sm text-[#736555] max-w-3xl leading-relaxed">
-          La presente versione digitale della <strong>terza edizione italiana del Messale Romano</strong> contiene i file e i documenti previsti per il rito della Messa (inclusi i canti e le melodie ufficiali), al fine di favorirne l&apos;ascolto, l&apos;apprendimento, lo studio e la preghiera personale.
+          La <strong>terza edizione italiana del Messale Romano</strong> (promulgata dalla CEI nel 2020) strutturata secondo l&apos;<strong>Indice Generale Ufficiale</strong>: norme teologico-pastorali, formulari dei tempi liturgici, Canoni eucaristici, Santorale, Messe rituali, votive e melodie per il canto.
         </p>
       </div>
 
@@ -254,6 +427,26 @@ export function MessaleRomanoReader() {
         </div>
       </div>
 
+      {/* Categorie Filtri */}
+      <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => {
+              setActiveCategory(cat);
+              setSelectedSection(null);
+            }}
+            className={`rounded-xl px-3 py-1 text-xs font-semibold transition shrink-0 ${
+              activeCategory === cat
+                ? "bg-[#5c4a37] text-white shadow-xs"
+                : "bg-[#f5ece0] text-[#6b5d4e] hover:bg-[#ebdcc8]"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {/* Se è selezionata una sezione per la lettura/consultazione */}
       {selectedSection ? (
         <div className="rounded-3xl border border-[#e0d6c7] bg-[#fefdfb] p-6 sm:p-8 shadow-lg space-y-6 animate-in fade-in duration-200">
@@ -310,7 +503,7 @@ export function MessaleRomanoReader() {
                 </h5>
               </div>
               <p className="text-xs text-[#736555]">
-                Scarica o consulta solo le pagine di questa specifica sezione in un PDF compatto.
+                Scarica o consulta solo le pagine di questa specifica sezione in un PDF compatto e leggero.
               </p>
             </div>
 
@@ -360,7 +553,7 @@ export function MessaleRomanoReader() {
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Cerca formulari, canti, ordinario o prefazi..."
+                placeholder="Cerca formulari, canti, ordinario, prefazi, santi o defunti..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-2xl border border-[#dac8b1] bg-[#fdfbf7] py-2 pl-9 pr-4 text-xs text-[#3f3933] placeholder-[#8a755d] focus:border-[#aa9576] focus:outline-none"
