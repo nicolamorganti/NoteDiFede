@@ -37,7 +37,14 @@ export function PreghieraNav() {
       icon: "📘",
       description: "Terza Edizione Ufficiale 2020 (CEI)",
     },
+    {
+      href: "/preghiera/benedizionale",
+      label: "Benedizionale",
+      icon: "✨",
+      description: "Rituale Romano delle Benedizioni (CEI 1992)",
+    },
   ];
+
 
 
 
