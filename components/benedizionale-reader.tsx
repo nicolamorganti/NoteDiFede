@@ -10,6 +10,9 @@ interface BenedizioneSection {
   description: string;
   category: string;
   icon: string;
+  startPage: number;
+  endPage: number;
+  pageRangeLabel: string;
   highlights: string[];
 }
 
@@ -22,6 +25,9 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
       "La natura delle benedizioni nella storia della salvezza, il sacerdozio comune dei fedeli e il ministero ordinato, la struttura liturgica della celebrazione (Parola di Dio, preghiera di benedizione, segni) e l'adattamento pastorale.",
     category: "Norme Liturgiche",
     icon: "📑",
+    startPage: 1,
+    endPage: 38,
+    pageRangeLabel: "Pagine 1 - 38",
     highlights: [
       "Natura e significato delle benedizioni ecclesiali",
       "Uffici e ministeri (Vescovo, Presbitero, Diacono, Ministri laici e Genitori)",
@@ -37,6 +43,9 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
       "Formulari per la santificazione della vita umana: famiglie e case, sposi negli anniversari di matrimonio, fidanzati, gestanti, bambini e fanciulli, anziani, infermi, missionari, catechisti e volontari della carità.",
     category: "Persone & Famiglia",
     icon: "👨‍👩‍👧‍👦",
+    startPage: 39,
+    endPage: 364,
+    pageRangeLabel: "Pagine 39 - 364",
     highlights: [
       "Benedizione della famiglia e della mensa quotidiana",
       "Fidanzati e anniversari di Matrimonio (25°, 50°, 60°)",
@@ -52,6 +61,9 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
       "Formulari per le nuove abitazioni, gli edifici scolastici, le biblioteche, gli ospedali, i luoghi di cura, le aziende, le officine, i campi coltivati, i raccolti e gli animali.",
     category: "Luoghi & Lavoro",
     icon: "🏡",
+    startPage: 365,
+    endPage: 634,
+    pageRangeLabel: "Pagine 365 - 634",
     highlights: [
       "Benedizione annuale delle famiglie nelle loro case",
       "Nuove case, edifici e ambienti di convivenza",
@@ -68,6 +80,9 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
       "Riti per la benedizione di quanto è destinato al culto divino: la nuova croce da esporre alla pubblica venerazione, le immagini sacre della Beata Vergine e dei Santi, le campane, l'organo a canne, i vasi sacri (calice, patena) e i paramenti liturgici.",
     category: "Culto & Liturgia",
     icon: "⛪",
+    startPage: 635,
+    endPage: 884,
+    pageRangeLabel: "Pagine 635 - 884",
     highlights: [
       "Nuova croce, crocifissi e immagini di Cristo Signore",
       "Icone e statue della B.V. Maria e dei Santi",
@@ -83,6 +98,9 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
       "Formulari per l'aspersione dell'acqua lustrale, la benedizione delle corone del Rosario, delle medaglie e oggetti di pietà, dei veicoli e mezzi di trasporto, dei pellegrini e dei viaggiatori prima della partenza.",
     category: "Pietà & Viaggio",
     icon: "🕊️",
+    startPage: 885,
+    endPage: 1180,
+    pageRangeLabel: "Pagine 885 - 1180",
     highlights: [
       "Benedizione e aspersione dell'acqua domenicale",
       "Corone del Santo Rosario e medaglie devozionali",
@@ -161,9 +179,9 @@ export function BenedizionaleReader() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xl">📥</span>
+              <span className="text-xl">📚</span>
               <h4 className="font-serif font-bold text-base text-[#5c4a37]">
-                Benedizionale Completo Ufficiale CEI (PDF 29.5 MB)
+                Benedizionale Completo Ufficiale CEI (1237 Pagine · PDF 29.5 MB)
               </h4>
             </div>
             <p className="text-xs text-[#736555] max-w-xl leading-relaxed">
@@ -180,7 +198,7 @@ export function BenedizionaleReader() {
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span>Scarica / Apri Benedizionale in PDF</span>
+            <span>Scarica / Apri Volume Completo (PDF 29.5 MB)</span>
           </a>
         </div>
 
@@ -200,7 +218,7 @@ export function BenedizionaleReader() {
         </div>
       </div>
 
-      {/* Dettaglio Sezione Selezionata */}
+      {/* Dettaglio Sezione Selezionata con Estratto Leggero */}
       {selectedSection ? (
         <div className="rounded-3xl border border-[#e0d6c7] bg-[#fefdfb] p-6 sm:p-8 shadow-lg space-y-6 animate-in fade-in duration-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#ebdcc8] pb-4">
@@ -208,7 +226,7 @@ export function BenedizionaleReader() {
               <div className="flex items-center gap-2">
                 <span className="text-2xl">{selectedSection.icon}</span>
                 <span className="text-xs uppercase tracking-widest font-sans font-bold text-[#aa9576]">
-                  {selectedSection.category} · Benedizionale CEI
+                  {selectedSection.category} · {selectedSection.pageRangeLabel}
                 </span>
               </div>
               <h3 className="text-2xl font-serif font-bold text-[#5c4a37]">
@@ -231,7 +249,7 @@ export function BenedizionaleReader() {
 
           <div className="space-y-2">
             <h4 className="text-xs font-sans font-bold uppercase tracking-wider text-[#aa9576]">
-              Riti e Benedizioni Contenute:
+              Riti e Benedizioni Contenute in Questa Sezione:
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {selectedSection.highlights.map((h, i) => (
@@ -246,15 +264,44 @@ export function BenedizionaleReader() {
             </div>
           </div>
 
-          <div className="pt-4 flex justify-end">
-            <a
-              href={PDF_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#4a3c2c] transition"
-            >
-              <span>Consulta nel PDF Completo 📖</span>
-            </a>
+          {/* Azioni PDF Estratto Leggero */}
+          <div className="p-5 rounded-2xl bg-[#f8f4ec] border border-[#decbb8] flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <span className="text-base">📑</span>
+                <h5 className="font-serif font-bold text-sm text-[#5c4a37]">
+                  PDF Estratto della Sezione ({selectedSection.pageRangeLabel})
+                </h5>
+              </div>
+              <p className="text-xs text-[#736555]">
+                Scarica o consulta solo le pagine relative a questa sezione specifica in un file PDF leggero e compatto.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5">
+              <a
+                href={`/api/pdf/extract?doc=benedizionale&from=${selectedSection.startPage}&to=${selectedSection.endPage}&name=${encodeURIComponent(
+                  selectedSection.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".pdf"
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#4a3c2c] transition hover:scale-105"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Scarica PDF Estratto</span>
+              </a>
+
+              <a
+                href={`${PDF_URL}#page=${selectedSection.startPage}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#d8c6b1] bg-[#fbf8f4] px-4 py-2.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ebdcc8] transition"
+              >
+                <span>Apri a Pagina {selectedSection.startPage} ↗</span>
+              </a>
+            </div>
           </div>
         </div>
       ) : (
@@ -289,7 +336,7 @@ export function BenedizionaleReader() {
                         {sec.icon}
                       </span>
                       <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[#aa9576] bg-[#f4ece0] px-2 py-0.5 rounded-md">
-                        {sec.category}
+                        {sec.pageRangeLabel}
                       </span>
                     </div>
                     <span className="text-xs text-[#8a755d] font-semibold group-hover:translate-x-1 transition-transform">
@@ -309,8 +356,8 @@ export function BenedizionaleReader() {
                 </div>
 
                 <div className="pt-3 border-t border-[#f0e6d9] flex items-center justify-between text-[11px] text-[#8a755d]">
-                  <span className="font-sans font-medium">De benedictionibus · CEI</span>
-                  <span className="font-bold text-[#5c4a37]">Apri Riti ✨</span>
+                  <span className="font-sans font-medium text-emerald-700">✓ PDF Estratto disponibile</span>
+                  <span className="font-bold text-[#5c4a37]">Apri Sezione ✨</span>
                 </div>
               </div>
             ))}
