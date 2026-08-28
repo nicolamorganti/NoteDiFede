@@ -12,44 +12,13 @@ interface MessaleRomanoSection {
   icon: string;
   pdfUrl: string;
   sizeLabel: string;
+  startPage: number;
+  endPage: number;
+  pageRangeLabel: string;
   highlights: string[];
 }
 
 const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
-  {
-    id: "messale-con-canti",
-    title: "Messale Romano Completo (con Canti e Melodie)",
-    subtitle: "Terza Edizione Italiana Ufficiale CEI con Notazione Musicale",
-    description:
-      "Il volume integrale della Terza Edizione Italiana del Messale Romano, comprensivo di tutte le partiture musicali, notazioni gregoriane e melodie per il sacerdote celebrante, i diaconi, i cantori e l'assemblea dei fedeli.",
-    category: "Edizione Ufficiale",
-    icon: "🎼",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=3a89d1b28d96eb2ddc32&dl=1",
-    sizeLabel: "PDF 175 MB (con spartiti)",
-    highlights: [
-      "Testo liturgico integrale promulgato dalla CEI",
-      "Melodie e spartiti per i riti di introduzione e conclusione",
-      "Prefazi con notazione gregoriana e melodica",
-      "Preghiere Eucaristiche I, II, III, IV e per varie necessità",
-    ],
-  },
-  {
-    id: "messale-senza-canti",
-    title: "Messale Romano (solo Testo - senza melodie)",
-    subtitle: "Terza Edizione Italiana Ufficiale CEI in Formato Leggero",
-    description:
-      "La versione testuale completa della Terza Edizione Italiana, ideale per una consultazione rapida, lo studio delle rubriche e la preghiera personale su dispositivi mobili.",
-    category: "Edizione Ufficiale",
-    icon: "📖",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "PDF 23 MB (versione testo)",
-    highlights: [
-      "Ordinamento Generale del Messale Romano (OGMR)",
-      "Formulari dell'Anno Liturgico (Avvento, Natale, Quaresima, Pasqua, Tempo Ordinario)",
-      "Proprio e Comune dei Santi per la Chiesa italiana",
-      "Messe rituali, votive, ad diversa e dei defunti",
-    ],
-  },
   {
     id: "ogmr",
     title: "Ordinamento Generale del Messale Romano (OGMR)",
@@ -59,7 +28,10 @@ const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
     category: "Norme Liturgiche",
     icon: "📑",
     pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Incluso nel volume CEI",
+    sizeLabel: "Pagine 1 - 92",
+    startPage: 1,
+    endPage: 92,
+    pageRangeLabel: "Pagine 1 - 92",
     highlights: [
       "Importanza e dignità della celebrazione eucaristica",
       "Struttura della Messa, suoi elementi e sue parti",
@@ -69,19 +41,22 @@ const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
   },
   {
     id: "anno-liturgico",
-    title: "Proprio del Tempo (Anno Liturgico Romano)",
-    subtitle: "Avvento, Natale, Quaresima, Triduo, Pasqua e Tempo Ordinario",
+    title: "Proprio del Tempo (Avvento, Natale, Quaresima, Pasqua)",
+    subtitle: "Formulari rinnovati dei tempi forti dell'Anno Liturgico",
     description:
-      "Tutti i formulari delle domeniche e delle ferie dell'Anno Liturgico Romano con le nuove traduzioni delle collette, delle orazioni sui doni e dopo la comunione.",
+      "Tutti i formulari delle domeniche e delle ferie dell'Avvento, del Tempo di Natale, della Quaresima, della Settimana Santa, del Triduo Pasquale e dei 50 giorni di Pasqua.",
     category: "Anno Liturgico",
     icon: "🕯️",
     pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Incluso nel volume CEI",
+    sizeLabel: "Pagine 93 - 378",
+    startPage: 93,
+    endPage: 378,
+    pageRangeLabel: "Pagine 93 - 378",
     highlights: [
-      "Nuove traduzioni del 'Gloria a Dio' e del 'Padre Nostro'",
-      "Formulari del Tempo di Avvento e Natale",
-      "Quaresima, Settimana Santa e Veglia Pasquale",
-      "34 Settimane del Tempo Ordinario",
+      "Formulari dell'Avvento e del Tempo Natalizio",
+      "Quaresima, Mercoledì delle Ceneri e Settimana Santa",
+      "Veglia Pasquale e Domenica di Risurrezione",
+      "Tempo di Pasqua fino a Pentecoste",
     ],
   },
   {
@@ -89,16 +64,38 @@ const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
     title: "Ordinario della Messa & Preghiere Eucaristiche",
     subtitle: "Riti di Introduzione, Canone Romano, Canoni II-IV e Riconciliazione",
     description:
-      "Il cuore della celebrazione: l'Atto Penitenziale con il 'Signore, pietà (Kyrie eleison)', il Gloria, la professione di fede con il Simbolo Niceno-Costantinopolitano o Apostolico, i Prefazi e le grandi Preghiere Eucaristiche.",
+      "Il cuore della celebrazione: l'Atto Penitenziale con 'Signore, pietà (Kyrie eleison)', il Gloria con 'pace in terra agli uomini, amati dal Signore', il Padre Nostro ('non abbandonarci alla tentazione'), i Prefazi e le grandi Preghiere Eucaristiche.",
     category: "Ordinario",
     icon: "🍞",
-    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=3a89d1b28d96eb2ddc32&dl=1",
-    sizeLabel: "Incluso nel volume con spartiti",
+    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
+    sizeLabel: "Pagine 379 - 680",
+    startPage: 379,
+    endPage: 680,
+    pageRangeLabel: "Pagine 379 - 680",
     highlights: [
       "Nuova formula del 'Confesso a Dio onnipotente' (fratelli e sorelle)",
       "Canone Romano (Preghiera Eucaristica I)",
       "Preghiere Eucaristiche II, III e IV",
       "Preghiere Eucaristiche della Riconciliazione e per Varie Necessità",
+    ],
+  },
+  {
+    id: "tempo-ordinario",
+    title: "Tempo Ordinario (34 Settimane)",
+    subtitle: "Le orazioni, collette e preghiere per tutto l'anno liturgico",
+    description:
+      "I formulari completi per le 34 domeniche del Tempo Ordinario e per le ferie del tempo per annum.",
+    category: "Anno Liturgico",
+    icon: "🌿",
+    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
+    sizeLabel: "Pagine 681 - 790",
+    startPage: 681,
+    endPage: 790,
+    pageRangeLabel: "Pagine 681 - 790",
+    highlights: [
+      "Orazioni collette rinnovate per le 34 domeniche",
+      "Orazioni sulle offerte e dopo la comunione",
+      "Formulari per le ferie del Tempo Ordinario",
     ],
   },
   {
@@ -110,12 +107,35 @@ const MESSALE_ROMANO_SECTIONS: MessaleRomanoSection[] = [
     category: "Santorale",
     icon: "👑",
     pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
-    sizeLabel: "Incluso nel volume CEI",
+    sizeLabel: "Pagine 791 - 1050",
+    startPage: 791,
+    endPage: 1050,
+    pageRangeLabel: "Pagine 791 - 1050",
     highlights: [
       "San Francesco d'Assisi e Santa Caterina da Siena (Patroni d'Italia)",
       "San Benedetto abate (Patrono d'Europa)",
       "Memoria di Santa Maria Maddalena (elevata a festa)",
       "Comune della Beata Vergine Maria e dei Martiri",
+    ],
+  },
+  {
+    id: "rituali-defunti",
+    title: "Messe Rituali, ad diversa, Votive e dei Defunti",
+    subtitle: "Sacramenti, grandi intenzioni ecclesiali, suffragio ed esequie",
+    description:
+      "I formulari completi per la celebrazione dei Sacramenti, le intenzioni per la Chiesa, la società e la pace, le Messe votive e il rito esequiale per i fedeli defunti.",
+    category: "Sacramenti & Suffragio",
+    icon: "🕯️",
+    pdfUrl: "https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1",
+    sizeLabel: "Pagine 1051 - 1278",
+    startPage: 1051,
+    endPage: 1278,
+    pageRangeLabel: "Pagine 1051 - 1278",
+    highlights: [
+      "Iniziazione Cristiana, Matrimonio e Ordinazioni",
+      "Messe per la pace, la giustizia e i bisogni civili",
+      "Messe votive della SS. Trinità, Spirito Santo e Maria",
+      "Liturgia delle esequie e suffragio per i defunti",
     ],
   },
 ];
@@ -146,7 +166,7 @@ export function MessaleRomanoReader() {
       <div className="border-b border-[#e4dcce] pb-6 space-y-2">
         <div className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#5c4a37] text-white shadow-sm">
-            📕
+            📘
           </span>
           <span className="text-xs font-semibold uppercase tracking-wider text-[#aa9576]">
             Conferenza Episcopale Italiana · Terza Edizione Ufficiale
@@ -185,6 +205,55 @@ export function MessaleRomanoReader() {
         </div>
       </div>
 
+      {/* Box Download Volumi Completi CEI */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Volume con Canti */}
+        <div className="p-5 rounded-3xl bg-[#f4ece0] border border-[#dac7b0] flex flex-col justify-between space-y-3 shadow-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🎼</span>
+              <h5 className="font-serif font-bold text-sm text-[#5c4a37]">
+                Messale Completo con Canti & Melodie
+              </h5>
+            </div>
+            <p className="text-xs text-[#736555] leading-relaxed">
+              Volume integrale con notazione musicale e spartiti gregoriani (PDF 175 MB).
+            </p>
+          </div>
+          <a
+            href="https://DriveCEI.glauco.it/invitations?share=3a89d1b28d96eb2ddc32&dl=1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#4a3c2c] transition"
+          >
+            <span>Scarica con Spartiti (175 MB)</span>
+          </a>
+        </div>
+
+        {/* Volume Testo */}
+        <div className="p-5 rounded-3xl bg-[#f4ece0] border border-[#dac7b0] flex flex-col justify-between space-y-3 shadow-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📖</span>
+              <h5 className="font-serif font-bold text-sm text-[#5c4a37]">
+                Messale Completo solo Testo
+              </h5>
+            </div>
+            <p className="text-xs text-[#736555] leading-relaxed">
+              Versione testuale rapida e leggera per lettura e studio (PDF 24 MB · 1278 pagine).
+            </p>
+          </div>
+          <a
+            href="https://DriveCEI.glauco.it/invitations?share=a500c08633002063713d&dl=1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5c4a37] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#4a3c2c] transition"
+          >
+            <span>Scarica solo Testo (24 MB)</span>
+          </a>
+        </div>
+      </div>
+
       {/* Se è selezionata una sezione per la lettura/consultazione */}
       {selectedSection ? (
         <div className="rounded-3xl border border-[#e0d6c7] bg-[#fefdfb] p-6 sm:p-8 shadow-lg space-y-6 animate-in fade-in duration-200">
@@ -193,7 +262,7 @@ export function MessaleRomanoReader() {
               <div className="flex items-center gap-2">
                 <span className="text-2xl">{selectedSection.icon}</span>
                 <span className="text-xs uppercase tracking-widest font-sans font-bold text-[#aa9576]">
-                  {selectedSection.category} · Messale Romano CEI
+                  {selectedSection.category} · {selectedSection.pageRangeLabel}
                 </span>
               </div>
               <h3 className="text-2xl font-serif font-bold text-[#5c4a37]">
@@ -216,7 +285,7 @@ export function MessaleRomanoReader() {
 
           <div className="space-y-2">
             <h4 className="text-xs font-sans font-bold uppercase tracking-wider text-[#aa9576]">
-              Contenuti Principali:
+              Contenuti Principali di Questa Sezione:
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {selectedSection.highlights.map((h, i) => (
@@ -231,50 +300,57 @@ export function MessaleRomanoReader() {
             </div>
           </div>
 
-          {/* Azioni PDF Ufficiale & Portale CEI */}
-          <div className="p-6 rounded-3xl bg-[#f4ece0] border border-[#dac7b0] space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">📥</span>
-                  <h5 className="font-serif font-bold text-base text-[#5c4a37]">
-                    Documento Ufficiale CEI ({selectedSection.sizeLabel})
-                  </h5>
-                </div>
-                <p className="text-xs text-[#736555] max-w-xl leading-relaxed">
-                  I server della Conferenza Episcopale Italiana forniscono il testo integrale in formato PDF ad alta definizione per la consultazione e la preghiera personale.
-                </p>
+          {/* Azioni PDF Estratto */}
+          <div className="p-5 rounded-2xl bg-[#f8f4ec] border border-[#decbb8] flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <span className="text-base">📑</span>
+                <h5 className="font-serif font-bold text-sm text-[#5c4a37]">
+                  PDF Estratto della Sezione ({selectedSection.pageRangeLabel})
+                </h5>
               </div>
+              <p className="text-xs text-[#736555]">
+                Scarica o consulta solo le pagine di questa specifica sezione in un PDF compatto.
+              </p>
+            </div>
 
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5">
               <a
-                href={selectedSection.pdfUrl}
+                href={`/api/pdf/extract?doc=messale-romano&from=${selectedSection.startPage}&to=${selectedSection.endPage}&name=${encodeURIComponent(
+                  selectedSection.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".pdf"
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-[#4a3c2c] transition hover:scale-105 shrink-0"
+                className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#4a3c2c] transition hover:scale-105"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span>Scarica / Apri PDF Ufficiale</span>
-              </a>
-            </div>
-
-            <div className="pt-3 border-t border-[#e2d3c1] flex flex-wrap items-center justify-between gap-3 text-xs text-[#8a755d]">
-              <span>Editore: Fondazione di Religione Santi Francesco e Caterina</span>
-              <a
-                href="https://liturgico.chiesacattolica.it/messale-romanoterza-edizione-italiana/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-[#5c4a37] hover:underline flex items-center gap-1"
-              >
-                <span>Visita la pagina ufficiale CEI</span>
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
+                <span>Scarica PDF Estratto</span>
               </a>
             </div>
           </div>
 
+          {/* Viewer Incorporato On-line */}
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-sans font-bold uppercase tracking-wider text-[#aa9576]">
+                Anteprima e Consultazione On-line ({selectedSection.pageRangeLabel}):
+              </h4>
+              <span className="text-[11px] font-sans text-[#8a755d]">
+                Streaming estratto leggero ⚡
+              </span>
+            </div>
+            <div className="w-full h-[700px] rounded-2xl overflow-hidden border border-[#decbb8] bg-[#ede5d8] shadow-inner">
+              <iframe
+                src={`/api/pdf/extract?doc=messale-romano&from=${selectedSection.startPage}&to=${selectedSection.endPage}&name=${encodeURIComponent(
+                  selectedSection.title.replace(/[^a-zA-Z0-9_-]/g, "_") + ".pdf"
+                )}#toolbar=1&navpanes=0`}
+                className="w-full h-full border-0"
+                title={`Messale Romano - ${selectedSection.title}`}
+              />
+            </div>
+          </div>
         </div>
       ) : (
         /* Griglia delle Sezioni */
@@ -308,11 +384,11 @@ export function MessaleRomanoReader() {
                         {sec.icon}
                       </span>
                       <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[#aa9576] bg-[#f4ece0] px-2 py-0.5 rounded-md">
-                        {sec.category}
+                        {sec.pageRangeLabel}
                       </span>
                     </div>
                     <span className="text-xs text-[#8a755d] font-semibold group-hover:translate-x-1 transition-transform">
-                      Consulta →
+                      Esplora →
                     </span>
                   </div>
 
@@ -328,8 +404,8 @@ export function MessaleRomanoReader() {
                 </div>
 
                 <div className="pt-3 border-t border-[#f0e6d9] flex items-center justify-between text-[11px] text-[#8a755d]">
-                  <span className="font-sans font-medium">{sec.sizeLabel}</span>
-                  <span className="font-bold text-[#5c4a37]">Apri Volume 📖</span>
+                  <span className="font-sans font-medium text-emerald-700">✓ Visualizzatore integrato</span>
+                  <span className="font-bold text-[#5c4a37]">Apri Sezione 📖</span>
                 </div>
               </div>
             ))}
