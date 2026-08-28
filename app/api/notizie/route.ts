@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 
 export interface NewsItem {
   id: string;
@@ -210,10 +213,13 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          "Cache-Control": isRefresh ? "no-store" : "public, s-maxage=900, stale-while-revalidate=1800",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
         },
       }
     );
+
   } catch (error: any) {
     console.error("Errore API Notizie:", error);
     return NextResponse.json(

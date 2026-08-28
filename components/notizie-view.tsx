@@ -65,9 +65,14 @@ export function NotizieView() {
     setError(null);
     try {
       const refreshParam = forceRefresh ? "&refresh=true" : "";
-      const res = await fetch(`/api/notizie?source=${sourceId}${refreshParam}`, {
+      const res = await fetch(`/api/notizie?source=${sourceId}&_t=${Date.now()}${refreshParam}`, {
         cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
       });
+
       if (!res.ok) throw new Error(`Errore HTTP ${res.status}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Impossibile recuperare le notizie");
