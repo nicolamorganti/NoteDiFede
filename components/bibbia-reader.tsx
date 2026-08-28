@@ -48,10 +48,20 @@ export function BibbiaReader() {
   const [copied, setCopied] = useState<boolean>(false);
   const [selectedVerseNum, setSelectedVerseNum] = useState<number | null>(null);
 
+  interface BibleHistoryStep {
+    bookId: string;
+    chapter: number;
+    verseNum: number;
+    label: string;
+  }
+
   // Stato Audio & Passi Paralleli (Scrutatio)
   const [showAudioPlayer, setShowAudioPlayer] = useState<boolean>(false);
   const [activeCrossRefVerseNum, setActiveCrossRefVerseNum] = useState<number | null>(null);
   const [showFootnotes, setShowFootnotes] = useState<boolean>(true);
+  const [historyStack, setHistoryStack] = useState<BibleHistoryStep[]>([]);
+  const [targetScrollVerseNum, setTargetScrollVerseNum] = useState<number | null>(null);
+  const [highlightedVerseNum, setHighlightedVerseNum] = useState<number | null>(null);
 
   // Stato Lectio Divina con Gemini
   const [lectioLoading, setLectioLoading] = useState<boolean>(false);
@@ -67,8 +77,22 @@ export function BibbiaReader() {
 
   const currentBook = BIBLE_BOOKS.find((b) => b.id === selectedBookId) || BIBLE_BOOKS[0];
 
-  const handleNavigateToRef = (ref: BibleCrossRef) => {
+  const handleNavigateToRef = (ref: BibleCrossRef, originVerseNum: number) => {
     if (ref.bookCode && ref.chapter) {
+      const originLabel = `${currentBook.shortName || currentBook.name} ${chapter},${originVerseNum}`;
+      setHistoryStack((prev) => [
+        ...prev,
+        {
+          bookId: selectedBookId,
+          chapter,
+          verseNum: originVerseNum,
+          label: originLabel,
+        },
+      ]);
+
+      const targetVerse = ref.verseFrom || 1;
+      setTargetScrollVerseNum(targetVerse);
+
       setSelectedBookId(ref.bookCode);
       const targetBook = BIBLE_BOOKS.find((b) => b.id === ref.bookCode);
       if (targetBook) {
@@ -76,11 +100,24 @@ export function BibbiaReader() {
       }
       setChapter(ref.chapter);
       setActiveCrossRefVerseNum(null);
-      if (readerContainerRef.current) {
-        readerContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
     }
   };
+
+  const handleGoBackHistory = () => {
+    if (historyStack.length === 0) return;
+    const lastStep = historyStack[historyStack.length - 1];
+    setHistoryStack((prev) => prev.slice(0, -1));
+
+    setTargetScrollVerseNum(lastStep.verseNum);
+    setSelectedBookId(lastStep.bookId);
+    const targetBook = BIBLE_BOOKS.find((b) => b.id === lastStep.bookId);
+    if (targetBook) {
+      setTestamentFilter(targetBook.testament);
+    }
+    setChapter(lastStep.chapter);
+    setActiveCrossRefVerseNum(null);
+  };
+
 
 
   // Inizializza preferenze da localStorage
@@ -157,6 +194,28 @@ export function BibbiaReader() {
   useEffect(() => {
     fetchChapter(selectedBookId, chapter);
   }, [selectedBookId, chapter]);
+
+  // Scorrimento e centratura automatica del versetto target (da rimando o ritorno indietro)
+  useEffect(() => {
+    if (!targetScrollVerseNum || loading || !chapterData) return;
+
+    const target = targetScrollVerseNum;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`verse-${target}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setSelectedVerseNum(target);
+        setHighlightedVerseNum(target);
+        setTimeout(() => {
+          setHighlightedVerseNum((curr) => (curr === target ? null : curr));
+        }, 3500);
+      }
+      setTargetScrollVerseNum(null);
+    }, 220);
+
+    return () => clearTimeout(timer);
+  }, [chapterData, loading, targetScrollVerseNum]);
+
 
   // Gestione cambio libro
   const handleSelectBook = (book: BibleBook) => {
@@ -589,6 +648,34 @@ export function BibbiaReader() {
         </div>
       </div>
 
+      {/* Banner Cronologia Rimandi (Torna al passo precedente) */}
+      {historyStack.length > 0 && (
+        <div
+          className={`flex items-center justify-between gap-3 p-3 px-5 rounded-2xl border shadow-sm transition animate-in fade-in slide-in-from-top-2 ${
+            isChurchMode
+              ? "bg-[#292218] border-amber-500/40 text-amber-300"
+              : "bg-[#f8f0e3] border-[#decab5] text-[#5c4a37]"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={handleGoBackHistory}
+            className="inline-flex items-center gap-2 font-serif font-bold text-xs sm:text-sm hover:underline cursor-pointer group"
+          >
+            <span className="text-base group-hover:-translate-x-1 transition-transform">↩</span>
+            <span>Torna a {historyStack[historyStack.length - 1].label} (Passo d&apos;origine)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setHistoryStack([])}
+            className="text-[11px] font-sans opacity-70 hover:opacity-100 hover:text-rose-600 px-2 py-0.5 rounded cursor-pointer"
+            title="Chiudi cronologia rimandi"
+          >
+            ✕ Chiudi
+          </button>
+        </div>
+      )}
+
       {/* Area di Lettura dei Versetti */}
       <div
         ref={readerContainerRef}
@@ -651,12 +738,13 @@ export function BibbiaReader() {
                       color: isChurchMode ? "#fde047" : "#5c4a37",
                     }}
                   >
-                    <span>{showAudioPlayer ? "⏸️ Chiudi Player Audio" : "🎧 Ascolta la Lettura Proclamata"}</span>
+                    <span>🎧</span>
+                    <span>{showAudioPlayer ? "Nascondi Audio Proclamazione" : "Ascolta la Lettura Proclamata"}</span>
                   </button>
 
                   {showAudioPlayer && (
                     <div
-                      className="mt-3 max-w-md mx-auto p-4 rounded-3xl border shadow-md transition space-y-2 text-left animate-in fade-in duration-200"
+                      className="mt-3 p-3 rounded-2xl border shadow-inner max-w-md mx-auto animate-in fade-in duration-200"
                       style={{
                         backgroundColor: isChurchMode ? "#1f1b18" : "#fffdfa",
                         borderColor: isChurchMode ? "#443e38" : "#ebdcc8",
@@ -705,14 +793,20 @@ export function BibbiaReader() {
             <div className="space-y-3">
               {chapterData.verses.map((v) => {
                 const isSelected = selectedVerseNum === v.num;
+                const isHighlighted = highlightedVerseNum === v.num;
                 const isRefsOpen = activeCrossRefVerseNum === v.num;
                 const hasRefs = v.crossRefs && v.crossRefs.length > 0;
 
                 return (
                   <div
                     key={v.num}
-                    className={`transition-colors rounded-2xl p-2.5 sm:p-3 ${
-                      isSelected || isRefsOpen
+                    id={`verse-${v.num}`}
+                    className={`scroll-mt-32 transition-all duration-300 rounded-2xl p-2.5 sm:p-3 ${
+                      isHighlighted
+                        ? isChurchMode
+                          ? "bg-amber-950/40 ring-2 ring-amber-400 shadow-md scale-[1.01]"
+                          : "bg-amber-100 ring-2 ring-[#c49a45] shadow-md scale-[1.01]"
+                        : isSelected || isRefsOpen
                         ? isChurchMode
                           ? "bg-[#2d2824] ring-1 ring-amber-400/80"
                           : "bg-[#f5ecdd] ring-1 ring-[#aa9576]/80"
@@ -741,7 +835,7 @@ export function BibbiaReader() {
                             e.stopPropagation();
                             setActiveCrossRefVerseNum(isRefsOpen ? null : v.num);
                           }}
-                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 ml-2 text-[11px] font-sans font-semibold transition align-middle hover:scale-105 shadow-xs"
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 ml-2 text-[11px] font-sans font-semibold transition align-middle hover:scale-105 shadow-xs cursor-pointer"
                           style={{
                             backgroundColor: isChurchMode ? "#3d352f" : "#ebdcc8",
                             color: isChurchMode ? "#fde047" : "#5c4a37",
@@ -771,7 +865,7 @@ export function BibbiaReader() {
                           <button
                             type="button"
                             onClick={() => setActiveCrossRefVerseNum(null)}
-                            className="text-xs text-[#8a755d] hover:text-rose-600 px-2 py-0.5 rounded-md"
+                            className="text-xs text-[#8a755d] hover:text-rose-600 px-2 py-0.5 rounded-md cursor-pointer"
                           >
                             ✕ Chiudi
                           </button>
@@ -784,15 +878,15 @@ export function BibbiaReader() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleNavigateToRef(ref);
+                                handleNavigateToRef(ref, v.num);
                               }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-sans font-bold transition hover:scale-105 shadow-xs"
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-sans font-bold transition hover:scale-105 shadow-xs cursor-pointer"
                               style={{
                                 backgroundColor: isChurchMode ? "#3a2d24" : "#f2e6d5",
                                 color: isChurchMode ? "#fbbf24" : "#5c4a37",
                                 border: `1px solid ${isChurchMode ? "#584435" : "#decaba"}`,
                               }}
-                              title={ref.bookName ? `Vai a ${ref.bookName} ${ref.chapter}` : `Vedi ${ref.label}`}
+                              title={ref.bookName ? `Vai a ${ref.bookName} ${ref.chapter},${ref.verseFrom || ""}` : `Vedi ${ref.label}`}
                             >
                               <span>📖 {ref.label}</span>
                               {ref.bookName && (
