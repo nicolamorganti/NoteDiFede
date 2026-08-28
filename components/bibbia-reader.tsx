@@ -6,6 +6,8 @@ import { BIBLE_BOOKS, BibleBook } from "@/lib/bibbia-books";
 import { BibleApiResponse, BibleVerse, BibleCrossRef, BibleFootnote } from "@/app/api/bibbia/route";
 import { QuoteImageModal } from "@/components/quote-image-modal";
 import { useTextSelectionQuote } from "@/lib/use-text-selection-quote";
+import { getPsalmMapping, findHebrewPsalmsFromLiturgicalQuery } from "@/lib/psalms-liturgical-mapping";
+
 
 
 
@@ -404,12 +406,15 @@ export function BibbiaReader() {
     }
   };
 
-  // Libri filtrati
+  // Libri filtrati con supporto ricerca Salmi sia per nome che per numero (ebraico e liturgico)
   const filteredBooks = BIBLE_BOOKS.filter((b) => {
     if (testamentFilter === "nt" && b.testament !== "nt") return false;
     if (testamentFilter === "at" && b.testament !== "at") return false;
     if (searchFilter.trim()) {
-      const q = searchFilter.toLowerCase();
+      const q = searchFilter.toLowerCase().trim();
+      const numMatch = q.match(/\d+/);
+      const isPsalmQuery = q.includes("salm") || (b.id === "salmi" && !!numMatch);
+      if (b.id === "salmi" && isPsalmQuery) return true;
       return (
         b.name.toLowerCase().includes(q) ||
         b.shortName.toLowerCase().includes(q) ||
@@ -418,6 +423,7 @@ export function BibbiaReader() {
     }
     return true;
   });
+
 
   const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
   const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
@@ -510,6 +516,56 @@ export function BibbiaReader() {
           </div>
         </div>
 
+        {/* Suggerimento ricerca rapida Salmo (Liturgico / Ebraico) */}
+        {(() => {
+          if (!searchFilter.trim()) return null;
+          const numMatch = searchFilter.match(/\d+/);
+          if (!numMatch) return null;
+          const num = parseInt(numMatch[0], 10);
+          if (num < 1 || num > 150) return null;
+          const hebrewFromLit = findHebrewPsalmsFromLiturgicalQuery(num);
+          const hebMapping = getPsalmMapping(num);
+          return (
+            <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-2xl bg-[#fbf6ee] border border-[#ebdcc8] text-xs text-[#5c4a37] animate-in fade-in duration-150">
+              <span className="text-base">💡</span>
+              <span className="font-semibold">
+                Risultati Salmi per &ldquo;{num}&rdquo;:
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBookId("salmi");
+                  setChapter(num);
+                  setSearchFilter("");
+                }}
+                className="px-2.5 py-1 rounded-xl bg-[#ede3d5] hover:bg-[#decbb8] text-[#5c4a37] font-bold transition shadow-2xs"
+              >
+                Salmo {num} CEI {hebMapping.hasDifferentNumber ? `(${hebMapping.liturgicalNum} liturgico)` : ""}
+              </button>
+              {hebrewFromLit.length > 0 && hebrewFromLit[0] !== num && (
+                <>
+                  <span className="text-[#8a755d]">oppure:</span>
+                  {hebrewFromLit.map((hNum) => (
+                    <button
+                      key={hNum}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBookId("salmi");
+                        setChapter(hNum);
+                        setSearchFilter("");
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-[#5c4a37] text-white hover:bg-[#4a3a2a] font-bold transition shadow-xs"
+                    >
+                      Salmo {hNum} CEI (Salmo {num} Liturgico) ↗
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          );
+        })()}
+
+
         {/* Griglia Selezione Libri */}
         <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1 py-1">
           {filteredBooks.map((b) => {
@@ -532,29 +588,60 @@ export function BibbiaReader() {
 
         {/* Selettore Capitoli a Griglia */}
         <div className="border-t border-[#ebdcc8] pt-4 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-bold text-[#5c4a37]">
-              Capitoli di {currentBook.name} ({currentBook.chaptersCount}):
+              {currentBook.id === "salmi"
+                ? "I 150 Salmi (tra parentesi il corrispondente Liturgico / Volgata):"
+                : `Capitoli di ${currentBook.name} (${currentBook.chaptersCount}):`}
             </span>
             <span className="text-xs text-[#8a755d]">
-              Capitolo selezionato: <b>{chapter}</b>
+              Capitolo selezionato:{" "}
+              <b>
+                {currentBook.id === "salmi"
+                  ? `Salmo ${getPsalmMapping(chapter).displayNumber}`
+                  : chapter}
+              </b>
+              {currentBook.id === "salmi" && getPsalmMapping(chapter).hasDifferentNumber && (
+                <span className="ml-1 text-[11px] font-normal text-[#9c866f]">
+                  (Salmo {getPsalmMapping(chapter).liturgicalNum} nella Liturgia)
+                </span>
+              )}
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-1 py-1">
+          <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto pr-1 py-1">
             {Array.from({ length: currentBook.chaptersCount }, (_, i) => i + 1).map((c) => {
               const isSelected = c === chapter;
+              const pMapping = currentBook.id === "salmi" ? getPsalmMapping(c) : null;
               return (
                 <button
                   key={c}
                   onClick={() => setChapter(c)}
-                  className={`h-8 w-8 rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                  title={
+                    pMapping
+                      ? `Salmo ${c} (Bibbia CEI) = Salmo ${pMapping.liturgicalNum} (Liturgia Romana/Ambrosiana e Volgata)`
+                      : `Capitolo ${c}`
+                  }
+                  className={`rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                    currentBook.id === "salmi" && pMapping?.hasDifferentNumber
+                      ? "min-w-[2.85rem] h-8 px-1 gap-0.5"
+                      : "h-8 w-8"
+                  } ${
                     isSelected
                       ? "bg-[#aa9576] text-white shadow-md scale-105"
                       : "bg-[#f8f4ec] text-[#6b5d4e] hover:bg-[#ebdcc8] border border-[#e0d3c3]"
                   }`}
                 >
-                  {c}
+                  <span>{c}</span>
+                  {pMapping && pMapping.hasDifferentNumber && (
+                    <span
+                      className={`text-[9.5px] font-sans font-medium leading-none ${
+                        isSelected ? "text-amber-100 font-semibold" : "text-[#9d8975]"
+                      }`}
+                    >
+                      {pMapping.shortBadge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -578,7 +665,9 @@ export function BibbiaReader() {
           </button>
 
           <span className="text-xs font-bold text-[#5c4a37] px-2 font-serif">
-            {currentBook.shortName} {chapter}
+            {currentBook.id === "salmi"
+              ? `Salmo ${getPsalmMapping(chapter).displayNumber}`
+              : `${currentBook.shortName} ${chapter}`}
           </span>
 
           <button
@@ -592,6 +681,7 @@ export function BibbiaReader() {
             </svg>
           </button>
         </div>
+
 
         {/* Strumenti Tipografici */}
         <div className="flex flex-wrap items-center gap-2">
@@ -731,11 +821,40 @@ export function BibbiaReader() {
                 {chapterData.category} · CEI 2008
               </span>
               <h1 className="text-2xl sm:text-3xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
-                {chapterData.bookName}
+                {chapterData.bookId === "salmi"
+                  ? `Salmo ${chapterData.chapter}`
+                  : chapterData.bookName}
               </h1>
               <p className="text-base font-sans font-semibold text-[#8a755d]">
-                Capitolo {chapterData.chapter}
+                {chapterData.bookId === "salmi" ? (
+                  <span>
+                    Capitolo {chapterData.chapter}
+                    {getPsalmMapping(chapterData.chapter).hasDifferentNumber && (
+                      <span className="ml-1.5 font-normal text-sm text-[#9c866f]">
+                        (Salmo <b>{getPsalmMapping(chapterData.chapter).liturgicalNum}</b> nella Liturgia / Volgata)
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  `Capitolo ${chapterData.chapter}`
+                )}
               </p>
+
+              {/* Box Informativo Comparazione Liturgica Salmo */}
+              {chapterData.bookId === "salmi" && getPsalmMapping(chapterData.chapter).hasDifferentNumber && (
+                <div
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-sans border transition max-w-xl mx-auto text-left"
+                  style={{
+                    backgroundColor: isChurchMode ? "#241f1b" : "#f7f1e6",
+                    borderColor: isChurchMode ? "#3d352e" : "#e4d6c4",
+                    color: isChurchMode ? "#fcd34d" : "#7c644c",
+                  }}
+                >
+                  <span className="text-sm">ℹ️</span>
+                  <span>{getPsalmMapping(chapterData.chapter).liturgicalExplanation}</span>
+                </div>
+              )}
+
 
               {/* Player Audio Proclamazione (Minimale e Sobrio in stile Note di Fede) */}
               {(chapterData.audioStreamUrl || chapterData.audioEmbedUrl) && (
@@ -1279,9 +1398,18 @@ export function BibbiaReader() {
         isOpen={quoteModalOpen}
         onClose={() => setQuoteModalOpen(false)}
         initialText={selectedQuoteText}
-        defaultCitation={`${currentBook.name} ${chapter}`}
-        liturgicalTitle={currentBook.name}
+        defaultCitation={
+          currentBook.id === "salmi"
+            ? `Salmo ${getPsalmMapping(chapter).displayNumber} · Bibbia CEI`
+            : `${currentBook.name} ${chapter}`
+        }
+        liturgicalTitle={
+          currentBook.id === "salmi"
+            ? `Salmo ${getPsalmMapping(chapter).displayNumber}`
+            : currentBook.name
+        }
       />
+
     </div>
   );
 }
