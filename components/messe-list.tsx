@@ -288,13 +288,19 @@ export function MesseList({ initialMasses }: MesseListProps) {
       {/* Intestazione */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-serif text-3xl font-normal text-[#3f3933]">
-            Celebrazioni e Messe
-          </h2>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 className="font-serif text-3xl font-normal text-[#3f3933]">
+              Celebrazioni e Messe
+            </h2>
+            <span className="rounded-full bg-[#ebdcc8] border border-[#d9c5ac] px-2.5 py-0.5 text-xs font-semibold text-[#5c4a37]">
+              Rito Ambrosiano
+            </span>
+          </div>
           <p className="mt-1 text-sm text-[#736555]">
-            Prepara le celebrazioni liturgiche, componi la scaletta dei canti e genera i foglietti per il coro.
+            Prepara le celebrazioni liturgiche (Rito Ambrosiano), componi la scaletta dei canti e genera i foglietti per il coro e l&apos;assemblea.
           </p>
         </div>
+
 
         {isAdmin && (
           <div className="flex flex-wrap gap-3">

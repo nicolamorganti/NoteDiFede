@@ -29,19 +29,35 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
   // Costruisce la navigazione dinamica
   const navigation = [
-    { href: "/canti", label: "Catalogo Canti", badge: "Attivo" },
-    { href: "/messe", label: "Messe & Celebrazioni", badge: "Attivo" },
-    { href: "/liturgia", label: "Preghiera & Liturgia", badge: "Preghiera" },
+    {
+      href: "/canti",
+      label: "Catalogo Canti",
+      subtitle: "Repertorio generale",
+      badge: "Attivo",
+    },
+    {
+      href: "/messe",
+      label: "Messe & Celebrazioni",
+      subtitle: "Rito Ambrosiano",
+      badge: "Ambrosiano",
+    },
+    {
+      href: "/liturgia",
+      label: "Preghiera & Liturgia",
+      subtitle: "Ambrosiano & Romano",
+      badge: "Preghiera",
+    },
   ];
-
-
-
 
   // Mostra il link Impostazioni solo se è Maestro o Responsabile
   if (role === "maestro" || role === "responsabile") {
-    navigation.push({ href: "/impostazioni", label: "Impostazioni", badge: "Gestisci" });
+    navigation.push({
+      href: "/impostazioni",
+      label: "Impostazioni",
+      subtitle: "Gestione coro e permessi",
+      badge: "Gestisci",
+    });
   }
-
 
   return (
     <div className="min-h-screen bg-[#f6f1ea] text-[#3e3933]">
@@ -77,8 +93,6 @@ function AppShellInner({ children }: { children: ReactNode }) {
               </p>
             </div>
 
-
-
             <nav className="grid gap-2">
               {navigation.map((item) => {
                 const isActive =
@@ -86,28 +100,36 @@ function AppShellInner({ children }: { children: ReactNode }) {
                   pathname.startsWith(item.href + "/") ||
                   (item.href === "/liturgia" && pathname.startsWith("/preghiera"));
 
-
-
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                    className={`flex items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-medium transition ${
                       isActive
                         ? "border-[#aa9576] bg-[#f2e7d5] text-[#4a3e30]"
                         : "border-[#d7c7b5] bg-[#f7f0e6] text-[#453e37] hover:bg-[#f2e8da]"
                     }`}
                   >
-                    <span>{item.label}</span>
-                    <span className={`rounded-full px-2 py-1 text-[11px] uppercase tracking-[0.18em] ${
-                      isActive ? "bg-[#aa9576] text-white" : "bg-[#d9cab6] text-[#4e443a]"
-                    }`}>
+                    <div>
+                      <p className="font-semibold leading-tight">{item.label}</p>
+                      {item.subtitle && (
+                        <p className={`text-[11px] font-sans ${isActive ? "text-[#8a755d]" : "text-[#887865]"}`}>
+                          {item.subtitle}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] font-bold ${
+                        isActive ? "bg-[#aa9576] text-white" : "bg-[#d9cab6] text-[#4e443a]"
+                      }`}
+                    >
                       {item.badge}
                     </span>
                   </Link>
                 );
               })}
             </nav>
+
           </div>
 
           {/* Profilo utente in fondo alla sidebar */}
