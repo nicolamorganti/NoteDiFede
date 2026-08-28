@@ -92,11 +92,15 @@ export default function CreditiPage() {
                 Ideazione e sviluppo dell’architettura software, digitalizzazione del repertorio canti,
                 gestione delle partiture, trasposizione automatica degli accordi, audio guide corali per registri vocali e sintesi vocale liturgica.
               </p>
+              <p className="text-xs text-[#786653] italic leading-relaxed pt-1">
+                Realizzato con il supporto alle fonti dei testi del <strong>Coro della Beata Vergine del Rosario di Mombretto di Mediglia</strong> e con un ringraziamento particolare ad <strong>Alessandro Bellotto</strong>.
+              </p>
             </div>
             <div className="pt-3 border-t border-[#f3ebd8] text-xs text-[#786653] flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#8a755d]" />
               <span>Animazione musicale & Informatica liturgica</span>
             </div>
+
           </div>
 
           {/* Curatore Liturgico & Teologico: Dario Cantoro */}
