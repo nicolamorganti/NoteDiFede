@@ -638,8 +638,8 @@ export function BibbiaReader() {
                 Capitolo {chapterData.chapter}
               </p>
 
-              {/* Player Audio Proclamazione (da Scrutatio / Gloria.tv) */}
-              {chapterData.audioEmbedUrl && (
+              {/* Player Audio Proclamazione (Minimale e Sobrio in stile Note di Fede) */}
+              {(chapterData.audioStreamUrl || chapterData.audioEmbedUrl) && (
                 <div className="pt-2">
                   <button
                     type="button"
@@ -656,26 +656,49 @@ export function BibbiaReader() {
 
                   {showAudioPlayer && (
                     <div
-                      className="mt-3 max-w-md mx-auto overflow-hidden rounded-2xl border shadow-md p-1 transition"
+                      className="mt-3 max-w-md mx-auto p-4 rounded-3xl border shadow-md transition space-y-2 text-left animate-in fade-in duration-200"
                       style={{
-                        backgroundColor: isChurchMode ? "#1e1a17" : "#fffdfa",
+                        backgroundColor: isChurchMode ? "#1f1b18" : "#fffdfa",
                         borderColor: isChurchMode ? "#443e38" : "#ebdcc8",
                       }}
                     >
-                      <iframe
-                        src={chapterData.audioEmbedUrl}
-                        width="100%"
-                        height="64"
-                        frameBorder="0"
-                        scrolling="no"
-                        allow="autoplay; encrypted-media"
-                        title={`Audio ${chapterData.bookName} ${chapterData.chapter}`}
-                        className="block w-full rounded-xl"
-                      />
+                      <div className="flex items-center justify-between gap-2 px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🎧</span>
+                          <span className="text-xs font-serif font-bold" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
+                            {chapterData.bookName} {chapterData.chapter}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[#aa9576]">
+                          Audio Ufficiale
+                        </span>
+                      </div>
+
+                      {chapterData.audioStreamUrl ? (
+                        <audio
+                          controls
+                          controlsList="nodownload"
+                          preload="metadata"
+                          src={chapterData.audioStreamUrl}
+                          className="w-full h-10 rounded-xl mt-1"
+                        />
+                      ) : (
+                        <iframe
+                          src={chapterData.audioEmbedUrl!}
+                          width="100%"
+                          height="64"
+                          frameBorder="0"
+                          scrolling="no"
+                          allow="autoplay; encrypted-media"
+                          title={`Audio ${chapterData.bookName} ${chapterData.chapter}`}
+                          className="block w-full rounded-xl"
+                        />
+                      )}
                     </div>
                   )}
                 </div>
               )}
+
             </div>
 
             {/* Versetti con Passi Paralleli */}

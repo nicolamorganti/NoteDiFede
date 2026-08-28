@@ -34,6 +34,7 @@ export interface BibleApiResponse {
   category: string;
   version: "CEI 2008";
   totalChapters: number;
+  audioStreamUrl?: string | null;
   audioEmbedUrl?: string | null;
   verses: BibleVerse[];
   footnotes?: BibleFootnote[];
@@ -67,7 +68,7 @@ function cleanVerseText(raw: string): string {
 }
 
 /**
- * Recupera il capitolo da Scrutatio.it con versetti, link incrociati, audio embed e note in calce
+ * Recupera il capitolo da Scrutatio.it con versetti, link incrociati, audio stream pulito e note in calce
  */
 async function fetchFromScrutatio(book: BibleBook, chapter: number): Promise<BibleApiResponse> {
   const bookIndex = BIBLE_BOOKS.findIndex((b) => b.id === book.id);
@@ -76,7 +77,7 @@ async function fetchFromScrutatio(book: BibleBook, chapter: number): Promise<Bib
   const url = `https://www.scrutatio.it/bibbia/lettura/it/cei2008/${bookNumber}/${chapter}`;
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.10",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.11",
       Accept: "text/html,application/xhtml+xml",
     },
     next: { revalidate: 86400 }, // Cache 24 ore
@@ -88,9 +89,31 @@ async function fetchFromScrutatio(book: BibleBook, chapter: number): Promise<Bib
 
   const html = await res.text();
 
-  // 1. Estrazione Audio Embed
+  // 1. Estrazione Audio Embed e Flusso Audio Diretto (per Player Minimale Pulito)
   const iframeMatch = html.match(/<iframe[^>]*src="([^"]+)"[^>]*>/i);
   const audioEmbedUrl = iframeMatch ? iframeMatch[1] : null;
+  let audioStreamUrl: string | null = null;
+
+  if (audioEmbedUrl) {
+    try {
+      const eRes = await fetch(audioEmbedUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        next: { revalidate: 86400 },
+      });
+      if (eRes.ok) {
+        const eHtml = await eRes.text();
+        const srcMatch =
+          eHtml.match(/<source[^>]*type=["']audio\/mp4[^"']*["'][^>]*src=["']([^"']+)["']/i) ||
+          eHtml.match(/<source[^>]*src=["']([^"']+)["'][^>]*type=["']audio/i) ||
+          eHtml.match(/<source[^>]*src=["']([^"']+)["']/i);
+        if (srcMatch) {
+          audioStreamUrl = srcMatch[1].replace(/&amp;/g, "&");
+        }
+      }
+    } catch (e) {
+      console.warn("Impossibile estrarre direct audio stream:", e);
+    }
+  }
 
   // 2. Estrazione Versetti e Passi Paralleli (Cross References)
   const verseRegex = /<span[^>]*class="versetto"[^>]*>([\s\S]*?)<\/span>/gi;
@@ -175,6 +198,7 @@ async function fetchFromScrutatio(book: BibleBook, chapter: number): Promise<Bib
     category: book.category,
     version: "CEI 2008",
     totalChapters: book.chaptersCount,
+    audioStreamUrl,
     audioEmbedUrl,
     verses,
     footnotes: footnotes.length > 0 ? footnotes : undefined,
@@ -188,7 +212,7 @@ async function fetchFromBibbiaEdu(book: BibleBook, chapter: number): Promise<Bib
   const url = `https://www.bibbiaedu.it/CEI2008/${book.testament}/${book.id}/${chapter}/`;
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.10",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.11",
       Accept: "text/html,application/xhtml+xml",
     },
     next: { revalidate: 86400 },
@@ -234,6 +258,7 @@ async function fetchFromBibbiaEdu(book: BibleBook, chapter: number): Promise<Bib
     category: book.category,
     version: "CEI 2008",
     totalChapters: book.chaptersCount,
+    audioStreamUrl: null,
     audioEmbedUrl: null,
     verses,
   };
@@ -255,7 +280,6 @@ export async function GET(request: NextRequest) {
   const chapter = Math.max(1, Math.min(book.chaptersCount, isNaN(chapterParam) ? 1 : chapterParam));
 
   try {
-    // 1. Prova prima Scrutatio (ricco di passi paralleli, audio e note in calce)
     try {
       const scrutatioData = await fetchFromScrutatio(book, chapter);
       return NextResponse.json(scrutatioData, {
