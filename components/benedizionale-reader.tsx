@@ -26,8 +26,8 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
     category: "Norme Liturgiche",
     icon: "📑",
     startPage: 1,
-    endPage: 38,
-    pageRangeLabel: "Pagine 1 - 38",
+    endPage: 40,
+    pageRangeLabel: "Pagine 1 - 40",
     highlights: [
       "Natura e significato delle benedizioni ecclesiali",
       "Uffici e ministeri (Vescovo, Presbitero, Diacono, Ministri laici e Genitori)",
@@ -43,9 +43,10 @@ const BENEDIZIONALE_SECTIONS: BenedizioneSection[] = [
       "Formulari per la santificazione della vita umana: famiglie e case, sposi negli anniversari di matrimonio, fidanzati, gestanti, bambini e fanciulli, anziani, infermi, missionari, catechisti e volontari della carità.",
     category: "Persone & Famiglia",
     icon: "👨‍👩‍👧‍👦",
-    startPage: 39,
+    startPage: 41,
     endPage: 364,
-    pageRangeLabel: "Pagine 39 - 364",
+    pageRangeLabel: "Pagine 41 - 364",
+
     highlights: [
       "Benedizione della famiglia e della mensa quotidiana",
       "Fidanzati e anniversari di Matrimonio (25°, 50°, 60°)",
