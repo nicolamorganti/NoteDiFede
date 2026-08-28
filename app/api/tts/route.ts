@@ -1,34 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { Communicate } from "edge-tts-universal";
 
 export const dynamic = "force-dynamic";
 
-// Audio-Cache in memoria (per servire all'istante lo stesso audio a tutta la comunità)
+// Audio-Cache in memoria (per servire all'istante lo stesso audio a tutta la comunità a costo e tempo zero)
 const audioCache: Record<string, { audioBase64: string; timestamp: number }> = {};
 const CACHE_TTL = 1000 * 60 * 60 * 48; // 48 ore
 
-// Monitoraggio mensile dei crediti gratuiti (soglia di sicurezza: 950.000 caratteri rispetto al milione gratuito di Google)
-const MONTHLY_FREE_CHAR_LIMIT = 950000;
-let monthlyCharsUsed = 0;
-let currentMonth = new Date().getMonth();
-
-function resetMonthlyQuotaIfNewMonth() {
-  const nowMonth = new Date().getMonth();
-  if (nowMonth !== currentMonth) {
-    currentMonth = nowMonth;
-    monthlyCharsUsed = 0;
-  }
-}
-
-// Mappatura voci neurali realistiche per lingua
-const VOICE_MAP: Record<string, { languageCode: string; name: string; ssmlGender: string }> = {
-  it: { languageCode: "it-IT", name: "it-IT-Neural2-C", ssmlGender: "MALE" },
-  la: { languageCode: "it-IT", name: "it-IT-Neural2-C", ssmlGender: "MALE" }, // Pronuncia latina ecclesiastica perfetta
-  en: { languageCode: "en-US", name: "en-US-Neural2-D", ssmlGender: "MALE" },
-  es: { languageCode: "es-ES", name: "es-ES-Neural2-B", ssmlGender: "MALE" },
-  fr: { languageCode: "fr-FR", name: "fr-FR-Neural2-B", ssmlGender: "MALE" },
-  pt: { languageCode: "pt-PT", name: "pt-PT-Neural2-B", ssmlGender: "MALE" },
-  ro: { languageCode: "ro-RO", name: "ro-RO-Wavenet-A", ssmlGender: "FEMALE" },
+// Mappatura voci neurali realistiche Microsoft Azure per lingua
+const VOICE_MAP: Record<string, { voice: string; rate?: string; pitch?: string }> = {
+  it: { voice: "it-IT-DiegoNeural", rate: "-4%" }, // Voce maschile calda e solenne, ideale per la liturgia
+  la: { voice: "it-IT-DiegoNeural", rate: "-6%" }, // Pronuncia latina ecclesiastica romana perfetta
+  en: { voice: "en-US-BrianNeural", rate: "-3%" },
+  es: { voice: "es-ES-AlvaroNeural", rate: "-3%" },
+  fr: { voice: "fr-FR-HenriNeural", rate: "-3%" },
+  pt: { voice: "pt-PT-DuarteNeural", rate: "-3%" },
+  ro: { voice: "ro-RO-EmilNeural", rate: "-3%" },
 };
 
 export async function POST(request: NextRequest) {
@@ -46,91 +34,55 @@ export async function POST(request: NextRequest) {
     // Genera Hash univoco del testo per l'Audio-Cache
     const hashKey = crypto
       .createHash("sha256")
-      .update(`${cleanText}_${voiceConfig.name}`)
+      .update(`${cleanText}_${voiceConfig.voice}_${voiceConfig.rate}`)
       .digest("hex");
 
-    // 1. Controlla se è già presente in Cache
+    // 1. Controlla se è già presente in Cache Condivisa
     const cached = audioCache[hashKey];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return NextResponse.json({
         success: true,
         source: "cache",
+        voice: voiceConfig.voice,
         audioBase64: cached.audioBase64,
       });
     }
 
-    // 2. Controlla crediti gratuiti mensili
-    resetMonthlyQuotaIfNewMonth();
-    if (monthlyCharsUsed + cleanText.length > MONTHLY_FREE_CHAR_LIMIT) {
-      console.warn("Limite crediti gratuiti mensili raggiunto, fallback su voce del dispositivo.");
-      return NextResponse.json({
-        fallback: true,
-        reason: "quota_exceeded",
-        message: "Soglia mensile gratuita raggiunta. Utilizzo voce del dispositivo.",
-      });
-    }
-
-    // 3. Verifica Chiave API (Google TTS o Gemini)
-    const apiKey =
-      process.env.GOOGLE_TTS_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json({
-        fallback: true,
-        reason: "no_api_key",
-        message: "Nessuna API Key Google TTS configurata. Utilizzo voce del dispositivo.",
-      });
-    }
-
-    // 4. Chiamata a Google Cloud Text-to-Speech API
-    const googleTtsUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-    const payload = {
-      input: { text: cleanText },
-      voice: voiceConfig,
-      audioConfig: {
-        audioEncoding: "MP3",
-        speakingRate: 0.95,
-        pitch: -1.0,
-      },
-    };
-
-    const res = await fetch(googleTtsUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    // 2. Sintetizza con Voci Neurali HD di Microsoft Edge / Azure (Qualità Studio, zero costi)
+    const communicate = new Communicate(cleanText, {
+      voice: voiceConfig.voice,
+      rate: voiceConfig.rate || "-4%",
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.warn("Google TTS API non disponibile o quota esaurita:", err);
-      return NextResponse.json({
-        fallback: true,
-        reason: "api_error",
-        message: "Fallback su voce del dispositivo.",
-      });
+    const chunks: Buffer[] = [];
+    for await (const chunk of communicate.stream()) {
+      if (chunk.type === "audio" && chunk.data) {
+        chunks.push(chunk.data);
+      }
     }
 
-    const data = await res.json();
-    if (!data.audioContent) {
+    if (chunks.length === 0) {
+      console.warn("Nessun chunk audio ricevuto da EdgeTTS, fallback su dispositivo.");
       return NextResponse.json({ fallback: true });
     }
 
-    // 5. Salva in Audio-Cache e aggiorna il contatore dei caratteri
-    monthlyCharsUsed += cleanText.length;
+    const fullAudioBuffer = Buffer.concat(chunks);
+    const audioBase64 = fullAudioBuffer.toString("base64");
+
+    // 3. Salva in Audio-Cache
     audioCache[hashKey] = {
-      audioBase64: data.audioContent,
+      audioBase64,
       timestamp: Date.now(),
     };
 
     return NextResponse.json({
       success: true,
-      source: "google_neural",
-      audioBase64: data.audioContent,
+      source: "neural_hd",
+      voice: voiceConfig.voice,
+      audioBase64,
     });
   } catch (error: any) {
-    console.error("Errore /api/tts:", error);
+    console.error("Errore sintesi vocale neurale in /api/tts:", error);
     return NextResponse.json({ fallback: true, error: error?.message });
   }
 }
