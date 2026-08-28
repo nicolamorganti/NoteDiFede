@@ -14,7 +14,93 @@ interface QuoteImageModalProps {
 }
 
 type AspectRatio = "banner" | "story" | "square";
-type ThemeId = "dark" | "parchment" | "liturgical";
+type ThemeId = "dark" | "parchment" | "porpora" | "liturgical_dynamic";
+
+interface LiturgicalColorDetails {
+  colorName: string;
+  icon: string;
+  bgColor: string;
+  textColor: string;
+  citationColor: string;
+}
+
+function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): LiturgicalColorDetails {
+  const combined = `${liturgicalTitle || ""} ${text || ""}`.toLowerCase();
+
+  // Rosso: Martiri, Pentecoste, Passione, Croce, Precursore
+  if (
+    combined.includes("martir") ||
+    combined.includes("pentecoste") ||
+    combined.includes("passione") ||
+    combined.includes("palme") ||
+    combined.includes("croce") ||
+    combined.includes("precursore") ||
+    combined.includes("apostol")
+  ) {
+    return {
+      colorName: "Rosso",
+      icon: "🔴",
+      bgColor: "#2a1014",
+      textColor: "#fef08a",
+      citationColor: "#fecaca",
+    };
+  }
+
+  // Viola: Avvento, Quaresima, Defunti, Ceneri
+  if (
+    combined.includes("avvento") ||
+    combined.includes("quaresima") ||
+    combined.includes("ceneri") ||
+    combined.includes("defunt") ||
+    combined.includes("penitenz")
+  ) {
+    return {
+      colorName: "Viola",
+      icon: "🟣",
+      bgColor: "#221128",
+      textColor: "#fde047",
+      citationColor: "#e9d5ff",
+    };
+  }
+
+  // Bianco / Oro: Solennità, Pasqua, Natale, Vergine Maria, Santi (es. Agostino, Tommaso, Dottori, Pastori)
+  if (
+    combined.includes("pasqua") ||
+    combined.includes("natal") ||
+    combined.includes("epifania") ||
+    combined.includes("battesimo") ||
+    combined.includes("assunzion") ||
+    combined.includes("immacolata") ||
+    combined.includes("tutti i santi") ||
+    combined.includes("trinit") ||
+    combined.includes("sacro cuore") ||
+    combined.includes("agostino") ||
+    combined.includes("vergine") ||
+    combined.includes("maria") ||
+    combined.includes("dottore") ||
+    combined.includes("confessore") ||
+    combined.includes("abate") ||
+    combined.includes("vescovo") ||
+    combined.includes("papa")
+  ) {
+    return {
+      colorName: "Bianco",
+      icon: "⚪",
+      bgColor: "#1f1d1a",
+      textColor: "#facc15",
+      citationColor: "#f5ebe0",
+    };
+  }
+
+  // Verde: Tempo Ordinario / Per Annum predefinito
+  return {
+    colorName: "Verde",
+    icon: "🟢",
+    bgColor: "#0f2316",
+    textColor: "#fef08a",
+    citationColor: "#dcfce7",
+  };
+}
 
 export function QuoteImageModal({
   isOpen,
@@ -36,6 +122,9 @@ export function QuoteImageModal({
   const [shareSuccess, setShareSuccess] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Calcola dettagli del colore liturgico dinamico
+  const dynamicColor = resolveLiturgicalColor(liturgicalTitle, text || initialText);
 
   // Calcola la citazione canonica automatica al caricamento
   useEffect(() => {
@@ -104,10 +193,15 @@ export function QuoteImageModal({
       textColor = "#2c241c";
       citationColor = "#6e5a45";
       isSerif = true;
-    } else if (theme === "liturgical") {
+    } else if (theme === "porpora") {
       bgColor = "#281b22";
       textColor = "#fde047";
       citationColor = "#e5e7eb";
+      isSerif = true;
+    } else if (theme === "liturgical_dynamic") {
+      bgColor = dynamicColor.bgColor;
+      textColor = dynamicColor.textColor;
+      citationColor = dynamicColor.citationColor;
       isSerif = true;
     }
 
@@ -128,10 +222,16 @@ export function QuoteImageModal({
       ctx.lineWidth = width * 0.015;
       ctx.strokeRect(width * 0.025, height * 0.025, width * 0.95, height * 0.95);
     } else if (theme === "dark") {
-      // Effetto vignetta molto sottile
       const grad = ctx.createRadialGradient(width / 2, height / 2, width * 0.2, width / 2, height / 2, width * 0.7);
       grad.addColorStop(0, "#252525");
       grad.addColorStop(1, "#181818");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+    } else {
+      // Sfumatura radiale sottile per i temi colorati
+      const grad = ctx.createRadialGradient(width / 2, height / 2, width * 0.15, width / 2, height / 2, width * 0.75);
+      grad.addColorStop(0, "rgba(255, 255, 255, 0.04)");
+      grad.addColorStop(1, "rgba(0, 0, 0, 0.25)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
     }
@@ -194,7 +294,6 @@ export function QuoteImageModal({
       startY = height * 0.35 - totalTextHeight / 2;
     }
 
-    // Se il contenuto è alto, parte più in alto
     if (startY < height * 0.08) {
       startY = height * 0.08;
     }
@@ -209,7 +308,6 @@ export function QuoteImageModal({
     ctx.fillStyle = citationColor;
 
     let citationY = startY + totalTextHeight + Math.max(24, fontSize * 0.75);
-    // Controllo anti-taglio: non superare mai il margine inferiore di sicurezza
     if (citationY + citationFontSize > height - bottomSafetyMargin) {
       citationY = height - bottomSafetyMargin - citationFontSize;
     }
@@ -223,7 +321,7 @@ export function QuoteImageModal({
     } catch (e) {
       console.error("Errore generazione anteprima canvas:", e);
     }
-  }, [isOpen, text, citation, aspectRatio, theme, textSizeDelta, citationSizeDelta]);
+  }, [isOpen, text, citation, aspectRatio, theme, textSizeDelta, citationSizeDelta, dynamicColor]);
 
   if (!isOpen) return null;
 
@@ -377,29 +475,30 @@ export function QuoteImageModal({
               </div>
             </div>
 
-            {/* Tema */}
+            {/* Tema (4 opzioni: Notturno, Avorio, Porpora, Dinamico) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-[#8a755d] uppercase tracking-wider">
                 Stile & Colore
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {[
                   { id: "dark", label: "🌙 Notturno", desc: "Minimale" },
                   { id: "parchment", label: "📜 Avorio", desc: "Pergamena" },
-                  { id: "liturgical", label: "✝️ Liturgico", desc: "Elegante" },
+                  { id: "porpora", label: "👑 Oro & Porpora", desc: "Solenne" },
+                  { id: "liturgical_dynamic", label: `✝️ ${dynamicColor.icon} ${dynamicColor.colorName}`, desc: "Tempo del Giorno" },
                 ].map((th) => (
                   <button
                     key={th.id}
                     type="button"
                     onClick={() => setTheme(th.id as ThemeId)}
-                    className={`px-2 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex flex-col items-center ${
+                    className={`px-2 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex flex-col items-center text-center ${
                       theme === th.id
                         ? "bg-[#2c241c] text-white border-[#2c241c] shadow-xs"
                         : "bg-white text-[#5c4e3f] border-[#d8c5ad] hover:bg-[#f7f2ea]"
                     }`}
                   >
-                    <span>{th.label}</span>
-                    <span className="text-[10px] opacity-70">{th.desc}</span>
+                    <span className="truncate w-full">{th.label}</span>
+                    <span className="text-[10px] opacity-70 truncate w-full">{th.desc}</span>
                   </button>
                 ))}
               </div>
