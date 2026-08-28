@@ -50,7 +50,7 @@ function formatRelativeTime(isoDateStr: string): string {
 }
 
 export function NotizieView() {
-  const [news, setNews] = useState<NewsItem[]>([]);
+  const [allNews, setAllNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("all");
@@ -67,7 +67,7 @@ export function NotizieView() {
       if (!res.ok) throw new Error(`Errore HTTP ${res.status}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Impossibile recuperare le notizie");
-      setNews(data.news || []);
+      setAllNews(data.news || []);
     } catch (err: any) {
       console.error("Errore fetch notizie:", err);
       setError(err.message || "Errore durante il caricamento delle notizie.");
@@ -79,6 +79,33 @@ export function NotizieView() {
   useEffect(() => {
     fetchNews();
   }, []);
+
+  // Conteggio articoli per sorgente
+  const sourceCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: allNews.length };
+    allNews.forEach((item) => {
+      counts[item.sourceId] = (counts[item.sourceId] || 0) + 1;
+    });
+    return counts;
+  }, [allNews]);
+
+  // Filtro articoli istantaneo
+  const filteredNews = useMemo(() => {
+    return allNews.filter((item) => {
+      const matchesSource = selectedSource === "all" || item.sourceId === selectedSource;
+      if (!matchesSource) return false;
+
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+
+      const matchesSearch =
+        item.title.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.categories.some((c) => c.toLowerCase().includes(q));
+
+      return matchesSearch;
+    });
+  }, [allNews, selectedSource, searchQuery]);
 
   const handleShare = async (item: NewsItem) => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -105,22 +132,6 @@ export function NotizieView() {
     }
   };
 
-  // Filtro in memoria per massima reattività
-  const filteredNews = useMemo(() => {
-    return news.filter((item) => {
-      const matchesSource = selectedSource === "all" || item.sourceId === selectedSource;
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return matchesSource;
-
-      const matchesSearch =
-        item.title.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.categories.some((c) => c.toLowerCase().includes(q));
-
-      return matchesSource && matchesSearch;
-    });
-  }, [news, selectedSource, searchQuery]);
-
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Intestazione Principale */}
@@ -140,6 +151,7 @@ export function NotizieView() {
           </div>
 
           <button
+            type="button"
             onClick={() => fetchNews(true)}
             disabled={loading}
             className="self-start sm:self-center inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-[#d8c5ad] bg-white/80 hover:bg-[#ebdcc8] text-[#4a3b2c] text-sm font-medium transition shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
@@ -187,6 +199,7 @@ export function NotizieView() {
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery("")}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-[#8a755d] hover:text-[#2c241c] font-medium bg-[#f0e6d6] px-2 py-0.5 rounded-full cursor-pointer"
               >
@@ -196,26 +209,30 @@ export function NotizieView() {
           </div>
 
           {/* Filtro Fonti Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none touch-pan-x">
             {SOURCES_CONFIG.map((src) => {
               const isSelected = selectedSource === src.id;
+              const count = sourceCounts[src.id] || 0;
               return (
                 <button
                   key={src.id}
+                  type="button"
                   onClick={() => setSelectedSource(src.id)}
-                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-medium transition whitespace-nowrap shadow-2xs cursor-pointer ${
+                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-medium transition whitespace-nowrap shadow-2xs cursor-pointer select-none ${
                     isSelected
-                      ? "bg-[#2c241c] text-[#f7f2ea] shadow-sm"
-                      : "bg-white/80 hover:bg-white text-[#5c4e3f] border border-[#e2d5c4]"
+                      ? "bg-[#2c241c] text-[#f7f2ea] shadow-md ring-2 ring-[#8a755d]/40"
+                      : "bg-white/80 hover:bg-white text-[#5c4e3f] border border-[#e2d5c4] hover:border-[#d8c5ad]"
                   }`}
                 >
                   <span>{src.icon}</span>
                   <span>{src.label}</span>
-                  {isSelected && (
-                    <span className="ml-1 text-[11px] bg-white/20 px-1.5 py-0.2 rounded-full">
-                      {filteredNews.length}
-                    </span>
-                  )}
+                  <span
+                    className={`ml-1 text-[11px] px-1.5 py-0.5 rounded-full font-mono font-semibold ${
+                      isSelected ? "bg-white/20 text-[#fde047]" : "bg-[#f0e6d6] text-[#6b5d4e]"
+                    }`}
+                  >
+                    {count}
+                  </span>
                 </button>
               );
             })}
@@ -224,7 +241,7 @@ export function NotizieView() {
       </div>
 
       {/* Contenuto / Griglia Notizie */}
-      {loading && news.length === 0 ? (
+      {loading && allNews.length === 0 ? (
         <div className="p-12 text-center space-y-4 rounded-3xl bg-[#fbf8f3] border border-[#e2d5c4]">
           <div className="inline-block w-8 h-8 border-3 border-[#8a755d] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-sm font-medium text-[#6b5d4e]">Caricamento e aggregazione feed in corso...</p>
@@ -234,6 +251,7 @@ export function NotizieView() {
           <p className="font-semibold text-sm">Si è verificato un errore durante il recupero dei feed.</p>
           <p className="text-xs opacity-90">{error}</p>
           <button
+            type="button"
             onClick={() => fetchNews(true)}
             className="mt-2 px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-xl hover:bg-red-700 transition cursor-pointer"
           >
@@ -243,16 +261,17 @@ export function NotizieView() {
       ) : filteredNews.length === 0 ? (
         <div className="p-12 text-center space-y-3 rounded-3xl bg-[#fbf8f3] border border-[#e2d5c4] text-[#6b5d4e]">
           <p className="text-2xl">📰</p>
-          <p className="font-medium">Nessuna notizia corrisponde ai criteri di ricerca selezionati.</p>
-          {searchQuery && (
+          <p className="font-medium">Nessuna notizia trovata per la fonte o ricerca selezionata.</p>
+          {(selectedSource !== "all" || searchQuery) && (
             <button
+              type="button"
               onClick={() => {
                 setSearchQuery("");
                 setSelectedSource("all");
               }}
               className="px-4 py-2 rounded-xl border border-[#d8c5ad] bg-white hover:bg-[#ebdcc8] text-xs font-medium mt-2 cursor-pointer"
             >
-              Mostra tutte le notizie
+              Mostra tutte le notizie ({allNews.length})
             </button>
           )}
         </div>
@@ -355,6 +374,7 @@ export function NotizieView() {
                   {/* Bottoni Azione */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
+                      type="button"
                       onClick={() => handleShare(item)}
                       title="Condividi notizia"
                       className="h-8 w-8 inline-flex items-center justify-center rounded-xl text-[#786653] hover:bg-[#f3ebd8] hover:text-[#2c241c] transition cursor-pointer"

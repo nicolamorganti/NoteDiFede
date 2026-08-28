@@ -151,13 +151,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const sourceFilter = searchParams.get("source") || "all";
     const query = (searchParams.get("q") || "").toLowerCase().trim();
+    const isRefresh = searchParams.get("refresh") === "true";
 
     const now = Date.now();
     let allNews: NewsItem[] = [];
 
-    if (cachedNews && now - cachedNews.timestamp < CACHE_TTL_MS) {
+    if (cachedNews && !isRefresh && now - cachedNews.timestamp < CACHE_TTL_MS) {
       allNews = cachedNews.data;
     } else {
+
       const fetchPromises = SOURCES.map(async (source) => {
         try {
           const res = await fetch(source.url, {
