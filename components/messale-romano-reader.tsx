@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
+import { QuoteImageModal } from "@/components/quote-image-modal";
+import { useTextSelectionQuote } from "@/lib/use-text-selection-quote";
+
 
 
 interface MessaleRomanoSection {
@@ -334,6 +337,15 @@ export function MessaleRomanoReader() {
   const [lineSpacingMode, setLineSpacingMode] = useState<"compact" | "normal" | "spacious">("normal");
   const [isChurchMode, setIsChurchMode] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  const readerContainerRef = useRef<HTMLDivElement | null>(null);
+  const {
+    quoteModalOpen,
+    setQuoteModalOpen,
+    selectedQuoteText,
+    hasActiveSelection,
+  } = useTextSelectionQuote(readerContainerRef);
+
 
   // Inizializza lingua da localStorage
   useEffect(() => {
@@ -794,6 +806,7 @@ export function MessaleRomanoReader() {
           )}
 
           {/* Contenuto Testuale: Singola Colonna o Doppia Colonna Testo a Fronte */}
+          <div ref={readerContainerRef}>
           {isDualMode ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Colonna Sinistra: Lingua Primaria */}
@@ -898,6 +911,7 @@ export function MessaleRomanoReader() {
               )}
             </div>
           )}
+          </div>
 
           {/* Stili Scoped per Messale Online (supporto perfetto modalità giorno / notte & interlinea) */}
 
@@ -1238,8 +1252,36 @@ export function MessaleRomanoReader() {
       )}
     </div>
   )}
-</div>
+
+      {/* Barra Azione Flottante Inferiore per Selezione Testo (Stato WhatsApp) */}
+      {hasActiveSelection && !quoteModalOpen && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <button
+            type="button"
+            onClick={() => setQuoteModalOpen(true)}
+            className="flex items-center gap-2 rounded-full bg-[#2c241c] text-white px-5 py-3 text-xs sm:text-sm font-serif font-bold shadow-2xl hover:bg-[#44382c] hover:scale-105 active:scale-95 transition border border-[#d8c5ad] cursor-pointer"
+          >
+            <span>📸</span>
+            <span>Crea Stato WhatsApp</span>
+          </button>
+        </div>
+      )}
+
+      {/* Modale Generatore Card / Stato WhatsApp */}
+      <QuoteImageModal
+        isOpen={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        initialText={selectedQuoteText}
+        defaultCitation={
+          onlineItems.find((it) => it.id === selectedOnlineId)?.title
+            ? `${onlineItems.find((it) => it.id === selectedOnlineId)?.title} · Messale Romano`
+            : "Messale Romano (CEI 2020)"
+        }
+        liturgicalTitle="Messale Romano"
+      />
+    </div>
   );
 }
+
 
 

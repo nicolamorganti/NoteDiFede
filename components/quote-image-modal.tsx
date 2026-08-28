@@ -3,14 +3,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import type { LiturgyMoment, LiturgyRite } from "@/components/liturgia-reader";
 
-interface QuoteImageModalProps {
+export interface QuoteImageModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialText: string;
-  moment: LiturgyMoment;
-  rite: LiturgyRite;
-  dateStr: string;
+  moment?: LiturgyMoment;
+  rite?: LiturgyRite;
+  dateStr?: string;
   liturgicalTitle?: string;
+  defaultCitation?: string;
 }
 
 type AspectRatio = "banner" | "story" | "square";
@@ -115,6 +116,7 @@ export function QuoteImageModal({
   rite,
   dateStr,
   liturgicalTitle,
+  defaultCitation,
 }: QuoteImageModalProps) {
   const [text, setText] = useState("");
   const [citation, setCitation] = useState("");
@@ -143,19 +145,29 @@ export function QuoteImageModal({
 
     setText(cleanText);
 
-    // Costruisci la citazione canonica esatta e concordata
-    const citationMap: Record<LiturgyMoment, { ambrosiano: string; romano: string }> = {
-      lodi: { ambrosiano: "Lodi Ambrosiane", romano: "Lodi Romane" },
-      vespri: { ambrosiano: "Vespri Ambrosiani", romano: "Vespri Romani" },
-      ora_media: { ambrosiano: "Ora Media Ambrosiana", romano: "Ora Media Romana" },
-      compieta: { ambrosiano: "Compieta Ambrosiana", romano: "Compieta Romana" },
-      ufficio: { ambrosiano: "Ufficio delle Letture Ambrosiano", romano: "Ufficio delle Letture Romano" },
-      messa: { ambrosiano: "Liturgia della Parola (Rito Ambrosiano)", romano: "Liturgia della Parola (Rito Romano)" },
-    };
+    if (defaultCitation) {
+      setCitation(defaultCitation);
+      return;
+    }
 
-    const defaultCitation = citationMap[moment]?.[rite] || (rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano");
-    setCitation(defaultCitation);
-  }, [isOpen, initialText, moment, rite]);
+    // Costruisci la citazione canonica esatta e concordata
+    if (moment && rite) {
+      const citationMap: Record<LiturgyMoment, { ambrosiano: string; romano: string }> = {
+        lodi: { ambrosiano: "Lodi Ambrosiane", romano: "Lodi Romane" },
+        vespri: { ambrosiano: "Vespri Ambrosiani", romano: "Vespri Romani" },
+        ora_media: { ambrosiano: "Ora Media Ambrosiana", romano: "Ora Media Romana" },
+        compieta: { ambrosiano: "Compieta Ambrosiana", romano: "Compieta Romana" },
+        ufficio: { ambrosiano: "Ufficio delle Letture Ambrosiano", romano: "Ufficio delle Letture Romano" },
+        messa: { ambrosiano: "Liturgia della Parola (Rito Ambrosiano)", romano: "Liturgia della Parola (Rito Romano)" },
+      };
+
+      const def = citationMap[moment]?.[rite] || (rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano");
+      setCitation(def);
+    } else {
+      setCitation(liturgicalTitle || "Note di Fede");
+    }
+  }, [isOpen, initialText, moment, rite, defaultCitation, liturgicalTitle]);
+
 
   // Generatore su Canvas HD
   useEffect(() => {
