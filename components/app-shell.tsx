@@ -9,6 +9,8 @@ import { AudioProvider } from "@/components/audio-context";
 import { GlobalAudioPlayer } from "@/components/global-audio-player";
 import { ShareAppButton } from "@/components/share-app-button";
 import { APP_VERSION } from "@/lib/version";
+import { ScrollToTop } from "@/components/scroll-to-top";
+
 
 
 
@@ -239,7 +241,9 @@ export function AppShell({
       <AudioProvider>
         <AppShellInner>{children}</AppShellInner>
         <GlobalAudioPlayer />
+        <ScrollToTop />
       </AudioProvider>
+
     </AuthProvider>
   );
 }
