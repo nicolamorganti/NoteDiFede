@@ -5,7 +5,7 @@ import { APP_VERSION, APP_BUILD_DATE } from "@/lib/version";
 export const metadata: Metadata = {
   title: "Crediti & Progetto | Note di Fede",
   description:
-    "Curatori, finalità no-profit e fonti del progetto Note di Fede per la musica sacra e la liturgia.",
+    "Curatori, finalità no-profit, libri liturgici e fonti del progetto Note di Fede per la musica sacra e la preghiera.",
 };
 
 export default function CreditiPage() {
@@ -120,12 +120,84 @@ export default function CreditiPage() {
         </div>
       </div>
 
-      {/* Fonti Ufficiali & Riconoscimenti */}
+      {/* Libri Liturgici & Testi Sacri di Riferimento */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-lg">📜</span>
+          <h2 className="text-xl sm:text-2xl font-bold font-serif text-[#2c241c]">
+            Libri Liturgici & Testi Sacri di Riferimento
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs sm:text-sm">
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+              <span>📖</span> Sacra Scrittura
+            </div>
+            <h4 className="font-bold text-[#2c241c]">Bibbia CEI 2008</h4>
+            <p className="text-xs text-[#6b5d4e] leading-relaxed">
+              Testo ufficiale della Conferenza Episcopale Italiana per la proclamazione liturgica e la preghiera.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+              <span>⛪</span> Celebrazione Eucaristica
+            </div>
+            <h4 className="font-bold text-[#2c241c]">Messale Romano & Ambrosiano</h4>
+            <p className="text-xs text-[#6b5d4e] leading-relaxed">
+              Messale Romano (3ª Ed. Italiana 2020) e Messale Ambrosiano con lezionari festivi e feriali.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+              <span>🕯️</span> Ufficio Divino
+            </div>
+            <h4 className="font-bold text-[#2c241c]">Liturgia delle Ore</h4>
+            <p className="text-xs text-[#6b5d4e] leading-relaxed">
+              Breviario Romano e Diurna Laus Ambrosiana: Lodi, Ora Media, Vespri, Compieta e Ufficio delle Letture.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+              <span>✝️</span> Rituale dei Sacramenti
+            </div>
+            <h4 className="font-bold text-[#2c241c]">Benedizionale & Cura Infermi</h4>
+            <p className="text-xs text-[#6b5d4e] leading-relaxed">
+              Formulari per benedizioni, sacramenti, visite agli ammalati e sussidi per ministri straordinari.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+              <span>🎵</span> Repertorio Musicale
+            </div>
+            <h4 className="font-bold text-[#2c241c]">Repertorio Nazionale Canti</h4>
+            <p className="text-xs text-[#6b5d4e] leading-relaxed">
+              Canti approvati dalla CEI e dagli Uffici Liturgici Diocesani per l'animazione dell'assemblea e del coro.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+              <span>🏛️</span> Tradizione Ecclesiale
+            </div>
+            <h4 className="font-bold text-[#2c241c]">Preghiere della Tradizione</h4>
+            <p className="text-xs text-[#6b5d4e] leading-relaxed">
+              Santo Rosario, Coroncine, Litanie lauretane, Inni patristici e devozioni secolari della Chiesa.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Fonti Istituzionali & Ringraziamenti */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 px-1">
           <span className="text-lg">🏛️</span>
           <h2 className="text-xl font-bold font-serif text-[#2c241c]">
-            Fonti Ufficiali & Ringraziamenti
+            Fonti Istituzionali & Piattaforme Integrate
           </h2>
         </div>
 
