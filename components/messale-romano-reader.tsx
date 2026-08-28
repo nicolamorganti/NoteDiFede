@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
+import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
+
 
 interface MessaleRomanoSection {
   id: string;
@@ -695,8 +697,16 @@ export function MessaleRomanoReader() {
                 </select>
               </div>
 
+              {/* Lettore Vocale Text-to-Speech */}
+              <LiturgicalTtsPlayer
+                htmlContent={onlineHtml}
+                lang={selectedLang}
+                title="Ascolta"
+              />
+
               {/* Dimensione Font */}
               <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
+
                 <button
                   onClick={() => setFontSize((s) => Math.max(14, s - 1))}
                   disabled={fontSize <= 14}

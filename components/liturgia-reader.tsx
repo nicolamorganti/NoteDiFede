@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
+import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
+
 
 export type LiturgyRite = "ambrosiano" | "romano";
 export type LiturgyMoment = "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa";
@@ -833,8 +835,16 @@ export function LiturgiaReader() {
             </>
           )}
 
+          {/* Lettore Vocale Text-to-Speech */}
+          <LiturgicalTtsPlayer
+            htmlContent={contentHtml}
+            lang={rite === "romano" ? selectedLang : "it"}
+            title="Ascolta"
+          />
+
           {/* Dimensione Font */}
           <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
+
             <button
               onClick={() => handleFontSizeChange(-1)}
               disabled={fontSize <= 14}
