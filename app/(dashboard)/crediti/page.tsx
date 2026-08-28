@@ -36,7 +36,35 @@ export default function CreditiPage() {
         </div>
       </div>
 
-      {/* Sezione Curatori */}
+      {/* 1. Spirito e Finalità del Progetto (No-Profit) - Prima sezione richiesta */}
+      <div className="rounded-3xl bg-[#fbf8f3] border border-[#ebdcc8] p-6 sm:p-8 space-y-4 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#3f3123] text-[#ebdcc8] text-lg shadow-xs shrink-0">
+            🕊️
+          </span>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold font-serif text-[#2c241c]">
+              Spirito e Finalità del Progetto (No-Profit)
+            </h2>
+            <p className="text-xs text-[#8a755d]">Una missione pastorale gratuita e condivisa</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 text-sm sm:text-[15px] text-[#5c4e3f] leading-relaxed">
+          <p>
+            <strong>Note di Fede</strong> è un’iniziativa pastorale totalmente <strong>gratuita, libera e priva di qualsiasi scopo di lucro</strong>.
+            Nasce dal desiderio concreto di sostenere la vita delle comunità cristiane: offrire ai cori, agli animatori dell’assemblea,
+            ai ministri straordinari dell'Eucaristia, ai lettori e a tutti i fedeli uno strumento moderno, accessibile, curato e dignitoso
+            per pregare, celebrare e cantare insieme.
+          </p>
+          <p>
+            L’applicazione non ospita pubblicità, non prevede abbonamenti o funzioni a pagamento e non monetizza in alcun modo
+            i contenuti offerti, ponendosi come puro sussidio a servizio del culto divino e dell’evangelizzazione.
+          </p>
+        </div>
+      </div>
+
+      {/* 2. Sezione Curatori dell’Opera */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 px-1">
           <span className="text-lg">👥</span>
@@ -46,11 +74,11 @@ export default function CreditiPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Curatore Musicale & Tecnico */}
+          {/* Curatore Musicale & Tecnico: Nicola Morganti */}
           <div className="bg-white rounded-3xl border border-[#ebdcc8] p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-[#d8c5ad] transition">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#6e5a45] text-white text-xl shadow-xs shrink-0">
+            <div className="space-y-3.5">
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3f3123] text-[#ebdcc8] border border-[#5c4a37] text-xl shadow-xs shrink-0">
                   🎵
                 </span>
                 <div>
@@ -61,21 +89,21 @@ export default function CreditiPage() {
                 </div>
               </div>
               <p className="text-sm text-[#5c4e3f] leading-relaxed">
-                Ideazione e sviluppo dell’architettura software, digitalizzazione del catalogo canti,
-                gestione delle partiture, trasposizione degli accordi, audio guide corali e sintesi vocale.
+                Ideazione e sviluppo dell’architettura software, digitalizzazione del repertorio canti,
+                gestione delle partiture, trasposizione automatica degli accordi, audio guide corali per registri vocali e sintesi vocale liturgica.
               </p>
             </div>
-            <div className="pt-3 border-t border-[#f3ebd8] text-xs text-[#8a755d] flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <div className="pt-3 border-t border-[#f3ebd8] text-xs text-[#786653] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#8a755d]" />
               <span>Animazione musicale & Informatica liturgica</span>
             </div>
           </div>
 
-          {/* Curatore Liturgico & Teologico */}
+          {/* Curatore Liturgico & Teologico: Dario Cantoro */}
           <div className="bg-white rounded-3xl border border-[#ebdcc8] p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-[#d8c5ad] transition">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2c241c] text-white text-xl shadow-xs shrink-0">
+            <div className="space-y-3.5">
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3f3123] text-[#ebdcc8] border border-[#5c4a37] text-xl shadow-xs shrink-0">
                   📖
                 </span>
                 <div>
@@ -87,40 +115,18 @@ export default function CreditiPage() {
               </div>
               <p className="text-sm text-[#5c4e3f] leading-relaxed">
                 Supervisione e accuratezza dei testi liturgici, sincronizzazione del calendario canonico
-                (Rito Ambrosiano e Romano), Liturgia delle Ore, Messale, Benedizionale e apparato rubricale.
+                (Rito Ambrosiano e Romano), Liturgia delle Ore, Messale, Benedizionale e cura dell’apparato rubricale.
               </p>
             </div>
-            <div className="pt-3 border-t border-[#f3ebd8] text-xs text-[#8a755d] flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <div className="pt-3 border-t border-[#f3ebd8] text-xs text-[#786653] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#8a755d]" />
               <span>Cura teologica & Rigore canonico</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Finalità e Valori No-Profit */}
-      <div className="rounded-3xl bg-[#fbf8f3] border border-[#ebdcc8] p-6 sm:p-8 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">🕊️</span>
-          <h2 className="text-xl font-bold font-serif text-[#2c241c]">
-            Spirito e Finalità del Progetto (No-Profit)
-          </h2>
-        </div>
-
-        <div className="space-y-3 text-sm text-[#5c4e3f] leading-relaxed">
-          <p>
-            <strong>Note di Fede</strong> è un’iniziativa pastorale totalmente <strong>gratuita, libera e priva di qualsiasi scopo di lucro</strong>.
-            Nasce per rispondere a un bisogno reale e concreto vissuto nelle comunità cristiane: offrire ai cori, agli animatori dell’assemblea,
-            ai ministri straordinari, ai lettori e a tutti i fedeli uno strumento moderno, accessibile e dignitoso per pregare e cantare insieme.
-          </p>
-          <p>
-            L’applicazione non ospita annunci pubblicitari, non richiede abbonamenti a pagamento e non monetizza in alcun modo
-            i contenuti offerti, configurandosi come puro sussidio a servizio del culto e dell’evangelizzazione.
-          </p>
-        </div>
-      </div>
-
-      {/* Libri Liturgici & Testi Sacri di Riferimento */}
+      {/* 3. Libri Liturgici & Testi Sacri di Riferimento */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 px-1">
           <span className="text-lg">📜</span>
@@ -131,7 +137,7 @@ export default function CreditiPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs sm:text-sm">
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
-            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
               <span>📖</span> Sacra Scrittura
             </div>
             <h4 className="font-bold text-[#2c241c]">Bibbia CEI 2008</h4>
@@ -141,7 +147,7 @@ export default function CreditiPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
-            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
               <span>⛪</span> Celebrazione Eucaristica
             </div>
             <h4 className="font-bold text-[#2c241c]">Messale Romano & Ambrosiano</h4>
@@ -151,7 +157,7 @@ export default function CreditiPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
-            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
               <span>🕯️</span> Ufficio Divino
             </div>
             <h4 className="font-bold text-[#2c241c]">Liturgia delle Ore</h4>
@@ -161,7 +167,7 @@ export default function CreditiPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
-            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
               <span>✝️</span> Rituale dei Sacramenti
             </div>
             <h4 className="font-bold text-[#2c241c]">Benedizionale & Cura Infermi</h4>
@@ -171,7 +177,7 @@ export default function CreditiPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
-            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
               <span>🎵</span> Repertorio Musicale
             </div>
             <h4 className="font-bold text-[#2c241c]">Repertorio Nazionale Canti</h4>
@@ -181,7 +187,7 @@ export default function CreditiPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-[#ebdcc8] p-4 space-y-1.5 shadow-2xs">
-            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex items-center gap-1.5">
               <span>🏛️</span> Tradizione Ecclesiale
             </div>
             <h4 className="font-bold text-[#2c241c]">Preghiere della Tradizione</h4>
@@ -192,7 +198,7 @@ export default function CreditiPage() {
         </div>
       </div>
 
-      {/* Fonti Istituzionali & Ringraziamenti */}
+      {/* 4. Fonti Istituzionali & Piattaforme Integrate */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 px-1">
           <span className="text-lg">🏛️</span>
@@ -240,7 +246,7 @@ export default function CreditiPage() {
         </div>
       </div>
 
-      {/* Tutela dei Diritti & Fair Use */}
+      {/* 5. Tutela dei Diritti & Fair Use */}
       <div className="rounded-2xl border border-[#e2d5c4] bg-[#f7f2ea] p-5 text-xs text-[#786653] space-y-2 leading-relaxed">
         <p className="font-semibold text-[#4a3b2c]">
           ⚖️ Nota sui Diritti d'Autore e Utilizzo Pastorale
