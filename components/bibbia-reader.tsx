@@ -13,6 +13,13 @@ import { getPsalmMapping, findHebrewPsalmsFromLiturgicalQuery } from "@/lib/psal
 
 export type LineSpacingOption = "compact" | "normal" | "relaxed";
 
+export const isPsalmsBook = (id?: string) => {
+  if (!id) return false;
+  const lower = id.toLowerCase();
+  return lower === "sal" || lower === "salmi" || lower === "psalms";
+};
+
+
 // Funzione di formattazione markdown per la Lectio Divina
 function formatMarkdownToHtml(markdown: string): string {
   let html = markdown
@@ -413,8 +420,8 @@ export function BibbiaReader() {
     if (searchFilter.trim()) {
       const q = searchFilter.toLowerCase().trim();
       const numMatch = q.match(/\d+/);
-      const isPsalmQuery = q.includes("salm") || (b.id === "salmi" && !!numMatch);
-      if (b.id === "salmi" && isPsalmQuery) return true;
+      const isPsalmQuery = q.includes("salm") || (isPsalmsBook(b.id) && !!numMatch);
+      if (isPsalmsBook(b.id) && isPsalmQuery) return true;
       return (
         b.name.toLowerCase().includes(q) ||
         b.shortName.toLowerCase().includes(q) ||
@@ -423,6 +430,7 @@ export function BibbiaReader() {
     }
     return true;
   });
+
 
 
   const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
@@ -534,7 +542,7 @@ export function BibbiaReader() {
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedBookId("salmi");
+                  setSelectedBookId("Sal");
                   setChapter(num);
                   setSearchFilter("");
                 }}
@@ -550,7 +558,7 @@ export function BibbiaReader() {
                       key={hNum}
                       type="button"
                       onClick={() => {
-                        setSelectedBookId("salmi");
+                        setSelectedBookId("Sal");
                         setChapter(hNum);
                         setSearchFilter("");
                       }}
@@ -590,18 +598,18 @@ export function BibbiaReader() {
         <div className="border-t border-[#ebdcc8] pt-4 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-bold text-[#5c4a37]">
-              {currentBook.id === "salmi"
+              {isPsalmsBook(currentBook.id)
                 ? "I 150 Salmi (tra parentesi il corrispondente Liturgico / Volgata):"
                 : `Capitoli di ${currentBook.name} (${currentBook.chaptersCount}):`}
             </span>
             <span className="text-xs text-[#8a755d]">
               Capitolo selezionato:{" "}
               <b>
-                {currentBook.id === "salmi"
+                {isPsalmsBook(currentBook.id)
                   ? `Salmo ${getPsalmMapping(chapter).displayNumber}`
                   : chapter}
               </b>
-              {currentBook.id === "salmi" && getPsalmMapping(chapter).hasDifferentNumber && (
+              {isPsalmsBook(currentBook.id) && getPsalmMapping(chapter).hasDifferentNumber && (
                 <span className="ml-1 text-[11px] font-normal text-[#9c866f]">
                   (Salmo {getPsalmMapping(chapter).liturgicalNum} nella Liturgia)
                 </span>
@@ -612,7 +620,7 @@ export function BibbiaReader() {
           <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto pr-1 py-1">
             {Array.from({ length: currentBook.chaptersCount }, (_, i) => i + 1).map((c) => {
               const isSelected = c === chapter;
-              const pMapping = currentBook.id === "salmi" ? getPsalmMapping(c) : null;
+              const pMapping = isPsalmsBook(currentBook.id) ? getPsalmMapping(c) : null;
               return (
                 <button
                   key={c}
@@ -623,7 +631,7 @@ export function BibbiaReader() {
                       : `Capitolo ${c}`
                   }
                   className={`rounded-lg text-xs font-bold transition flex items-center justify-center ${
-                    currentBook.id === "salmi" && pMapping?.hasDifferentNumber
+                    isPsalmsBook(currentBook.id) && pMapping?.hasDifferentNumber
                       ? "min-w-[2.85rem] h-8 px-1 gap-0.5"
                       : "h-8 w-8"
                   } ${
@@ -665,10 +673,11 @@ export function BibbiaReader() {
           </button>
 
           <span className="text-xs font-bold text-[#5c4a37] px-2 font-serif">
-            {currentBook.id === "salmi"
+            {isPsalmsBook(currentBook.id)
               ? `Salmo ${getPsalmMapping(chapter).displayNumber}`
               : `${currentBook.shortName} ${chapter}`}
           </span>
+
 
           <button
             onClick={handleNextChapter}
@@ -821,12 +830,12 @@ export function BibbiaReader() {
                 {chapterData.category} · CEI 2008
               </span>
               <h1 className="text-2xl sm:text-3xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
-                {chapterData.bookId === "salmi"
+                {isPsalmsBook(chapterData.bookId)
                   ? `Salmo ${chapterData.chapter}`
                   : chapterData.bookName}
               </h1>
               <p className="text-base font-sans font-semibold text-[#8a755d]">
-                {chapterData.bookId === "salmi" ? (
+                {isPsalmsBook(chapterData.bookId) ? (
                   <span>
                     Capitolo {chapterData.chapter}
                     {getPsalmMapping(chapterData.chapter).hasDifferentNumber && (
@@ -841,7 +850,8 @@ export function BibbiaReader() {
               </p>
 
               {/* Box Informativo Comparazione Liturgica Salmo */}
-              {chapterData.bookId === "salmi" && getPsalmMapping(chapterData.chapter).hasDifferentNumber && (
+              {isPsalmsBook(chapterData.bookId) && getPsalmMapping(chapterData.chapter).hasDifferentNumber && (
+
                 <div
                   className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-sans border transition max-w-xl mx-auto text-left"
                   style={{
@@ -1399,16 +1409,17 @@ export function BibbiaReader() {
         onClose={() => setQuoteModalOpen(false)}
         initialText={selectedQuoteText}
         defaultCitation={
-          currentBook.id === "salmi"
+          isPsalmsBook(currentBook.id)
             ? `Salmo ${getPsalmMapping(chapter).displayNumber} · Bibbia CEI`
             : `${currentBook.name} ${chapter}`
         }
         liturgicalTitle={
-          currentBook.id === "salmi"
+          isPsalmsBook(currentBook.id)
             ? `Salmo ${getPsalmMapping(chapter).displayNumber}`
             : currentBook.name
         }
       />
+
 
     </div>
   );
