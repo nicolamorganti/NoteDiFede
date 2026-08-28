@@ -163,54 +163,72 @@ export function LiturgiaReader() {
   // Stato Generatore Card Stato WhatsApp
   const [quoteModalOpen, setQuoteModalOpen] = useState<boolean>(false);
   const [selectedQuoteText, setSelectedQuoteText] = useState<string>("");
-  const [selectionPos, setSelectionPos] = useState<{ top: number; left: number } | null>(null);
+  const [hasActiveSelection, setHasActiveSelection] = useState<boolean>(false);
 
   const readerContainerRef = useRef<HTMLDivElement | null>(null);
   const omeliaSectionRef = useRef<HTMLDivElement | null>(null);
   const omeliaAbortControllerRef = useRef<AbortController | null>(null);
 
-  // Gestione selezione testo per creazione stato
+  // Gestione selezione testo senza disturbare il trascinamento/cursore
   useEffect(() => {
-    const handleSelection = () => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed) {
-        setSelectionPos(null);
-        return;
-      }
+    let timer: any;
 
-      const text = selection.toString().trim();
-      if (text.length < 5) {
-        setSelectionPos(null);
-        return;
-      }
+    const checkSelection = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+          setHasActiveSelection(false);
+          return;
+        }
 
-      // Verifica che la selezione sia all'interno del contenitore di lettura
-      if (readerContainerRef.current) {
-        try {
-          const range = selection.getRangeAt(0);
-          if (readerContainerRef.current.contains(range.commonAncestorContainer)) {
-            const rect = range.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) {
-              setSelectionPos({
-                top: Math.max(10, rect.top - 46),
-                left: Math.max(20, rect.left + rect.width / 2),
-              });
+        const text = selection.toString().trim();
+        if (text.length < 5) {
+          setHasActiveSelection(false);
+          return;
+        }
+
+        // Verifica che la selezione appartenga al contenitore di lettura
+        if (readerContainerRef.current) {
+          try {
+            const range = selection.getRangeAt(0);
+            if (readerContainerRef.current.contains(range.commonAncestorContainer)) {
               setSelectedQuoteText(text);
+              setHasActiveSelection(true);
               return;
             }
+          } catch {
+            // Ignora errori di range
           }
-        } catch {
-          // Ignora errori di range
         }
-      }
-      setSelectionPos(null);
+        setHasActiveSelection(false);
+      }, 120);
     };
 
-    document.addEventListener("selectionchange", handleSelection);
+    const handleMouseUp = () => checkSelection();
+    const handleTouchEnd = () => checkSelection();
+
+    const container = readerContainerRef.current;
+    if (container) {
+      container.addEventListener("mouseup", handleMouseUp);
+      container.addEventListener("touchend", handleTouchEnd);
+    }
+    document.addEventListener("selectionchange", () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed) {
+        setHasActiveSelection(false);
+      }
+    });
+
     return () => {
-      document.removeEventListener("selectionchange", handleSelection);
+      clearTimeout(timer);
+      if (container) {
+        container.removeEventListener("mouseup", handleMouseUp);
+        container.removeEventListener("touchend", handleTouchEnd);
+      }
     };
   }, []);
+
 
 
   // Inizializza preferenze da localStorage
@@ -1239,37 +1257,40 @@ export function LiturgiaReader() {
         }
       `}</style>
 
-      {/* Tooltip Flottante di Creazione Stato WhatsApp su selezione testo */}
-
-      {selectionPos && selectedQuoteText && (
-        <div
-          style={{
-            position: "fixed",
-            top: `${selectionPos.top}px`,
-            left: `${selectionPos.left}px`,
-            transform: "translateX(-50%)",
-            zIndex: 45,
-          }}
-          className="animate-in fade-in zoom-in-95 duration-150"
-        >
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault(); // impedisce la deselezione del testo al click
-              setQuoteModalOpen(true);
-              setSelectionPos(null);
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2c241c] hover:bg-[#433628] text-[#f7f2ea] text-xs font-bold shadow-2xl border border-[#ebdcc8] transition cursor-pointer hover:scale-105"
-          >
-            <span>📸</span>
-            <span>Crea Stato WhatsApp</span>
-          </button>
+      {/* Barra Flottante Inferiore non invasiva per Creazione Stato WhatsApp */}
+      {hasActiveSelection && selectedQuoteText && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200 pointer-events-auto">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#2c241c] text-white shadow-2xl border border-[#ebdcc8] max-w-[92vw] sm:max-w-lg">
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault(); // non perdere la selezione
+                setQuoteModalOpen(true);
+              }}
+              className="flex items-center gap-2 text-xs font-bold text-[#f7f2ea] hover:text-white transition cursor-pointer shrink-0"
+            >
+              <span className="text-sm">📸</span>
+              <span>Crea Stato WhatsApp</span>
+            </button>
+            <span className="text-[11px] text-[#ebdcc8]/80 hidden sm:inline truncate border-l border-white/20 pl-2.5 max-w-[200px]">
+              «{selectedQuoteText}»
+            </span>
+            <button
+              type="button"
+              onClick={() => setHasActiveSelection(false)}
+              className="text-white/60 hover:text-white text-xs pl-1 cursor-pointer"
+              title="Chiudi"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
       {/* Modale Generatore Card Stato WhatsApp */}
       <QuoteImageModal
         isOpen={quoteModalOpen}
+
         onClose={() => setQuoteModalOpen(false)}
         initialText={selectedQuoteText}
         moment={moment}
