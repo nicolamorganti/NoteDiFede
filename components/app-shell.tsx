@@ -63,7 +63,15 @@ function AppShellInner({ children }: { children: ReactNode }) {
       badge: "News",
       icon: "📰",
     },
+    {
+      href: "/crediti",
+      label: "Crediti & Progetto",
+      subtitle: "Curatori e finalità no-profit",
+      badge: "Info",
+      icon: "✨",
+    },
   ];
+
 
 
 
