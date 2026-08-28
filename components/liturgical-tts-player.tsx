@@ -97,8 +97,17 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
 
     setIsLoading(true);
 
+    // Sblocco preventivo dell'elemento audio su iOS Safari (deve avvenire nel contesto sincrono del tap)
+    let audio: HTMLAudioElement | null = null;
+    if (typeof window !== "undefined" && typeof Audio !== "undefined") {
+      audio = new Audio();
+      audioRef.current = audio;
+      // Pre-sblocco iOS Safari
+      audio.load();
+    }
+
     try {
-      // 1. Prova a richiedere l'audio HD neurale da Google Cloud / Audio-Cache
+      // 1. Richiedi l'audio HD neurale da /api/tts (Audio-Cache o Microsoft Azure Neural)
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,20 +116,30 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
 
       const data = await res.json();
 
-      if (data.success && data.audioBase64) {
-        // Riproduzione Audio Neurale HD
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`);
+      if (data.success && data.audioBase64 && audio) {
+        // Conversione Base64 -> Blob URL (compatibile al 100% con iOS Safari, macOS e Android)
+        const binaryString = window.atob(data.audioBase64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: "audio/mpeg" });
+        const blobUrl = URL.createObjectURL(blob);
+
+        audio.src = blobUrl;
         audio.playbackRate = rate;
-        audioRef.current = audio;
 
         audio.onended = () => {
+          URL.revokeObjectURL(blobUrl);
           setIsPlaying(false);
           setIsPaused(false);
           setIsLoading(false);
         };
 
-        audio.onerror = () => {
-          console.warn("Errore riproduzione audio neurale, fallback su dispositivo");
+        audio.onerror = (e) => {
+          console.warn("Errore riproduzione audio neurale, fallback su dispositivo:", e);
+          URL.revokeObjectURL(blobUrl);
           playWithDeviceVoice(fullText);
         };
 
@@ -138,6 +157,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
     // 2. Fallback trasparente sulla sintesi vocale del dispositivo
     playWithDeviceVoice(fullText);
   };
+
 
   const playWithDeviceVoice = (fullText: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
