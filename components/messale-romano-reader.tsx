@@ -591,7 +591,7 @@ export function MessaleRomanoReader() {
 
           {/* Contenuto Testuale Formattato */}
           <div
-            className={`rounded-3xl border p-6 sm:p-10 shadow-lg space-y-6 transition leading-relaxed ${
+            className={`messale-online-content rounded-3xl border p-6 sm:p-10 shadow-lg space-y-6 transition leading-relaxed ${
               isChurchMode
                 ? "border-[#3f3a36] bg-[#181614] text-[#ece8e2]"
                 : "border-[#e0d6c7] bg-[#fefdfb] text-[#2c2621]"
@@ -605,11 +605,74 @@ export function MessaleRomanoReader() {
               </div>
             ) : (
               <div
-                className="prose max-w-none font-serif [&_.rubrica]:text-red-700 [&_.rubrica]:dark:text-red-400 [&_.rubrica]:font-sans [&_.rubrica]:font-bold [&_.rubrica]:text-xs [&_.rubrica]:uppercase [&_.rubrica]:tracking-wider [&_.rubrica]:my-3 [&_.titolo]:font-serif [&_.titolo]:text-2xl [&_.titolo]:font-bold [&_.titolo]:text-[#5c4a37] [&_.titolo]:dark:text-amber-300 [&_.titolo]:my-4 [&_.sezione]:text-xs [&_.sezione]:font-bold [&_.sezione]:uppercase [&_.sezione]:tracking-widest [&_.sezione]:text-[#aa9576] [&_.sezione]:mb-2 [&_p]:my-3 [&_p]:leading-relaxed"
+                className="prose max-w-none font-serif [&_p]:my-3 [&_p]:leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: onlineHtml }}
               />
             )}
           </div>
+
+          {/* Stili Scoped per Messale Online (supporto perfetto modalità giorno / notte) */}
+          <style jsx global>{`
+            .messale-online-content {
+              word-break: break-word;
+              color: ${isChurchMode ? "#f5f5f4" : "#2c2621"};
+            }
+            .messale-online-content p,
+            .messale-online-content span,
+            .messale-online-content .messale-testo,
+            .messale-online-content .body_2,
+            .messale-online-content .body_3 {
+              color: ${isChurchMode ? "#f5f5f4 !important" : "#2c2621 !important"};
+              font-family: inherit;
+              line-height: 1.7;
+            }
+            .messale-online-content .messale-rubrica,
+            .messale-online-content .rubrica {
+              color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
+              font-family: system-ui, -apple-system, sans-serif;
+              font-weight: 700;
+              font-size: 0.82em;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+              display: block;
+              margin-top: 0.8em;
+              margin-bottom: 0.3em;
+              line-height: 1.4;
+            }
+            .messale-online-content .messale-dialogo,
+            .messale-online-content .body_1 {
+              color: ${isChurchMode ? "#f87171 !important" : "#b91c1c !important"};
+              font-family: system-ui, -apple-system, sans-serif;
+              font-weight: 700;
+              margin-right: 0.25rem;
+            }
+            .messale-online-content .messale-titolo,
+            .messale-online-content .titolo,
+            .messale-online-content h1,
+            .messale-online-content h2,
+            .messale-online-content h3 {
+              display: block;
+              font-family: inherit;
+              font-weight: 700;
+              font-size: 1.25em;
+              color: ${isChurchMode ? "#fbbf24 !important" : "#5c4a37 !important"};
+              margin-top: 1.2em;
+              margin-bottom: 0.4em;
+              border-bottom: 1px solid ${isChurchMode ? "#332b24" : "#ebdcc8"};
+              padding-bottom: 0.3em;
+            }
+            .messale-online-content .messale-sezione,
+            .messale-online-content .sezione {
+              display: block;
+              font-family: system-ui, -apple-system, sans-serif;
+              font-weight: 700;
+              font-size: 0.75em;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              color: ${isChurchMode ? "#f59e0b !important" : "#aa9576 !important"};
+              margin-bottom: 0.25em;
+            }
+          `}</style>
 
           <div className="pt-2 flex items-center justify-between text-xs text-[#8a755d]">
             <span>Fonte testi: <em>iBreviary (Custodia di Terra Santa / don Paolo Padrini)</em></span>
@@ -623,6 +686,7 @@ export function MessaleRomanoReader() {
             </a>
           </div>
         </div>
+
       )}
 
       {/* ========================================================================= */}
