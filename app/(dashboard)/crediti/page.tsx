@@ -78,8 +78,10 @@ export default function CreditiPage() {
           <div className="bg-white rounded-3xl border border-[#ebdcc8] p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-[#d8c5ad] transition">
             <div className="space-y-3.5">
               <div className="flex items-center gap-3.5">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3f3123] text-[#ebdcc8] border border-[#5c4a37] text-xl shadow-xs shrink-0">
-                  🎵
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ebd9] border border-[#d8c5ad] text-[#4a3b2c] shadow-2xs shrink-0">
+                  <svg className="w-6 h-6 text-[#5c4a37]" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                  </svg>
                 </span>
                 <div>
                   <h3 className="text-lg font-bold font-serif text-[#2c241c]">Nicola Morganti</h3>
@@ -100,15 +102,21 @@ export default function CreditiPage() {
               <span className="w-2 h-2 rounded-full bg-[#8a755d]" />
               <span>Animazione musicale & Informatica liturgica</span>
             </div>
-
           </div>
 
           {/* Curatore Liturgico & Teologico: Dario Cantoro */}
           <div className="bg-white rounded-3xl border border-[#ebdcc8] p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-[#d8c5ad] transition">
             <div className="space-y-3.5">
               <div className="flex items-center gap-3.5">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3f3123] text-[#ebdcc8] border border-[#5c4a37] text-xl shadow-xs shrink-0">
-                  📖
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ebd9] border border-[#d8c5ad] text-[#4a3b2c] shadow-2xs shrink-0">
+                  <svg className="w-6 h-6 text-[#5c4a37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
+                  </svg>
                 </span>
                 <div>
                   <h3 className="text-lg font-bold font-serif text-[#2c241c]">Dario Cantoro</h3>
@@ -128,6 +136,7 @@ export default function CreditiPage() {
             </div>
           </div>
         </div>
+
       </div>
 
       {/* 3. Libri Liturgici & Testi Sacri di Riferimento */}
