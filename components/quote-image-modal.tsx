@@ -29,6 +29,8 @@ export function QuoteImageModal({
   const [citation, setCitation] = useState("");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("banner");
   const [theme, setTheme] = useState<ThemeId>("dark");
+  const [textSizeDelta, setTextSizeDelta] = useState<number>(0);
+  const [citationSizeDelta, setCitationSizeDelta] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -47,27 +49,17 @@ export function QuoteImageModal({
 
     setText(cleanText);
 
-    // Costruisci la citazione esatta in stile Dario
-    const momentLabelMap: Record<LiturgyMoment, string> = {
-      lodi: "Lodi",
-      vespri: "Vespri",
-      ora_media: "Ora Media",
-      compieta: "Compieta",
-      ufficio: "Ufficio delle Letture",
-      messa: "Liturgia della Parola",
+    // Costruisci la citazione canonica esatta e concordata
+    const citationMap: Record<LiturgyMoment, { ambrosiano: string; romano: string }> = {
+      lodi: { ambrosiano: "Lodi Ambrosiane", romano: "Lodi Romane" },
+      vespri: { ambrosiano: "Vespri Ambrosiani", romano: "Vespri Romani" },
+      ora_media: { ambrosiano: "Ora Media Ambrosiana", romano: "Ora Media Romana" },
+      compieta: { ambrosiano: "Compieta Ambrosiana", romano: "Compieta Romana" },
+      ufficio: { ambrosiano: "Ufficio delle Letture Ambrosiano", romano: "Ufficio delle Letture Romano" },
+      messa: { ambrosiano: "Liturgia della Parola (Rito Ambrosiano)", romano: "Liturgia della Parola (Rito Romano)" },
     };
 
-    const momentName = momentLabelMap[moment] || "Liturgia";
-    const riteName = rite === "ambrosiano" ? "Ambrosiane" : "Romane";
-    
-    // Es: "Lodi Ambrosiane" oppure "Vespri Ambrosiani"
-    let defaultCitation = `${momentName} ${riteName}`;
-    if (moment === "vespri" || moment === "ufficio") {
-      defaultCitation = `${momentName} ${rite === "ambrosiano" ? "Ambrosiani" : "Romani"}`;
-    } else if (moment === "compieta") {
-      defaultCitation = `Compieta · ${rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano"}`;
-    }
-
+    const defaultCitation = citationMap[moment]?.[rite] || (rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano");
     setCitation(defaultCitation);
   }, [isOpen, initialText, moment, rite]);
 
@@ -103,7 +95,6 @@ export function QuoteImageModal({
     let isSerif = false;
 
     if (theme === "dark") {
-      // Stile esatto di Dario (dark matte con testo bianco bold)
       bgColor = "#1e1e1e";
       textColor = "#ffffff";
       citationColor = "#cccccc";
@@ -152,11 +143,14 @@ export function QuoteImageModal({
     const paddingX = width * 0.08;
     const maxTextWidth = width - paddingX * 2;
 
-    // Calcolo dinamico font size
-    let fontSize = width * 0.055;
-    if (aspectRatio === "story") fontSize = width * 0.065;
-    if (text.length > 250) fontSize *= 0.8;
-    if (text.length > 400) fontSize *= 0.7;
+    // Calcolo dinamico font size di base + delta utente
+    let baseFontSize = width * 0.052;
+    if (aspectRatio === "story") baseFontSize = width * 0.062;
+    if (text.length > 180) baseFontSize *= 0.88;
+    if (text.length > 300) baseFontSize *= 0.78;
+    if (text.length > 450) baseFontSize *= 0.68;
+
+    let fontSize = Math.max(20, Math.round(baseFontSize + textSizeDelta));
 
     const fontFamily = isSerif
       ? "'Merriweather', 'Georgia', serif"
@@ -184,27 +178,42 @@ export function QuoteImageModal({
     }
     if (currentLine) lines.push(currentLine);
 
-    const lineHeight = fontSize * 1.38;
+    const lineHeight = fontSize * 1.34;
     const totalTextHeight = lines.length * lineHeight;
 
-    // Calcola posizione Y (centrato verticalmente o bilanciato)
-    let startY = (height - totalTextHeight) / 2 - fontSize * 0.8;
-    if (aspectRatio === "story") {
-      startY = height * 0.38 - totalTextHeight / 2;
-    }
-    if (startY < height * 0.12) startY = height * 0.12;
+    // Dimensione Citazione (calcolata + delta utente)
+    const baseCitationFontSize = Math.round(fontSize * 0.62);
+    const citationFontSize = Math.max(16, Math.round(baseCitationFontSize + citationSizeDelta));
 
-    // Disegna le righe di testo
+    // Calcola posizione Y garantendo che non esca MAI dal bordo inferiore
+    const bottomSafetyMargin = height * 0.08;
+    const availableContentHeight = totalTextHeight + citationFontSize + Math.max(20, fontSize * 0.7);
+
+    let startY = (height - availableContentHeight) / 2;
+    if (aspectRatio === "story") {
+      startY = height * 0.35 - totalTextHeight / 2;
+    }
+
+    // Se il contenuto è alto, parte più in alto
+    if (startY < height * 0.08) {
+      startY = height * 0.08;
+    }
+
+    // Disegna le righe del testo
     for (let i = 0; i < lines.length; i++) {
       ctx.fillText(lines[i], paddingX, startY + i * lineHeight);
     }
 
     // 4. Disegna la Citazione in Basso (Corsivo)
-    const citationFontSize = fontSize * 0.65;
     ctx.font = `italic 600 ${citationFontSize}px ${fontFamily}`;
     ctx.fillStyle = citationColor;
 
-    const citationY = startY + totalTextHeight + fontSize * 1.2;
+    let citationY = startY + totalTextHeight + Math.max(24, fontSize * 0.75);
+    // Controllo anti-taglio: non superare mai il margine inferiore di sicurezza
+    if (citationY + citationFontSize > height - bottomSafetyMargin) {
+      citationY = height - bottomSafetyMargin - citationFontSize;
+    }
+
     ctx.fillText(citation, paddingX, citationY);
 
     // 5. Genera Anteprima Data URL
@@ -214,7 +223,7 @@ export function QuoteImageModal({
     } catch (e) {
       console.error("Errore generazione anteprima canvas:", e);
     }
-  }, [isOpen, text, citation, aspectRatio, theme]);
+  }, [isOpen, text, citation, aspectRatio, theme, textSizeDelta, citationSizeDelta]);
 
   if (!isOpen) return null;
 
@@ -375,7 +384,7 @@ export function QuoteImageModal({
               </label>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { id: "dark", label: "🖤 Dark", desc: "Come Dario" },
+                  { id: "dark", label: "🌙 Notturno", desc: "Minimale" },
                   { id: "parchment", label: "📜 Avorio", desc: "Pergamena" },
                   { id: "liturgical", label: "✝️ Liturgico", desc: "Elegante" },
                 ].map((th) => (
@@ -397,12 +406,45 @@ export function QuoteImageModal({
             </div>
           </div>
 
-          {/* Testo Citato Modificabile */}
+          {/* Testo Citato Modificabile + Regolazione Pixel */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#8a755d] uppercase tracking-wider flex justify-between">
-              <span>Testo del Versetto</span>
-              <span className="text-[11px] font-normal lowercase">{text.length} caratteri</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#8a755d] uppercase tracking-wider">
+                Testo del Versetto
+              </label>
+              <div className="flex items-center gap-1 bg-[#f0e4d2] px-2 py-0.5 rounded-lg border border-[#d8c5ad]">
+                <span className="text-[10px] text-[#6e5a45] font-semibold mr-1">Dim. testo:</span>
+                <button
+                  type="button"
+                  onClick={() => setTextSizeDelta((p) => Math.max(-20, p - 3))}
+                  className="px-1.5 py-0.5 text-xs font-bold text-[#2c241c] hover:bg-white rounded cursor-pointer"
+                  title="Riduci dimensione testo"
+                >
+                  A-
+                </button>
+                <span className="text-[10px] font-mono font-bold text-[#2c241c] min-w-[24px] text-center">
+                  {textSizeDelta >= 0 ? `+${textSizeDelta}` : textSizeDelta}px
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setTextSizeDelta((p) => Math.min(25, p + 3))}
+                  className="px-1.5 py-0.5 text-xs font-bold text-[#2c241c] hover:bg-white rounded cursor-pointer"
+                  title="Aumenta dimensione testo"
+                >
+                  A+
+                </button>
+                {textSizeDelta !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTextSizeDelta(0)}
+                    className="text-[10px] text-[#8a755d] hover:text-[#2c241c] ml-1 cursor-pointer"
+                    title="Ripristina dimensione predefinita"
+                  >
+                    ↺
+                  </button>
+                )}
+              </div>
+            </div>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -412,11 +454,45 @@ export function QuoteImageModal({
             />
           </div>
 
-          {/* Citazione Fonte Modificabile */}
+          {/* Citazione Fonte Modificabile + Regolazione Pixel Citazione */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#8a755d] uppercase tracking-wider">
-              Citazione / Firma in Basso
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#8a755d] uppercase tracking-wider">
+                Citazione / Firma in Basso
+              </label>
+              <div className="flex items-center gap-1 bg-[#f0e4d2] px-2 py-0.5 rounded-lg border border-[#d8c5ad]">
+                <span className="text-[10px] text-[#6e5a45] font-semibold mr-1">Dim. citazione:</span>
+                <button
+                  type="button"
+                  onClick={() => setCitationSizeDelta((p) => Math.max(-15, p - 2))}
+                  className="px-1.5 py-0.5 text-xs font-bold text-[#2c241c] hover:bg-white rounded cursor-pointer"
+                  title="Riduci dimensione citazione"
+                >
+                  A-
+                </button>
+                <span className="text-[10px] font-mono font-bold text-[#2c241c] min-w-[24px] text-center">
+                  {citationSizeDelta >= 0 ? `+${citationSizeDelta}` : citationSizeDelta}px
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCitationSizeDelta((p) => Math.min(20, p + 2))}
+                  className="px-1.5 py-0.5 text-xs font-bold text-[#2c241c] hover:bg-white rounded cursor-pointer"
+                  title="Aumenta dimensione citazione"
+                >
+                  A+
+                </button>
+                {citationSizeDelta !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCitationSizeDelta(0)}
+                    className="text-[10px] text-[#8a755d] hover:text-[#2c241c] ml-1 cursor-pointer"
+                    title="Ripristina dimensione predefinita"
+                  >
+                    ↺
+                  </button>
+                )}
+              </div>
+            </div>
             <input
               type="text"
               value={citation}
