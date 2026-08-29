@@ -21,6 +21,8 @@ interface LiturgicalColorDetails {
   colorName: string;
   icon: string;
   bgColor: string;
+  gradientStart: string;
+  gradientEnd: string;
   textColor: string;
   citationColor: string;
   isWhiteBg?: boolean;
@@ -29,9 +31,10 @@ interface LiturgicalColorDetails {
 function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): LiturgicalColorDetails {
   const combined = `${liturgicalTitle || ""} ${text || ""}`.toLowerCase();
 
-  // Rosso: Martiri, Pentecoste, Passione, Croce, Precursore
+  // Rosso Scarlatto: Martiri, Decollazione, Pentecoste, Passione, Croce, Precursore, Apostoli
   if (
     combined.includes("martir") ||
+    combined.includes("decollaz") ||
     combined.includes("pentecoste") ||
     combined.includes("passione") ||
     combined.includes("palme") ||
@@ -40,11 +43,27 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     combined.includes("apostol")
   ) {
     return {
-      colorName: "Rosso",
+      colorName: "Rosso Scarlatto",
       icon: "🔴",
-      bgColor: "#2a1014",
-      textColor: "#fef08a",
-      citationColor: "#fecaca",
+      bgColor: "#881320",
+      gradientStart: "#a11827",
+      gradientEnd: "#6b0a13",
+      textColor: "#ffffff", // Bianco puro luminoso ad altissima leggibilità
+      citationColor: "#fef08a", // Oro chiaro caldo per la citazione
+      isWhiteBg: false,
+    };
+  }
+
+  // Rosa: Domenica Gaudete e Laetare
+  if (combined.includes("gaudete") || combined.includes("laetare") || combined.includes("rosa")) {
+    return {
+      colorName: "Rosa Liturgico",
+      icon: "🌸",
+      bgColor: "#831843",
+      gradientStart: "#9d174d",
+      gradientEnd: "#701a3c",
+      textColor: "#ffffff",
+      citationColor: "#fbcfe8",
       isWhiteBg: false,
     };
   }
@@ -60,9 +79,11 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     return {
       colorName: "Viola",
       icon: "🟣",
-      bgColor: "#221128",
-      textColor: "#fde047",
-      citationColor: "#e9d5ff",
+      bgColor: "#3b1a59",
+      gradientStart: "#4c2173",
+      gradientEnd: "#2c1143",
+      textColor: "#ffffff",
+      citationColor: "#fef08a", // Oro per stacco nobile e visibile
       isWhiteBg: false,
     };
   }
@@ -91,6 +112,8 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
       colorName: "Bianco",
       icon: "⚪",
       bgColor: "#ffffff",
+      gradientStart: "#ffffff",
+      gradientEnd: "#f4ede2",
       textColor: "#1a1510", // Contrasto scuro nobiliare perfetto su fondo bianco
       citationColor: "#7a5c3e",
       isWhiteBg: true,
@@ -101,9 +124,11 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
   return {
     colorName: "Verde",
     icon: "🟢",
-    bgColor: "#0f2316",
-    textColor: "#fef08a",
-    citationColor: "#dcfce7",
+    bgColor: "#14532d",
+    gradientStart: "#166534",
+    gradientEnd: "#0f3d21",
+    textColor: "#ffffff",
+    citationColor: "#fef08a", // Oro caldo per la citazione
     isWhiteBg: false,
   };
 }
@@ -195,39 +220,25 @@ export function QuoteImageModal({
     canvas.height = height;
 
     // Sfondo e colori in base al tema
-    let bgColor = "#1e1e1e";
     let textColor = "#fdfdfd";
     let citationColor = "#dcdcdc";
     let isSerif = false;
 
     if (theme === "dark") {
-      bgColor = "#1e1e1e";
       textColor = "#ffffff";
       citationColor = "#cccccc";
       isSerif = false;
+
+      const grad = ctx.createRadialGradient(width / 2, height / 2, width * 0.2, width / 2, height / 2, width * 0.7);
+      grad.addColorStop(0, "#2a2a2a");
+      grad.addColorStop(1, "#141414");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
     } else if (theme === "parchment") {
-      bgColor = "#f9f5ed";
       textColor = "#2c241c";
       citationColor = "#6e5a45";
       isSerif = true;
-    } else if (theme === "porpora") {
-      bgColor = "#281b22";
-      textColor = "#fde047";
-      citationColor = "#e5e7eb";
-      isSerif = true;
-    } else if (theme === "liturgical_dynamic") {
-      bgColor = dynamicColor.bgColor;
-      textColor = dynamicColor.textColor;
-      citationColor = dynamicColor.citationColor;
-      isSerif = true;
-    }
 
-    // 1. Disegna Sfondo
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, width, height);
-
-    // Sfondo sfumato e cornici dedicate
-    if (theme === "parchment") {
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, "#fbf8f3");
       grad.addColorStop(1, "#f3ebd8");
@@ -238,33 +249,55 @@ export function QuoteImageModal({
       ctx.strokeStyle = "#e2d5c4";
       ctx.lineWidth = width * 0.015;
       ctx.strokeRect(width * 0.025, height * 0.025, width * 0.95, height * 0.95);
-    } else if (theme === "liturgical_dynamic" && dynamicColor.isWhiteBg) {
-      // Sfondo Bianco Festivo Luminoso (Seta Avorio / Bianco con cornice oro brillante)
+    } else if (theme === "porpora") {
+      // Autentica Porpora Cardinale / Amaranto Solenne
+      textColor = "#fef08a"; // Oro caldo
+      citationColor = "#ffffff";
+      isSerif = true;
+
       const grad = ctx.createLinearGradient(0, 0, width, height);
-      grad.addColorStop(0, "#ffffff");
-      grad.addColorStop(0.5, "#faf7f1");
-      grad.addColorStop(1, "#f4ede2");
+      grad.addColorStop(0, "#6b1745");
+      grad.addColorStop(1, "#430a2a");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
 
-      // Cornice dorata festiva
-      ctx.strokeStyle = "#d4af37";
-      ctx.lineWidth = width * 0.012;
-      ctx.strokeRect(width * 0.028, height * 0.028, width * 0.944, height * 0.944);
-    } else if (theme === "dark") {
-      const grad = ctx.createRadialGradient(width / 2, height / 2, width * 0.2, width / 2, height / 2, width * 0.7);
-      grad.addColorStop(0, "#252525");
-      grad.addColorStop(1, "#181818");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
-    } else {
-      // Sfondi liturgici scuri (Verde bosco, Rosso rubino, Viola imperiale, Porpora)
-      const grad = ctx.createRadialGradient(width / 2, height / 2, width * 0.15, width / 2, height / 2, width * 0.75);
-      grad.addColorStop(0, "rgba(255, 255, 255, 0.04)");
-      grad.addColorStop(1, "rgba(0, 0, 0, 0.35)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
+      // Bordo oro solenne
+      ctx.strokeStyle = "rgba(253, 224, 71, 0.35)";
+      ctx.lineWidth = width * 0.01;
+      ctx.strokeRect(width * 0.025, height * 0.025, width * 0.95, height * 0.95);
+    } else if (theme === "liturgical_dynamic") {
+      textColor = dynamicColor.textColor;
+      citationColor = dynamicColor.citationColor;
+      isSerif = true;
+
+      if (dynamicColor.isWhiteBg) {
+        // Sfondo Bianco Festivo Luminoso (Seta Avorio / Bianco con cornice oro brillante)
+        const grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, "#ffffff");
+        grad.addColorStop(0.5, "#faf7f1");
+        grad.addColorStop(1, "#f4ede2");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Cornice dorata festiva
+        ctx.strokeStyle = "#d4af37";
+        ctx.lineWidth = width * 0.012;
+        ctx.strokeRect(width * 0.028, height * 0.028, width * 0.944, height * 0.944);
+      } else {
+        // Sfondi liturgici vividi e autentici (Rosso Scarlatto, Verde Smeraldo, Viola Vescovile)
+        const grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, dynamicColor.gradientStart);
+        grad.addColorStop(1, dynamicColor.gradientEnd);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Bordo sottile di luce
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.20)";
+        ctx.lineWidth = width * 0.008;
+        ctx.strokeRect(width * 0.025, height * 0.025, width * 0.95, height * 0.95);
+      }
     }
+
 
     // 2. Prepara il testo con le caporali « »
     const fullQuoteText = `«${text}»`;
@@ -516,21 +549,52 @@ export function QuoteImageModal({
                   { id: "parchment", label: "📜 Avorio", desc: "Pergamena" },
                   { id: "porpora", label: "👑 Oro & Porpora", desc: "Solenne" },
                   { id: "liturgical_dynamic", label: `✝️ ${dynamicColor.icon} ${dynamicColor.colorName}`, desc: "Tempo del Giorno" },
-                ].map((th) => (
-                  <button
-                    key={th.id}
-                    type="button"
-                    onClick={() => setTheme(th.id as ThemeId)}
-                    className={`px-2 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex flex-col items-center text-center ${
-                      theme === th.id
-                        ? "bg-[#2c241c] text-white border-[#2c241c] shadow-xs"
-                        : "bg-white text-[#5c4e3f] border-[#d8c5ad] hover:bg-[#f7f2ea]"
-                    }`}
-                  >
-                    <span className="truncate w-full">{th.label}</span>
-                    <span className="text-[10px] opacity-70 truncate w-full">{th.desc}</span>
-                  </button>
-                ))}
+                ].map((th) => {
+                  const isSelected = theme === th.id;
+                  let selectedBg = "#2c241c";
+                  let selectedText = "#ffffff";
+                  let selectedBorder = "#2c241c";
+
+                  if (isSelected) {
+                    if (th.id === "liturgical_dynamic") {
+                      if (dynamicColor.isWhiteBg) {
+                        selectedBg = "#fdfbf7";
+                        selectedText = "#1a1510";
+                        selectedBorder = "#d4af37";
+                      } else {
+                        selectedBg = dynamicColor.bgColor;
+                        selectedText = "#ffffff";
+                        selectedBorder = dynamicColor.gradientStart;
+                      }
+                    } else if (th.id === "porpora") {
+                      selectedBg = "#581238";
+                      selectedText = "#fef08a";
+                      selectedBorder = "#6b1745";
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={th.id}
+                      type="button"
+                      onClick={() => setTheme(th.id as ThemeId)}
+                      style={
+                        isSelected
+                          ? { backgroundColor: selectedBg, color: selectedText, borderColor: selectedBorder }
+                          : undefined
+                      }
+                      className={`px-2 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex flex-col items-center text-center ${
+                        isSelected
+                          ? "shadow-sm font-bold"
+                          : "bg-white text-[#5c4e3f] border-[#d8c5ad] hover:bg-[#f7f2ea]"
+                      }`}
+                    >
+                      <span className="truncate w-full">{th.label}</span>
+                      <span className="text-[10px] opacity-75 truncate w-full">{th.desc}</span>
+                    </button>
+                  );
+                })}
+
               </div>
             </div>
           </div>
