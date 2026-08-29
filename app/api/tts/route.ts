@@ -29,7 +29,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ fallback: true, message: "Testo non valido o troppo breve" });
     }
 
-    const cleanText = text.trim();
+    let cleanText = text
+      .replace(/[*†☩#_~^=|\/\\<>]/g, " ")
+      .replace(/\s*[-–—]{1,}\s*/g, ", ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (cleanText.length < 5) {
+      return NextResponse.json({ fallback: true, message: "Testo non valido o troppo breve" });
+    }
+
     const voiceConfig = VOICE_MAP[lang] || VOICE_MAP.it;
 
     // Genera Hash univoco del testo per l'Audio-Cache

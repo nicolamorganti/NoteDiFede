@@ -1111,8 +1111,9 @@ export function BibbiaReader() {
                     </h3>
                   </div>
                   <p className="text-xs text-[#8a755d]">
-                    Genera una <em>Lectio, Meditatio, Contemplatio, Actio, Oratio</em> in perfetto stile <strong>Card. Carlo Maria Martini</strong>.
+                    Genera una <em>Lectio, Meditatio, Contemplatio, Actio, Oratio</em> con metodo biblico e pastorale.
                   </p>
+
                 </div>
 
                 <button
@@ -1232,7 +1233,7 @@ export function BibbiaReader() {
                   >
                     <div className="space-y-1">
                       <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-[#aa9576]">
-                        Meditazione Spirituale · Metodo Card. Martini
+                        Lectio Divina · Meditazione Spirituale
                       </span>
                       <h3 className="text-xl sm:text-2xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
                         Lectio Divina: {chapterData.bookName} {chapterData.chapter}
@@ -1301,12 +1302,13 @@ export function BibbiaReader() {
                     dangerouslySetInnerHTML={{ __html: formatMarkdownToHtml(lectioText) }}
                   />
 
-                  {/* Citazione conclusiva Card. Martini */}
+                  {/* Citazione conclusiva */}
                   <div className="border-t pt-4 text-center italic text-xs text-[#8a755d]"
                     style={{ borderColor: isChurchMode ? "#38332f" : "#e8dcce" }}
                   >
-                    «La Parola di Dio non è mai statica: entra nella nostra vita, interpella le nostre fragilità e accende la speranza.» — Card. Carlo Maria Martini
+                    «La Parola di Dio non è mai statica: entra nella nostra vita, interpella le nostre fragilità e accende la speranza.»
                   </div>
+
                 </div>
               )}
             </div>

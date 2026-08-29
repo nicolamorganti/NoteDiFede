@@ -187,22 +187,66 @@ function extractOreFromHtml(html: string, moment: string) {
 
 
 function getAmbrosianColor(saint: string, grado: string, temporal: string): string {
-  const s = (saint + " " + grado).toLowerCase();
-  const t = temporal.toLowerCase();
-  if (s.includes("martire") || s.includes("apostolo") || s.includes("evangelista") || s.includes("croce") || s.includes("passione")) {
+  const combined = `${saint} ${grado} ${temporal}`.toLowerCase();
+
+  // Rosso: Martirio, Martiri, Precursore, Decollazione, Apostoli, Evangelisti, Croce, Passione, Palme, Pentecoste, Santo Stefano, Santi Innocenti, Sangue
+  if (
+    combined.includes("martir") ||
+    combined.includes("precursore") ||
+    combined.includes("decollazion") ||
+    combined.includes("apostol") ||
+    combined.includes("evangelist") ||
+    combined.includes("croce") ||
+    combined.includes("passione") ||
+    combined.includes("palme") ||
+    combined.includes("pentecost") ||
+    combined.includes("innocenti") ||
+    combined.includes("sangue")
+  ) {
     return "rosso";
   }
-  if (s.includes("vescovo") || s.includes("dottore") || s.includes("vergine") || s.includes("maria") || s.includes("confessore") || s.includes("papa") || s.includes("abate") || s.includes("sacerdote") || s.includes("pastore")) {
-    return "bianco";
-  }
-  if (t.includes("quaresima") || t.includes("avvento")) {
+
+  // Viola: Quaresima, Avvento, Defunti, Ceneri, Penitenziale
+  if (
+    combined.includes("quaresima") ||
+    combined.includes("avvento") ||
+    combined.includes("defunt") ||
+    combined.includes("ceneri") ||
+    combined.includes("penitenz")
+  ) {
     return "viola";
   }
-  if (t.includes("pasqua") || t.includes("natale")) {
+
+  // Bianco: Pasqua, Natale, Epifania, Maria, Vergine, Vescovo, Dottore, Confessore, Papa, Abate, Sacerdote, Pastore, Solennità, Trinità, Tutti i Santi, Battesimo, Sacro Cuore, Corpus Domini, Annunciazione, Trasfigurazione
+  if (
+    combined.includes("pasqua") ||
+    combined.includes("natal") ||
+    combined.includes("epifania") ||
+    combined.includes("maria") ||
+    combined.includes("vergine") ||
+    combined.includes("vescovo") ||
+    combined.includes("dottore") ||
+    combined.includes("confessore") ||
+    combined.includes("papa") ||
+    combined.includes("abate") ||
+    combined.includes("sacerdote") ||
+    combined.includes("pastore") ||
+    combined.includes("assunzion") ||
+    combined.includes("immacolata") ||
+    combined.includes("trinit") ||
+    combined.includes("tutti i santi") ||
+    combined.includes("battesimo") ||
+    combined.includes("sacro cuore") ||
+    combined.includes("corpus domini") ||
+    combined.includes("annunciazione") ||
+    combined.includes("trasfigurazione")
+  ) {
     return "bianco";
   }
+
   return "verde";
 }
+
 
 const ambrosianoMetaCache: Record<string, { saint: string; grado: string; colore: string; temporal: string; liturgicalInfo: string }> = {};
 

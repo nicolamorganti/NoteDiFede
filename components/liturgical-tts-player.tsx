@@ -13,29 +13,108 @@ export function cleanTextForSpeech(html: string): string {
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
 
-  // Rimuovi script, audio, controlli interattivi
-  const removeSelectors = ["script", "style", "audio", "iframe", "button", ".audio-player", ".menu"];
+  // 1. Rimuovi elementi non testuali o non pertinenti alla preghiera ad alta voce
+  const removeSelectors = [
+    "script",
+    "style",
+    "audio",
+    "iframe",
+    "button",
+    ".audio-player",
+    ".menu",
+    "nav",
+    "svg",
+    // Rimuovi istruzioni per la celebrazione e rubriche rosse / didascaliche
+    ".rubrica",
+    ".rubriche",
+    ".rubrique",
+    ".red",
+    ".rosso",
+    ".istruzioni",
+    ".didascalia",
+    ".guida-celebrazione",
+    ".notainiziale",
+    ".nota",
+    "font[color='red']",
+    "font[color='#ff0000']",
+    "font[color='#b91c1c']",
+    "font[color='#990000']",
+    "span[style*='color: red']",
+    "span[style*='color: #b91c1c']",
+    "span[style*='color:#b91c1c']",
+    "span[style*='color: rgb(185, 28, 28)']",
+    "span[style*='color: rgb(255, 0, 0)']",
+  ];
   removeSelectors.forEach((sel) => {
     tmp.querySelectorAll(sel).forEach((el) => el.remove());
   });
 
+  // Rimuovi anche elementi con testo in rosso verificando lo stile inline
+  tmp.querySelectorAll("span, p, font, em, i").forEach((el) => {
+    const style = el.getAttribute("style") || "";
+    const color = el.getAttribute("color") || "";
+    if (
+      style.includes("color: red") ||
+      style.includes("color: #b91c1c") ||
+      style.includes("color:#b91c1c") ||
+      style.includes("color: rgb(185, 28, 28)") ||
+      style.includes("color: rgb(255, 0, 0)") ||
+      color === "red" ||
+      color === "#b91c1c"
+    ) {
+      el.remove();
+    }
+  });
+
   let text = tmp.innerText || tmp.textContent || "";
 
-  // Normalizza e rendi naturale la pronuncia liturgica
+  // 2. Rimuovi istruzioni tra parentesi e rubriche residue
+  text = text
+    .replace(/\([A-Z\s,]{1,50}\)/g, "") // es. (PAUSA), (SILENZIO), (TUTTI), (ORAZIONE)
+    .replace(/\((?:Si fa una breve pausa|Si fa un breve silenzio|Tutti si alzano|Tutti si inginocchiano|In piedi|In ginocchio|Seduti|Pausa di silenzio|Pausa|Silenzio|Orazione|Antifona|Salmo|Cantico|Lettura|Vangelo|Prima Lettura|Seconda Lettura|Responsorio)[^)]*\)/gi, "")
+    .replace(/\[(?:Si fa una breve pausa|Si fa un breve silenzio|Tutti si alzano|Tutti si inginocchiano|In piedi|In ginocchio|Seduti|Pausa|Silenzio|Orazione|Antifona)[^\]]*\]/gi, "");
+
+  // 3. Rimuovi citazioni bibliche tecniche (es. Lc 1,68-79, Sal 142, 1-7, Mt 5,1-12, Is 60,1-6)
+  const bibleBooksPattern =
+    "(?:[1-3]\\s*)?(?:Gen|Es|Lv|Nm|Dt|Gs|Gdc|Rt|1Sam|2Sam|1Re|2Re|1Cr|2Cr|Esd|Ne|Tb|Gdt|Est|1Mac|2Mac|Gb|Sal|Pr|Qo|Ct|Sap|Sir|Is|Ger|Lam|Bar|Ez|Dn|Os|Gl|Am|Abd|Gna|Mi|Na|Ab|Sof|Ag|Zc|Ml|Mt|Mc|Lc|Gv|At|Rm|1Cor|2Cor|Gal|Ef|Fil|Col|1Ts|2Ts|1Tm|2Tm|Tt|Fm|Eb|Gc|1Pt|2Pt|1Gv|2Gv|3Gv|Gd|Ap)";
+
+  // Parentesi con citazione biblica: es. (Lc 1, 68-79), (Sal 142, 1-7), (Mt 5, 1-12a)
+  const parenCitationRegex = new RegExp(`\\(\\s*${bibleBooksPattern}\\s*\\.?\\s*\\d+(?:[\\s,.:;\\-–—a-zA-Z\\d]*)\\)`, "gi");
+  text = text.replace(parenCitationRegex, "");
+
+  // Citazione biblica senza parentesi su linea o inizio versetto: es. Lc 1,68-79 : o Sal 118, 1-8
+  const inlineCitationRegex = new RegExp(`\\b${bibleBooksPattern}\\s*\\.?\\s*\\d+\\s*,\\s*\\d+(?:[\\-–—]\\d+)?(?:\\s*[,.]\\s*\\d+(?:[\\-–—]\\d+)?)*\\b`, "gi");
+  text = text.replace(inlineCitationRegex, "");
+
+  // 4. Normalizzazione dei dialoghi liturgici
   text = text
     .replace(/\bV\.\s*/g, "Guida: ")
     .replace(/\bR\.\s*/g, "Risposta: ")
     .replace(/\bC\.\s*/g, "Celebrante: ")
     .replace(/\bA\.\s*/g, "Assemblea: ")
-    .replace(/\bL\.\s*/g, "Lettore: ")
-    .replace(/\b\+\s*/g, " ") // Segno di croce
+    .replace(/\bL\.\s*/g, "Lettore: ");
+
+  // 5. Rimuovi segni grafici liturgici che disturbano la lettura:
+  // - Asterischi (*) usati nei salmi per la cadenza metrica
+  // - Crocette (†, +, ☩) per la flessione
+  // - Trattini lunghi o multipli (--, —, –)
+  // - Barre (/), pipe (|), cancelletti (#), underscore (_), accenti circonflessi (^)
+  text = text
+    .replace(/[*†☩#_~^=|\/\\<>]/g, " ")
+    .replace(/\s*[-–—]{1,}\s*/g, ", ") // Sostituisci trattini di stacco con una virgola per dare naturalezza di pausa
     .replace(/-\s*Menu\s*-/gi, "")
     .replace(/[\r\n]+/g, ". ")
     .replace(/\s+/g, " ")
+    .replace(/\s*,\s*,+/g, ",")
+    .replace(/\s*\.\s*\.+/g, ".")
+    .replace(/\s*,\s*\./g, ".")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\[\s*\]/g, "")
     .trim();
 
   return text;
 }
+
 
 export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta" }: LiturgicalTtsPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
