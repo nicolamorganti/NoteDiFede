@@ -447,9 +447,10 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
         </div>
       )}
 
-      {/* Floating Audio Controller galleggiante (appare solo quando l'audio è attivo e l'utente scorre in basso) */}
+      {/* Floating Audio Controller galleggiante (appare solo quando l'audio è attivo e l'utente scorre in basso, posizionato a fianco del pulsante scroll senza coprire la %) */}
       {(isPlaying || isPaused) && isScrolled && (
-        <div className="fixed bottom-24 right-3 sm:right-6 z-40 flex items-center gap-2 rounded-2xl bg-[#5c4a37]/95 backdrop-blur-md border border-[#8a755d]/50 p-2 shadow-2xl text-white animate-in fade-in slide-in-from-bottom-3 duration-300">
+        <div className="fixed bottom-5 sm:bottom-6 right-18 sm:right-24 z-40 flex items-center gap-2 rounded-2xl bg-[#5c4a37]/95 backdrop-blur-md border border-[#8a755d]/50 p-2 shadow-2xl text-white animate-in fade-in slide-in-from-bottom-3 duration-300">
+
           <span className="text-[10px] font-mono font-bold bg-[#ede4d8] text-[#5c4a37] px-1.5 py-0.5 rounded-md select-none">
             {voiceType === "neural" ? "🎙️ HD" : "🔊 Voce"}
           </span>
