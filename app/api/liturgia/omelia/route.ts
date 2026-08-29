@@ -5,11 +5,11 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { text, liturgicalInfo, rite, date } = body;
+    const { text, liturgicalInfo, rite, date, moment, isGospel = true } = body;
 
     if (!text || text.trim().length < 20) {
       return NextResponse.json(
-        { error: "Testo del Vangelo non disponibile o insufficiente per generare la riflessione." },
+        { error: "Testo della Parola o della preghiera non disponibile o insufficiente per generare la riflessione." },
         { status: 400 }
       );
     }
@@ -25,27 +25,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const contextHeader = isGospel
+      ? `Sul brano del Santo Vangelo di oggi${liturgicalInfo ? ` (${liturgicalInfo})` : ""}:`
+      : `Sui testi della Parola di Dio e della preghiera liturgica di oggi${moment ? ` (${moment.toUpperCase()})` : ""}${liturgicalInfo ? ` - ${liturgicalInfo}` : ""}:`;
+
+    const goalDescription = isGospel
+      ? `Scrivi una riflessione ("Supporto alla Comprensione") che guidi il cuore e l'intelligenza a penetrare il Vangelo e a tradurlo nella vita reale di oggi.`
+      : `Scrivi una meditazione ("Supporto alla Comprensione") che guidi il cuore e l'intelligenza a penetrare la Parola di Dio e i Salmi pregati, illuminando la preghiera e traducendola nella vita quotidiana.`;
+
     // Prompt omiletico con autentica sintassi e voce del Cardinale Carlo Maria Martini
     const systemPrompt = `Sei il Cardinale Carlo Maria Martini: grande biblista, maestro spirituale e arcivescovo di Milano. Scrivi con la tua inconfondibile voce, la tua prosa sobria, elegante, profonda e accessibile a ogni persona.
 
-Sul brano del Santo Vangelo di oggi${liturgicalInfo ? ` (${liturgicalInfo})` : ""}:
+${contextHeader}
 """
 ${text}
 """
 
-Scrivi una riflessione ("Supporto alla Comprensione") che guidi il cuore e l'intelligenza a penetrare il Vangelo e a tradurlo nella vita reale di oggi.
+${goalDescription}
 
 CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
 - Usa la tipica sintassi martiniana: periodi limpidi e misurati, meditativi, capaci di scavare nelle pieghe dell'animo umano e di porre domande essenziali sul senso della vita, della libertà e della fede.
 - EVITA ASSOLUTAMENTE I TIC MECCANICI TIPICI DEI MODELLI LINGUISTICI: niente elenchi puntati schematizzati, niente formule scolastiche o stereotipate (es. evita "In questo brano impariamo che...", "In conclusione...", "In un mondo frenetico...", "Ecco tre riflessioni...").
 - Prosa fluida, viva, calda e organica articolata in brevi paragrafi collegati con naturalezza:
-  1. La penetrazione del testo: cogliere la parola o l'atteggiamento sorgivo di Gesù con finezza biblica e psicologica.
+  1. La penetrazione del testo: cogliere la parola o l'atteggiamento sorgivo del Signore con finezza biblica e spirituale.
   2. L'interrogativo per la coscienza: una domanda sincera che mette in dialogo il testo con le nostre domande e fatiche interiori.
-  3. L'esempio concreto nel quotidiano (circa 50 parole dedicate): un consiglio pratico ed esistenziale, un atteggiamento concreto da incarnare oggi (nel lavoro, nelle relazioni familiari, nella pazienza, nel perdono, nell'ascolto) per conformarci allo stile e al cuore di Gesù.
+  3. L'esempio concreto nel quotidiano (circa 50 parole dedicate): un consiglio pratico ed esistenziale, un atteggiamento concreto da incarnare oggi (nel lavoro, nelle relazioni familiari, nella pazienza, nel perdono, nell'ascolto) per conformarci allo stile del Vangelo.
   4. L'affidamento finale: un respiro di consolazione, speranza e confidenza nel Padre.
 - Lunghezza complessiva: circa 250-350 parole (densa, luminosa e profondamente incarnata nel quotidiano).
 - Concludi SEMPRE la riflessione in modo compiuto con la frase di chiusura, senza mai troncare a metà frase.
 - Niente convenevoli di apertura o formule da pulpito (niente "Carissimi fratelli", "Cari amici", ecc.). Entra direttamente nella contemplazione del brano.`;
+
 
     // Catena completa dei modelli Gemini (gemini-3.7-flash primo assoluto, seguito da gemini-flash-latest e fallback)
     const candidateModels = [

@@ -76,6 +76,19 @@ function extractGospelText(html: string): string {
   return plainText.trim();
 }
 
+function extractCleanLiturgicalText(html: string): string {
+
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/&nbsp;/g, " ")
+    .replace(/-\s*Menu\s*-/gi, "")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
+
+
 
 function splitContentAtGospelEnd(html: string) {
   // 1. Cerca la fine del tag audio (dopo l'audio del Vangelo)
@@ -452,7 +465,7 @@ export function LiturgiaReader() {
     setOmeliaError("Generazione annullata dall'utente.");
   };
 
-  // Generazione Supporto alla Comprensione (Omelia Card. Martini) con Gemini
+  // Generazione Supporto alla Comprensione (Omelia/Meditazione) con Gemini
   const handleGenerateOmelia = async () => {
     if (omeliaText) {
       setShowOmelia((prev) => !prev);
@@ -461,9 +474,17 @@ export function LiturgiaReader() {
 
     if (!contentHtml) return;
 
-    const gospelText = extractGospelText(contentHtml);
-    if (!gospelText || gospelText.length < 20) {
-      setOmeliaError("Testo del Vangelo non identificato.");
+    const isMessa = moment === "messa";
+    const sourceText = isMessa
+      ? extractGospelText(contentHtml)
+      : extractCleanLiturgicalText(contentHtml);
+
+    if (!sourceText || sourceText.length < 20) {
+      setOmeliaError(
+        isMessa
+          ? "Testo del Vangelo non identificato."
+          : "Testo della Parola di Dio non identificato."
+      );
       return;
     }
 
@@ -479,10 +500,12 @@ export function LiturgiaReader() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: gospelText,
+          text: sourceText,
           liturgicalInfo,
           rite,
           date: selectedDate,
+          moment,
+          isGospel: isMessa,
         }),
         signal: controller.signal,
       });
@@ -504,8 +527,13 @@ export function LiturgiaReader() {
       if (err.name === "AbortError") {
         setOmeliaError("Elaborazione annullata.");
       } else {
-        console.error("Errore generazione Omelia:", err);
-        setOmeliaError(err.message || "Impossibile generare la riflessione sul Vangelo.");
+        console.error("Errore generazione Supporto alla Comprensione:", err);
+        setOmeliaError(
+          err.message ||
+            (isMessa
+              ? "Impossibile generare la riflessione sul Vangelo."
+              : "Impossibile generare la meditazione sulla Parola.")
+        );
       }
     } finally {
       setOmeliaLoading(false);
@@ -542,12 +570,12 @@ export function LiturgiaReader() {
   const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
   const spacingLabel = lineSpacing === "compact" ? "Compatta" : lineSpacing === "normal" ? "Normale" : "Ampia";
 
-  // Suddivide il testo esattamente dopo l'audio del Vangelo
+  // Suddivide il testo esattamente dopo l'audio del Vangelo (per la Messa)
   const splitContent = splitContentAtGospelEnd(contentHtml);
 
-  // Render del blocco "Supporto alla Comprensione" (SOLO per la Santa Messa)
+  // Render del blocco "Supporto alla Comprensione" (Attivo sia per Messa che per Liturgia delle Ore)
   const renderSupportoComprensione = () => {
-    if (moment !== "messa") return null;
+    const isMessa = moment === "messa";
 
     return (
       <div className="my-8 pt-4 pb-2 border-y" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
@@ -566,7 +594,9 @@ export function LiturgiaReader() {
               </h3>
             </div>
             <p className="text-xs text-[#8a755d]">
-              Omelia e riflessione spirituale sul Vangelo proclamato oggi
+              {isMessa
+                ? "Omelia e riflessione spirituale sul Vangelo proclamato oggi"
+                : "Breve meditazione e supporto spirituale alla preghiera di oggi"}
             </p>
           </div>
 
@@ -607,10 +637,12 @@ export function LiturgiaReader() {
             </div>
             <div className="space-y-1">
               <h4 className="font-serif font-bold text-base" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
-                Ascolto del Vangelo in corso...
+                {isMessa ? "Ascolto del Vangelo in corso..." : "In ascolto della Parola..."}
               </h4>
               <p className="text-xs text-[#8a755d] max-w-md mx-auto">
-                Elaborazione di una riflessione omiletica profonda, sobria e orientata alla preghiera comunitaria.
+                {isMessa
+                  ? "Elaborazione di una riflessione omiletica profonda, sobria e orientata alla preghiera comunitaria."
+                  : "Elaborazione di una riflessione spirituale profonda, sobria e orientata alla preghiera."}
               </p>
             </div>
 
@@ -660,7 +692,7 @@ export function LiturgiaReader() {
             </div>
             <div className="space-y-1">
               <p className="text-xs font-bold" style={{ color: isChurchMode ? "#fca5a5" : "#9a3412" }}>
-                Stato riflessione sul Vangelo:
+                {isMessa ? "Stato riflessione sul Vangelo:" : "Stato meditazione spirituale:"}
               </p>
               <p className="text-xs max-w-md mx-auto" style={{ color: isChurchMode ? "#e5b7b2" : "#c2410c" }}>
                 {omeliaError}
@@ -692,10 +724,12 @@ export function LiturgiaReader() {
             >
               <div className="space-y-1">
                 <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-[#aa9576]">
-                  Riflessione Biblica & Omelia
+                  {isMessa ? "Riflessione Biblica & Omelia" : "Meditazione & Guida Spirituale"}
                 </span>
                 <h4 className="text-lg sm:text-xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
-                  Supporto alla Comprensione del Vangelo
+                  {isMessa
+                    ? "Supporto alla Comprensione del Vangelo"
+                    : "Supporto alla Comprensione della Parola"}
                 </h4>
               </div>
 
@@ -759,6 +793,7 @@ export function LiturgiaReader() {
       </div>
     );
   };
+
 
 
   return (
