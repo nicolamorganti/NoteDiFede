@@ -7,6 +7,8 @@ import { BibleApiResponse, BibleVerse, BibleCrossRef, BibleFootnote } from "@/ap
 import { QuoteImageModal } from "@/components/quote-image-modal";
 import { useTextSelectionQuote } from "@/lib/use-text-selection-quote";
 import { getPsalmMapping, findHebrewPsalmsFromLiturgicalQuery } from "@/lib/psalms-liturgical-mapping";
+import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
+
 
 
 
@@ -43,7 +45,7 @@ function formatMarkdownToHtml(markdown: string): string {
 
 export function BibbiaReader() {
   // Stato Libro e Capitolo
-  const [selectedBookId, setSelectedBookId] = useState<string>("Gv");
+  const [selectedBookId, setSelectedBookId] = useState<string>("Gen");
   const [chapter, setChapter] = useState<number>(1);
   const [testamentFilter, setTestamentFilter] = useState<"all" | "nt" | "at">("nt");
   const [searchFilter, setSearchFilter] = useState<string>("");
@@ -67,8 +69,7 @@ export function BibbiaReader() {
     label: string;
   }
 
-  // Stato Audio & Passi Paralleli (Scrutatio)
-  const [showAudioPlayer, setShowAudioPlayer] = useState<boolean>(false);
+  // Stato Passi Paralleli (Scrutatio)
   const [activeCrossRefVerseNum, setActiveCrossRefVerseNum] = useState<number | null>(null);
   const [showFootnotes, setShowFootnotes] = useState<boolean>(true);
   const [historyStack, setHistoryStack] = useState<BibleHistoryStep[]>([]);
@@ -180,7 +181,6 @@ export function BibbiaReader() {
     setError(null);
     setSelectedVerseNum(null);
     setActiveCrossRefVerseNum(null);
-    setShowAudioPlayer(false);
     // Reset lectio on chapter change
     setLectioText(null);
     setLectioError(null);
@@ -739,6 +739,17 @@ export function BibbiaReader() {
             <span>{isChurchMode ? "🌙 Notturna" : "☀️ Diurna"}</span>
           </button>
 
+          {/* Lettore Vocale Text-to-Speech con Auto-Scroll Sincronizzato */}
+          {chapterData && (
+            <LiturgicalTtsPlayer
+              htmlContent={chapterData.verses
+                .map((v) => `<p id="verse-${v.num}"><strong>[${v.num}]</strong> ${v.text}</p>`)
+                .join("\n")}
+              lang="it"
+              title="Ascolta"
+            />
+          )}
+
           {/* Copia Capitolo */}
           <button
             onClick={handleCopyChapter}
@@ -758,6 +769,7 @@ export function BibbiaReader() {
           </button>
         </div>
       </div>
+
 
       {/* Banner Cronologia Rimandi (Torna al passo precedente) */}
       {historyStack.length > 0 && (
@@ -864,71 +876,8 @@ export function BibbiaReader() {
                   <span>{getPsalmMapping(chapterData.chapter).liturgicalExplanation}</span>
                 </div>
               )}
-
-
-              {/* Player Audio Proclamazione (Minimale e Sobrio in stile Note di Fede) */}
-              {(chapterData.audioStreamUrl || chapterData.audioEmbedUrl) && (
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAudioPlayer(!showAudioPlayer)}
-                    className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-xs transition hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      backgroundColor: isChurchMode ? "#292420" : "#f7f0e4",
-                      borderColor: isChurchMode ? "#443e38" : "#dac7b0",
-                      color: isChurchMode ? "#fde047" : "#5c4a37",
-                    }}
-                  >
-                    <span>🎧</span>
-                    <span>{showAudioPlayer ? "Nascondi Audio Proclamazione" : "Ascolta la Lettura Proclamata"}</span>
-                  </button>
-
-                  {showAudioPlayer && (
-                    <div
-                      className="mt-3 p-3 rounded-2xl border shadow-inner max-w-md mx-auto animate-in fade-in duration-200"
-                      style={{
-                        backgroundColor: isChurchMode ? "#1f1b18" : "#fffdfa",
-                        borderColor: isChurchMode ? "#443e38" : "#ebdcc8",
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-2 px-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">🎧</span>
-                          <span className="text-xs font-serif font-bold" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
-                            {chapterData.bookName} {chapterData.chapter}
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-[#aa9576]">
-                          Audio Ufficiale
-                        </span>
-                      </div>
-
-                      {chapterData.audioStreamUrl ? (
-                        <audio
-                          controls
-                          controlsList="nodownload"
-                          preload="metadata"
-                          src={chapterData.audioStreamUrl}
-                          className="w-full h-10 rounded-xl mt-1"
-                        />
-                      ) : (
-                        <iframe
-                          src={chapterData.audioEmbedUrl!}
-                          width="100%"
-                          height="64"
-                          frameBorder="0"
-                          scrolling="no"
-                          allow="autoplay; encrypted-media"
-                          title={`Audio ${chapterData.bookName} ${chapterData.chapter}`}
-                          className="block w-full rounded-xl"
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
             </div>
+
 
             {/* Versetti con Passi Paralleli */}
             <div className="space-y-3">

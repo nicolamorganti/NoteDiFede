@@ -20,6 +20,7 @@ export function cleanTextForSpeech(html: string): string {
     "audio",
     "iframe",
     "button",
+    "sup",
     ".audio-player",
     ".menu",
     "nav",
