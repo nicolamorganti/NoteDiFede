@@ -22,6 +22,11 @@ export function cleanTextForSpeech(html: string): string {
     "button",
     "sup",
     ".audio-player",
+    ".no-speech",
+    ".footnote",
+    ".footnotes",
+    ".note",
+    ".notes",
     ".menu",
     "nav",
     "svg",
@@ -228,7 +233,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
     ).filter((el) => {
       // Escludi contenitori padre che racchiudono già altri paragrafi o liste
       if (el.querySelector("p, li, h1, h2, h3, h4")) return false;
-      if (el.closest(".audio-player, button, nav, script, .no-speech, .menu, .rubrica")) return false;
+      if (el.closest(".audio-player, button, nav, script, .no-speech, .menu, .rubrica, .footnote, .footnotes, .note, .notes")) return false;
       const clean = cleanTextForSpeech(el.innerHTML);
       return clean.length > 5;
     });

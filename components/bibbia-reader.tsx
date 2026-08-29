@@ -739,16 +739,17 @@ export function BibbiaReader() {
             <span>{isChurchMode ? "🌙 Notturna" : "☀️ Diurna"}</span>
           </button>
 
-          {/* Lettore Vocale Text-to-Speech con Auto-Scroll Sincronizzato */}
+          {/* Lettore Vocale Text-to-Speech con Auto-Scroll Sincronizzato (Solo Parola Sacra, senza numeri di versetto) */}
           {chapterData && (
             <LiturgicalTtsPlayer
               htmlContent={chapterData.verses
-                .map((v) => `<p id="verse-${v.num}"><strong>[${v.num}]</strong> ${v.text}</p>`)
+                .map((v) => `<p id="verse-${v.num}">${v.text}</p>`)
                 .join("\n")}
               lang="it"
               title="Ascolta"
             />
           )}
+
 
           {/* Copia Capitolo */}
           <button
@@ -942,7 +943,7 @@ export function BibbiaReader() {
                     {/* Pannello Espandibile dei Passi Paralleli */}
                     {isRefsOpen && hasRefs && (
                       <div
-                        className="mt-3 p-3 sm:p-4 rounded-2xl border shadow-inner transition space-y-2 animate-in fade-in duration-200"
+                        className="mt-3 p-3 sm:p-4 rounded-2xl border shadow-inner transition space-y-2 animate-in fade-in duration-200 no-speech"
                         style={{
                           backgroundColor: isChurchMode ? "#1f1b18" : "#fffdfa",
                           borderColor: isChurchMode ? "#443e38" : "#e0d3c1",
@@ -996,7 +997,7 @@ export function BibbiaReader() {
 
             {/* Note in Calce (Esegesi & Commento) */}
             {chapterData.footnotes && chapterData.footnotes.length > 0 && (
-              <div className="my-10 pt-6 border-t" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+              <div className="my-10 pt-6 border-t no-speech" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <div className="flex items-center gap-2">
                     <span className="text-base">📝</span>
@@ -1045,7 +1046,8 @@ export function BibbiaReader() {
             {/* ========================================================================= */}
             {/* PULSANTE LECTIO DIVINA (CARDINALE CARLO MARIA MARTINI) */}
             {/* ========================================================================= */}
-            <div className="my-10 pt-6 border-t" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+            <div className="my-10 pt-6 border-t no-speech" style={{ borderColor: isChurchMode ? "#38332f" : "#ebdcc8" }}>
+
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-3xl border shadow-sm transition"
                 style={{
                   backgroundColor: isChurchMode ? "#25201d" : "#fdfbf7",
