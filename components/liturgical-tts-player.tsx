@@ -122,15 +122,42 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
   const [isLoading, setIsLoading] = useState(false);
   const [voiceType, setVoiceType] = useState<"neural" | "device" | null>(null);
   const [rate, setRate] = useState<number>(1.0); // 0.85, 1.0, 1.2
+  const [autoScroll, setAutoScroll] = useState<boolean>(true); // Sincronizzazione e auto-scroll a tempo
   const [isSupported, setIsSupported] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // Audio HTML5 (per Google Cloud Neural2 / Cache)
+  // Audio HTML5 (per Google Cloud Neural2 / Microsoft Azure Neural Cache)
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Web Speech API (per Fallback Dispositivo)
   const utterancesRef = useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = useRef<number>(0);
+
+  // Riferimenti per Highlight e Auto-Scroll sincronizzato
+  const currentHighlightedElementRef = useRef<HTMLElement | null>(null);
+  const isUserScrollingRef = useRef<boolean>(false);
+  const userInteractedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Rileva interazione manuale utente con lo scroll per non forzare la vista durante la lettura manuale
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onUserTouchOrWheel = () => {
+      isUserScrollingRef.current = true;
+      if (userInteractedTimeoutRef.current) clearTimeout(userInteractedTimeoutRef.current);
+      userInteractedTimeoutRef.current = setTimeout(() => {
+        isUserScrollingRef.current = false;
+      }, 4000); // Ritorna all'auto-scroll dopo 4 secondi di inattività
+    };
+
+    window.addEventListener("wheel", onUserTouchOrWheel, { passive: true });
+    window.addEventListener("touchmove", onUserTouchOrWheel, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onUserTouchOrWheel);
+      window.removeEventListener("touchmove", onUserTouchOrWheel);
+      if (userInteractedTimeoutRef.current) clearTimeout(userInteractedTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -147,11 +174,86 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
     }
   }, []);
 
-
   // Ferma la riproduzione se cambia il contenuto o la lingua
   useEffect(() => {
     stopSpeech();
   }, [htmlContent, lang]);
+
+  // Pulisce l'evidenziazione dorata sui blocchi DOM
+  const clearHighlight = () => {
+    if (currentHighlightedElementRef.current) {
+      currentHighlightedElementRef.current.classList.remove("tts-active-reading-block");
+      currentHighlightedElementRef.current = null;
+    }
+    if (typeof document !== "undefined") {
+      document.querySelectorAll(".tts-active-reading-block").forEach((el) => {
+        el.classList.remove("tts-active-reading-block");
+      });
+    }
+  };
+
+  // Aggiorna la posizione e l'highlight del blocco liturgico correntemente letto
+  const updateHighlightAndScroll = (progressRatio: number) => {
+    if (typeof document === "undefined") return;
+
+    // Trova il contenitore principale del testo liturgico
+    const readerContainer =
+      document.querySelector(".liturgia-content") ||
+      document.querySelector(".benedizionale-content") ||
+      document.querySelector(".messale-content") ||
+      document.querySelector(".bibbia-content") ||
+      document.querySelector("article");
+
+    if (!readerContainer) return;
+
+    // Trova tutti i blocchi significativi di testo visibile
+    const blocks = Array.from(
+      readerContainer.querySelectorAll<HTMLElement>(
+        "p, blockquote, h3, h4, .salmo, .antifona, .orazione, li"
+      )
+    ).filter((el) => {
+      const text = (el.innerText || "").trim();
+      return text.length > 8 && !el.closest(".audio-player, button, nav, script, .no-speech");
+    });
+
+    if (blocks.length === 0) return;
+
+    // Calcola la lunghezza cumulativa di ciascun blocco
+    const lengths = blocks.map((b) => (b.innerText || "").trim().length);
+    const totalLength = lengths.reduce((acc, l) => acc + l, 0);
+    if (totalLength === 0) return;
+
+    let cumulative = 0;
+    let activeBlockIndex = 0;
+    const targetPos = Math.max(0, Math.min(1, progressRatio)) * totalLength;
+
+    for (let i = 0; i < blocks.length; i++) {
+      cumulative += lengths[i];
+      if (cumulative >= targetPos) {
+        activeBlockIndex = i;
+        break;
+      }
+    }
+
+    const activeEl = blocks[activeBlockIndex];
+    if (!activeEl) return;
+
+    if (currentHighlightedElementRef.current !== activeEl) {
+      if (currentHighlightedElementRef.current) {
+        currentHighlightedElementRef.current.classList.remove("tts-active-reading-block");
+      }
+      activeEl.classList.add("tts-active-reading-block");
+      currentHighlightedElementRef.current = activeEl;
+
+      // Auto-scroll fluido al centro dello schermo
+      if (autoScroll && !isUserScrollingRef.current) {
+        activeEl.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }
+  };
 
   const mapLangToLocale = (l: string): string => {
     switch (l) {
@@ -216,8 +318,17 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
         audio.src = blobUrl;
         audio.playbackRate = rate;
 
+        // Tracking e sincronizzazione continua del tempo con lo scorrimento del testo
+        audio.ontimeupdate = () => {
+          if (audio && audio.duration && audio.duration > 0) {
+            const ratio = audio.currentTime / audio.duration;
+            updateHighlightAndScroll(ratio);
+          }
+        };
+
         audio.onended = () => {
           URL.revokeObjectURL(blobUrl);
+          clearHighlight();
           setIsPlaying(false);
           setIsPaused(false);
           setIsLoading(false);
@@ -234,6 +345,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
         setIsPlaying(true);
         setIsPaused(false);
         setIsLoading(false);
+        updateHighlightAndScroll(0);
         return;
       }
     } catch (err) {
@@ -243,6 +355,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
     // 2. Fallback trasparente sulla sintesi vocale del dispositivo
     playWithDeviceVoice(fullText);
   };
+
 
 
   const playWithDeviceVoice = (fullText: string) => {
@@ -282,6 +395,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
 
     const playNext = (index: number) => {
       if (index >= utterancesRef.current.length) {
+        clearHighlight();
         setIsPlaying(false);
         setIsPaused(false);
         return;
@@ -289,6 +403,11 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
 
       currentUtteranceIndexRef.current = index;
       const utt = utterancesRef.current[index];
+
+      utt.onstart = () => {
+        const ratio = utterancesRef.current.length > 0 ? index / utterancesRef.current.length : 0;
+        updateHighlightAndScroll(ratio);
+      };
 
       utt.onend = () => {
         playNext(index + 1);
@@ -298,6 +417,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
         if (e.error !== "canceled" && e.error !== "interrupted") {
           console.warn("SpeechSynthesis error:", e);
         }
+        clearHighlight();
         setIsPlaying(false);
         setIsPaused(false);
       };
@@ -344,6 +464,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
+    clearHighlight();
     setIsPlaying(false);
     setIsPaused(false);
     setIsLoading(false);
@@ -381,123 +502,164 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
   if (!isSupported) return null;
 
   return (
-    <div className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2.5 py-1 shadow-xs transition">
-      {isLoading ? (
-        <div className="flex items-center gap-1.5 text-xs font-bold text-[#8a755d]">
-          <span className="inline-block animate-spin text-sm">⏳</span>
-          <span>Caricamento voce...</span>
-        </div>
-      ) : !isPlaying ? (
-        <button
-          onClick={startSpeech}
-          className="flex items-center gap-1.5 text-xs font-bold text-[#5c4a37] hover:text-[#3f3933] transition"
-          title="Ascolta la lettura vocale del testo (Voce Neurale HD / Dispositivo)"
-        >
-          <span className="text-sm">🔊</span>
-          <span>{title}</span>
-        </button>
-      ) : (
-        <div className="flex items-center gap-2">
-          {/* Badge Tipo di Voce */}
-          <span className="text-[10px] font-mono font-bold bg-[#ede4d8] text-[#5c4a37] px-1.5 py-0.5 rounded-md select-none">
-            {voiceType === "neural" ? "🎙️ HD" : "🔊 Voce"}
-          </span>
+    <>
+      <style jsx global>{`
+        .tts-active-reading-block {
+          background-color: rgba(245, 158, 11, 0.12) !important;
+          border-left: 4px solid #f59e0b !important;
+          padding-left: 0.65rem !important;
+          border-radius: 0.75rem !important;
+          transition: all 0.5s ease-in-out !important;
+          box-shadow: 0 0 15px rgba(245, 158, 11, 0.08) !important;
+        }
+      `}</style>
 
-          {/* Animazione Onda Sonora */}
-          <div className="flex items-center gap-0.5 h-3">
-            <span className={`w-0.5 h-3 bg-amber-600 rounded-full ${!isPaused ? "animate-pulse" : "opacity-40"}`} />
-            <span className={`w-0.5 h-2 bg-amber-600 rounded-full ${!isPaused ? "animate-pulse delay-75" : "opacity-40"}`} />
-            <span className={`w-0.5 h-3 bg-amber-600 rounded-full ${!isPaused ? "animate-pulse delay-150" : "opacity-40"}`} />
+      <div className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2.5 py-1 shadow-xs transition">
+        {isLoading ? (
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[#8a755d]">
+            <span className="inline-block animate-spin text-sm">⏳</span>
+            <span>Caricamento voce...</span>
           </div>
-
-          {isPaused ? (
-            <button
-              onClick={resumeSpeech}
-              className="flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-950 transition"
-              title="Riprendi lettura"
-            >
-              <span>▶️</span>
-            </button>
-          ) : (
-            <button
-              onClick={pauseSpeech}
-              className="flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-950 transition"
-              title="Metti in pausa"
-            >
-              <span>⏸️</span>
-            </button>
-          )}
-
+        ) : !isPlaying ? (
           <button
-            onClick={stopSpeech}
-            className="text-xs font-bold text-rose-700 hover:text-rose-900 transition px-0.5"
-            title="Ferma lettura vocale"
+            onClick={startSpeech}
+            className="flex items-center gap-1.5 text-xs font-bold text-[#5c4a37] hover:text-[#3f3933] transition"
+            title="Ascolta la lettura vocale del testo con auto-scroll sincronizzato"
           >
-            ⏹️
+            <span className="text-sm">🔊</span>
+            <span>{title}</span>
           </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            {/* Badge Tipo di Voce */}
+            <span className="text-[10px] font-mono font-bold bg-[#ede4d8] text-[#5c4a37] px-1.5 py-0.5 rounded-md select-none">
+              {voiceType === "neural" ? "🎙️ HD" : "🔊 Voce"}
+            </span>
 
-          {/* Velocità Lettura */}
-          <button
-            onClick={cycleRate}
-            className="rounded-md bg-[#eee3d5] px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#6b5d4e] hover:bg-[#e4d4c2] transition"
-            title="Cambia velocità voce (0.85x, 1.0x, 1.2x)"
-          >
-            {rate}x
-          </button>
-        </div>
-      )}
+            {/* Animazione Onda Sonora */}
+            <div className="flex items-center gap-0.5 h-3">
+              <span className={`w-0.5 h-3 bg-amber-600 rounded-full ${!isPaused ? "animate-pulse" : "opacity-40"}`} />
+              <span className={`w-0.5 h-2 bg-amber-600 rounded-full ${!isPaused ? "animate-pulse delay-75" : "opacity-40"}`} />
+              <span className={`w-0.5 h-3 bg-amber-600 rounded-full ${!isPaused ? "animate-pulse delay-150" : "opacity-40"}`} />
+            </div>
 
-      {/* Floating Audio Controller galleggiante (appare solo quando l'audio è attivo e l'utente scorre in basso, posizionato a fianco del pulsante scroll senza coprire la %) */}
-      {(isPlaying || isPaused) && isScrolled && (
-        <div className="fixed bottom-5 sm:bottom-6 right-18 sm:right-24 z-40 flex items-center gap-2 rounded-2xl bg-[#5c4a37]/95 backdrop-blur-md border border-[#8a755d]/50 p-2 shadow-2xl text-white animate-in fade-in slide-in-from-bottom-3 duration-300">
+            {isPaused ? (
+              <button
+                onClick={resumeSpeech}
+                className="flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-950 transition"
+                title="Riprendi lettura"
+              >
+                <span>▶️</span>
+              </button>
+            ) : (
+              <button
+                onClick={pauseSpeech}
+                className="flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-950 transition"
+                title="Metti in pausa"
+              >
+                <span>⏸️</span>
+              </button>
+            )}
 
-          <span className="text-[10px] font-mono font-bold bg-[#ede4d8] text-[#5c4a37] px-1.5 py-0.5 rounded-md select-none">
-            {voiceType === "neural" ? "🎙️ HD" : "🔊 Voce"}
-          </span>
+            <button
+              onClick={stopSpeech}
+              className="text-xs font-bold text-rose-700 hover:text-rose-900 transition px-0.5"
+              title="Ferma lettura vocale"
+            >
+              ⏹️
+            </button>
 
-          {/* Onda sonora animata */}
-          <div className="flex items-center gap-0.5 h-3">
-            <span className={`w-0.5 h-3 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse" : "opacity-40"}`} />
-            <span className={`w-0.5 h-2 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse delay-75" : "opacity-40"}`} />
-            <span className={`w-0.5 h-3 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse delay-150" : "opacity-40"}`} />
+            {/* Toggle Auto-Scroll */}
+            <button
+              onClick={() => setAutoScroll(!autoScroll)}
+              className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold transition flex items-center gap-0.5 ${
+                autoScroll
+                  ? "bg-amber-100 text-amber-900 border border-amber-300"
+                  : "bg-[#eee3d5] text-[#8a755d] hover:bg-[#e4d4c2]"
+              }`}
+              title={autoScroll ? "Auto-scroll attivo (il testo scorre con la voce)" : "Auto-scroll disattivato"}
+            >
+              <span>📜</span>
+              <span>{autoScroll ? "Scroll ON" : "Scroll OFF"}</span>
+            </button>
+
+            {/* Velocità Lettura */}
+            <button
+              onClick={cycleRate}
+              className="rounded-md bg-[#eee3d5] px-1.5 py-0.5 text-[10px] font-mono font-bold text-[#6b5d4e] hover:bg-[#e4d4c2] transition"
+              title="Cambia velocità voce (0.85x, 1.0x, 1.2x)"
+            >
+              {rate}x
+            </button>
           </div>
+        )}
 
-          {isPaused ? (
+        {/* Floating Audio Controller galleggiante (appare solo quando l'audio è attivo e l'utente scorre in basso, posizionato a fianco del pulsante scroll senza coprire la %) */}
+        {(isPlaying || isPaused) && isScrolled && (
+          <div className="fixed bottom-5 sm:bottom-6 right-18 sm:right-24 z-40 flex items-center gap-2 rounded-2xl bg-[#5c4a37]/95 backdrop-blur-md border border-[#8a755d]/50 p-2 shadow-2xl text-white animate-in fade-in slide-in-from-bottom-3 duration-300">
+            <span className="text-[10px] font-mono font-bold bg-[#ede4d8] text-[#5c4a37] px-1.5 py-0.5 rounded-md select-none">
+              {voiceType === "neural" ? "🎙️ HD" : "🔊 Voce"}
+            </span>
+
+            {/* Onda sonora animata */}
+            <div className="flex items-center gap-0.5 h-3">
+              <span className={`w-0.5 h-3 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse" : "opacity-40"}`} />
+              <span className={`w-0.5 h-2 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse delay-75" : "opacity-40"}`} />
+              <span className={`w-0.5 h-3 bg-amber-400 rounded-full ${!isPaused ? "animate-pulse delay-150" : "opacity-40"}`} />
+            </div>
+
+            {isPaused ? (
+              <button
+                onClick={resumeSpeech}
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-white"
+                title="Riprendi lettura"
+              >
+                ▶️
+              </button>
+            ) : (
+              <button
+                onClick={pauseSpeech}
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-white"
+                title="Metti in pausa"
+              >
+                ⏸️
+              </button>
+            )}
+
             <button
-              onClick={resumeSpeech}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-white"
-              title="Riprendi lettura"
+              onClick={stopSpeech}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 hover:bg-rose-500/30 text-rose-300 hover:text-rose-100 active:scale-95 transition"
+              title="Ferma lettura vocale"
             >
-              ▶️
+              ⏹️
             </button>
-          ) : (
+
+            {/* Toggle Auto-Scroll nel floating controller */}
             <button
-              onClick={pauseSpeech}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-white"
-              title="Metti in pausa"
+              onClick={() => setAutoScroll(!autoScroll)}
+              className={`rounded-lg px-2 py-1 text-[11px] font-bold transition flex items-center gap-1 ${
+                autoScroll
+                  ? "bg-amber-400/25 text-amber-200 border border-amber-400/40"
+                  : "bg-white/10 text-white/60 hover:text-white"
+              }`}
+              title={autoScroll ? "Auto-scroll attivo (il testo scorre con la voce)" : "Auto-scroll disattivato"}
             >
-              ⏸️
+              <span>📜</span>
+              <span>{autoScroll ? "Scroll ON" : "Scroll OFF"}</span>
             </button>
-          )}
 
-          <button
-            onClick={stopSpeech}
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 hover:bg-rose-500/30 text-rose-300 hover:text-rose-100 active:scale-95 transition"
-            title="Ferma lettura vocale"
-          >
-            ⏹️
-          </button>
-
-          <button
-            onClick={cycleRate}
-            className="rounded-lg bg-white/10 px-2 py-1 text-[11px] font-mono font-bold text-amber-200 hover:bg-white/20 active:scale-95 transition"
-            title="Cambia velocità voce"
-          >
-            {rate}x
-          </button>
-        </div>
-      )}
-    </div>
+            <button
+              onClick={cycleRate}
+              className="rounded-lg bg-white/10 px-2 py-1 text-[11px] font-mono font-bold text-amber-200 hover:bg-white/20 active:scale-95 transition"
+              title="Cambia velocità voce"
+            >
+              {rate}x
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
+
 
