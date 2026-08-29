@@ -192,7 +192,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
     }
   };
 
-  // Aggiorna la posizione e l'highlight del blocco liturgico correntemente letto
+  // Aggiorna la posizione e l'highlight del blocco liturgico correntemente letto con precisione millimetrica
   const updateHighlightAndScroll = (progressRatio: number) => {
     if (typeof document === "undefined") return;
 
@@ -206,32 +206,47 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
 
     if (!readerContainer) return;
 
-    // Trova tutti i blocchi significativi di testo visibile
+    // Seleziona solo i blocchi foglia (senza figli p/li/h per evitare doppie misurazioni del testo)
     const blocks = Array.from(
       readerContainer.querySelectorAll<HTMLElement>(
-        "p, blockquote, h3, h4, .salmo, .antifona, .orazione, li"
+        "p, h1, h2, h3, h4, li, .orazione, .antifona"
       )
     ).filter((el) => {
-      const text = (el.innerText || "").trim();
-      return text.length > 8 && !el.closest(".audio-player, button, nav, script, .no-speech");
+      // Escludi contenitori padre che racchiudono già altri paragrafi o liste
+      if (el.querySelector("p, li, h1, h2, h3, h4")) return false;
+      if (el.closest(".audio-player, button, nav, script, .no-speech, .menu, .rubrica")) return false;
+      const clean = cleanTextForSpeech(el.innerHTML);
+      return clean.length > 5;
     });
 
     if (blocks.length === 0) return;
 
-    // Calcola la lunghezza cumulativa di ciascun blocco
-    const lengths = blocks.map((b) => (b.innerText || "").trim().length);
+    // Calcola la lunghezza esatta del testo parlato per ciascun blocco
+    const lengths = blocks.map((b) => cleanTextForSpeech(b.innerHTML).length);
     const totalLength = lengths.reduce((acc, l) => acc + l, 0);
     if (totalLength === 0) return;
 
-    let cumulative = 0;
-    let activeBlockIndex = 0;
+    // Calcola l'indice del blocco attivo: un blocco [start, end] è attivo finché il parlato è al suo interno
     const targetPos = Math.max(0, Math.min(1, progressRatio)) * totalLength;
+    let runningSum = 0;
+    let activeBlockIndex = 0;
 
     for (let i = 0; i < blocks.length; i++) {
-      cumulative += lengths[i];
-      if (cumulative >= targetPos) {
+      const blockStart = runningSum;
+      const blockEnd = runningSum + lengths[i];
+      runningSum = blockEnd;
+
+      // Il blocco è attivo se la posizione cade tra il suo inizio e la sua fine
+      if (targetPos >= blockStart && targetPos < blockEnd) {
         activeBlockIndex = i;
         break;
+      }
+      if (targetPos < blockStart) {
+        activeBlockIndex = Math.max(0, i - 1);
+        break;
+      }
+      if (i === blocks.length - 1) {
+        activeBlockIndex = i;
       }
     }
 
@@ -254,6 +269,7 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
       }
     }
   };
+
 
   const mapLangToLocale = (l: string): string => {
     switch (l) {
