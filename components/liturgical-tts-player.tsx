@@ -115,6 +115,19 @@ export function cleanTextForSpeech(html: string): string {
   return text;
 }
 
+export function getAcousticWeight(text: string): number {
+  if (!text) return 0;
+  let weight = text.length;
+  // Pause acustiche per punteggiatura forte (. ! ? :)
+  const strongPauses = (text.match(/[.!?:]/g) || []).length;
+  weight += strongPauses * 28;
+  // Pause acustiche per punteggiatura media (, ;)
+  const mediumPauses = (text.match(/[,;]/g) || []).length;
+  weight += mediumPauses * 14;
+  // Pausa naturale di chiusura versetto/paragrafo
+  weight += 22;
+  return weight;
+}
 
 export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta" }: LiturgicalTtsPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -221,22 +234,22 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
 
     if (blocks.length === 0) return;
 
-    // Calcola la lunghezza esatta del testo parlato per ciascun blocco
-    const lengths = blocks.map((b) => cleanTextForSpeech(b.innerHTML).length);
-    const totalLength = lengths.reduce((acc, l) => acc + l, 0);
-    if (totalLength === 0) return;
+    // Calcola il peso acustico effettivo di ciascun blocco (comprensivo delle pause del parlato)
+    const weights = blocks.map((b) => getAcousticWeight(cleanTextForSpeech(b.innerHTML)));
+    const totalWeight = weights.reduce((acc, w) => acc + w, 0);
+    if (totalWeight === 0) return;
 
     // Calcola l'indice del blocco attivo: un blocco [start, end] è attivo finché il parlato è al suo interno
-    const targetPos = Math.max(0, Math.min(1, progressRatio)) * totalLength;
+    const targetPos = Math.max(0, Math.min(1, progressRatio)) * totalWeight;
     let runningSum = 0;
     let activeBlockIndex = 0;
 
     for (let i = 0; i < blocks.length; i++) {
       const blockStart = runningSum;
-      const blockEnd = runningSum + lengths[i];
+      const blockEnd = runningSum + weights[i];
       runningSum = blockEnd;
 
-      // Il blocco è attivo se la posizione cade tra il suo inizio e la sua fine
+      // Il blocco rimane attivo fino al completamento dell'ultima frase
       if (targetPos >= blockStart && targetPos < blockEnd) {
         activeBlockIndex = i;
         break;
@@ -334,10 +347,11 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
         audio.src = blobUrl;
         audio.playbackRate = rate;
 
-        // Tracking e sincronizzazione continua del tempo con lo scorrimento del testo
+        // Tracking e sincronizzazione continua con buffer prudenziale di 0.85s (evita cambi prima del termine della frase)
         audio.ontimeupdate = () => {
           if (audio && audio.duration && audio.duration > 0) {
-            const ratio = audio.currentTime / audio.duration;
+            const adjustedCurrentTime = Math.max(0, audio.currentTime - 0.85);
+            const ratio = adjustedCurrentTime / audio.duration;
             updateHighlightAndScroll(ratio);
           }
         };
