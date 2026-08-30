@@ -336,47 +336,87 @@ Se ci sono canti alternativi o molteplici per lo stesso momento (es. 'oppure', '
 Se un momento è vuoto o non ha canti, non includerlo oppure lascia l'array 'songs' vuoto.
 Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
 
-    const apiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
+    // Catena completa dei modelli Gemini con supporto multimodale Vision per OCR
+    const candidateModels = [
+      process.env.GEMINI_MODEL,
+      "gemini-2.5-flash",
+      "gemini-3.7-flash",
+      "gemini-flash-latest",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash",
+      "gemini-2.5-pro",
+      "gemini-1.5-pro-latest",
+      "gemini-1.5-pro",
+    ].filter(Boolean) as string[];
+
+    let textOutput: string | null = null;
+    let lastError = "";
+
+    for (const model of candidateModels) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+      try {
+        const apiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [
                 {
-                  inlineData: {
-                    mimeType: file.type || "image/jpeg",
-                    data: base64,
-                  },
+                  parts: [
+                    { text: prompt },
+                    {
+                      inlineData: {
+                        mimeType: file.type || "image/jpeg",
+                        data: base64,
+                      },
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+              generationConfig: {
+                responseMimeType: "application/json",
+              },
+            }),
+            signal: controller.signal,
+          }
+        );
 
-    if (!apiResponse.ok) {
-      const errText = await apiResponse.text();
-      console.error("Errore chiamata Gemini API:", errText);
-      return { error: `Errore dalle API di Gemini: ${apiResponse.statusText}`, data: null };
+        clearTimeout(timeoutId);
+
+        if (apiResponse.ok) {
+          const resJson = await apiResponse.json();
+          textOutput = resJson.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          if (textOutput) {
+            break;
+          }
+        } else {
+          const errBody = await apiResponse.text();
+          lastError = `[${model}] HTTP ${apiResponse.status}: ${errBody}`;
+          console.warn(`Tentativo modello ${model} fallito per OCR messa, passo al successivo:`, lastError);
+        }
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          lastError = `[${model}] Timeout 25s superato`;
+        } else {
+          lastError = `[${model}] ${err.message || String(err)}`;
+        }
+        console.warn(`Eccezione modello ${model} per OCR messa, passo al successivo:`, lastError);
+      }
     }
 
-    const resJson = await apiResponse.json();
-    const textOutput = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textOutput) {
-      return { error: "Gemini non ha restituito alcun testo.", data: null };
+      return { error: `Impossibile elaborare l'immagine con i modelli Gemini al momento. Riprova tra poco. (Dettagli: ${lastError})`, data: null };
     }
 
     const parsedData = JSON.parse(textOutput.trim());
+
 
     // Riconciliamo i canti con il database
     const adminSupabase = createAdminSupabaseClient();
