@@ -305,3 +305,40 @@ export async function updateUserRoleAndRegister(
 
   return { error: null, success: "Ruolo e registro aggiornati con successo." };
 }
+
+// 7. Test manuale Newsletter "La Parola del Giorno" (Invia ESCLUSIVAMENTE all'email dell'account autenticato)
+export async function testDailyWordNewsletterAction(): Promise<
+  SettingsActionState<{ reflection: string; title: string; citation: string; usedModel: string }>
+> {
+  const { user, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError || !user || !user.email) {
+    return { error: authError || "Non autorizzato o email account non trovata.", success: null };
+  }
+
+  const emailToSend = user.email.trim();
+
+  try {
+    const { sendDailyWordNewsletter } = await import("@/lib/daily-word-newsletter");
+    const result = await sendDailyWordNewsletter({ testEmail: emailToSend });
+
+    if (!result.success) {
+      return { error: result.error || "Errore durante l'invio del test della newsletter.", success: null };
+    }
+
+    return {
+      error: null,
+      success: `Email di test "La Parola del Giorno" inviata con successo al tuo indirizzo (${emailToSend})!`,
+      data: {
+        title: result.gospel.title,
+        citation: result.gospel.gospelCitation,
+        reflection: result.reflection,
+        usedModel: result.usedModel,
+      },
+    };
+  } catch (err: any) {
+    console.error("Errore test newsletter:", err);
+    return { error: err.message || "Errore sconosciuto.", success: null };
+  }
+}
+
+

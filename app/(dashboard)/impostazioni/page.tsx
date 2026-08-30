@@ -13,6 +13,7 @@ import {
   deleteLiturgicalMoment,
   restoreDefaultMomentsAction,
   updateUserRoleAndRegister,
+  testDailyWordNewsletterAction,
 } from "./actions";
 
 type Profile = {
@@ -34,7 +35,7 @@ export default function ImpostazioniPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<"profilo" | "liturgia" | "coristi">("profilo");
+  const [activeTab, setActiveTab] = useState<"profilo" | "liturgia" | "coristi" | "newsletter">("profilo");
   const [loading, setLoading] = useState(true);
 
   // States for Profile Tab
@@ -53,6 +54,12 @@ export default function ImpostazioniPage() {
   // States for Members Management Tab
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [membersMessage, setMembersMessage] = useState<{ error?: string; success?: string } | null>(null);
+
+  // States for Newsletter Tab
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState<{ error?: string; success?: string; preview?: any } | null>(null);
+
 
   // Load session and profiles
   useEffect(() => {
@@ -281,6 +288,29 @@ export default function ImpostazioniPage() {
     }
   };
 
+  // --- Newsletter actions ---
+  const handleTestNewsletter = async () => {
+    setNewsletterLoading(true);
+    setNewsletterMessage(null);
+
+    try {
+      const res = await testDailyWordNewsletterAction();
+      if (res.error) {
+        setNewsletterMessage({ error: res.error });
+      } else {
+        setNewsletterMessage({
+          success: res.success || `Email inviata con successo al tuo indirizzo (${currentUser?.email})!`,
+          preview: res.data,
+        });
+      }
+    } catch (err: any) {
+      setNewsletterMessage({ error: err.message || "Errore durante l'invio del test." });
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
+
+
   if (loading) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center space-y-4">
@@ -327,14 +357,14 @@ export default function ImpostazioniPage() {
       </div>
 
       {/* Tabs di navigazione */}
-      <div className="flex border-b border-[#ddd2c2] pb-px">
+      <div className="flex border-b border-[#ddd2c2] pb-px overflow-x-auto">
         <button
           onClick={() => setActiveTab("profilo")}
           className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
             activeTab === "profilo"
               ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
-              : "text-[#736555] hover:text-[#3f3933] mr-6"
-          } mr-6`}
+              : "text-[#736555] hover:text-[#3f3933]"
+          } mr-6 shrink-0`}
         >
           Profilo Personale
         </button>
@@ -346,8 +376,8 @@ export default function ImpostazioniPage() {
               className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
                 activeTab === "liturgia"
                   ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
-                  : "text-[#736555] hover:text-[#3f3933] mr-6"
-              } mr-6`}
+                  : "text-[#736555] hover:text-[#3f3933]"
+              } mr-6 shrink-0`}
             >
               Liturgia e Momenti
             </button>
@@ -357,13 +387,24 @@ export default function ImpostazioniPage() {
                 activeTab === "coristi"
                   ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
                   : "text-[#736555] hover:text-[#3f3933]"
-              }`}
+              } mr-6 shrink-0`}
             >
               Gestione Coristi
+            </button>
+            <button
+              onClick={() => setActiveTab("newsletter")}
+              className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
+                activeTab === "newsletter"
+                  ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
+                  : "text-[#736555] hover:text-[#3f3933]"
+              } shrink-0`}
+            >
+              📬 Newsletter
             </button>
           </>
         )}
       </div>
+
 
       {/* 1. Tab Profilo Personale */}
       {activeTab === "profilo" && myProfile && (
@@ -681,6 +722,132 @@ export default function ImpostazioniPage() {
           </div>
         </div>
       )}
+
+      {/* 4. Tab Newsletter: La Parola del Giorno */}
+      {activeTab === "newsletter" && isMaestro && (
+        <div className="space-y-6">
+          {/* Card Descrittiva */}
+          <div className="rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-6 shadow-md md:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#ebdcc8] pb-5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🕊️</span>
+                  <h3 className="font-serif text-xl font-normal text-[#3f3933]">
+                    La Parola del Giorno
+                  </h3>
+                </div>
+                <p className="text-xs text-[#736555]">
+                  Newsletter spirituale quotidiana inviata automaticamente a tutta la comunità registrata.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 shrink-0">
+                <span>⏰</span>
+                <span>Ogni mattina alle ore 06:00</span>
+              </span>
+            </div>
+
+            {/* Indicatori di Funzionamento */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl border border-[#e8decb] bg-[#fbf8f4] space-y-1">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-[#8a755d]">Vangelo Liturgico</span>
+                <p className="text-xs text-[#3f3933] font-medium">
+                  Estratto dalla Messa Ambrosiana / Liturgia delle Ore del giorno corrente.
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl border border-[#e8decb] bg-[#fbf8f4] space-y-1">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-[#8a755d]">Postura Cristiana (AI)</span>
+                <p className="text-xs text-[#3f3933] font-medium">
+                  Sintesi incisiva di 50-100 parole: come impostare pensieri, scelte e sguardo al prossimo oggi.
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl border border-[#e8decb] bg-[#fbf8f4] space-y-1">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-[#8a755d]">Canale di Consegna</span>
+                <p className="text-xs text-[#3f3933] font-medium">
+                  Invio affidabile tramite Resend API con grafica pergamena responsive.
+                </p>
+              </div>
+            </div>
+
+            {/* Modulo di Invio Test Manuale */}
+            <div className="mt-8 pt-6 border-t border-[#ebdcc8] space-y-4">
+              <div className="space-y-1">
+                <h4 className="font-serif text-base font-bold text-[#5c4a37]">
+                  🧪 Test di Invio Personale
+                </h4>
+                <p className="text-xs text-[#736555]">
+                  Genera la postura cristiana con Gemini e invia l&apos;anteprima dell&apos;email di oggi <strong>esclusivamente al tuo account</strong> (<span className="font-mono text-[#5c4a37] font-semibold">{currentUser?.email}</span>).
+                </p>
+              </div>
+
+              {newsletterMessage?.error && (
+                <div className="rounded-2xl border border-red-200 bg-red-50/50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{newsletterMessage.error}</span>
+                </div>
+              )}
+
+              {newsletterMessage?.success && (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-sm text-emerald-800 flex items-center gap-2">
+                  <span>✅</span>
+                  <span>{newsletterMessage.success}</span>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                <div className="flex-1 rounded-2xl border border-[#e4dcce] bg-[#fbf8f4] px-4 py-2.5 text-xs text-[#736555] flex items-center gap-2">
+                  <span>👤</span>
+                  <span>Destinatario test: <strong className="text-[#3f3933]">{currentUser?.email}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestNewsletter}
+                  disabled={newsletterLoading}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5c4a37] px-6 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-[#4b3c2c] disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  {newsletterLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>Elaborazione e Invio...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📨</span>
+                      <span>Invia Email di Test a Me Stesso</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+
+            {/* Anteprima Contenuto Generato (se disponibile) */}
+            {newsletterMessage?.preview && (
+              <div className="mt-6 p-5 rounded-2xl border border-[#ebdcc8] bg-[#fbf9f4] space-y-3 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between border-b border-[#ebdcc8] pb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#92400e]">
+                    Anteprima Testo Elaborato
+                  </span>
+                  <span className="text-[10px] font-mono text-[#8a755d]">
+                    Modello: {newsletterMessage.preview.usedModel}
+                  </span>
+                </div>
+                <div>
+                  <h5 className="font-serif font-bold text-sm text-[#443729]">
+                    {newsletterMessage.preview.title}
+                  </h5>
+                  <p className="text-xs text-[#8a755d] italic">
+                    {newsletterMessage.preview.citation}
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl border border-amber-200/80 bg-amber-50/60 text-xs text-[#3f2f1f] leading-relaxed italic">
+                  «{newsletterMessage.preview.reflection}»
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
