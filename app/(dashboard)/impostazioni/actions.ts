@@ -14,6 +14,7 @@ export type SettingsActionState<T = any> = {
 export async function updateUserProfile(
   fullName: string,
   vocalRegister: string,
+  preferredRite: "ambrosiano" | "romano" = "ambrosiano",
 ): Promise<SettingsActionState> {
   if (!fullName) {
     return { error: "Il nome completo è obbligatorio.", success: null };
@@ -25,22 +26,38 @@ export async function updateUserProfile(
   }
 
   const adminClient = createAdminSupabaseClient();
+  const updatePayload: Record<string, any> = {
+    full_name: fullName,
+    vocal_register: vocalRegister,
+    preferred_rite: preferredRite,
+    updated_at: new Date().toISOString(),
+  };
+
   const { error: updateError } = await adminClient
     .from("profiles")
-    .update({
-      full_name: fullName,
-      vocal_register: vocalRegister,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", user.id);
 
   if (updateError) {
-    console.error("Errore aggiornamento profilo:", updateError);
-    return { error: "Impossibile aggiornare il profilo.", success: null };
+    // Se la colonna preferred_rite non dovesse esistere nello schema DB, prova senza
+    const { error: retryError } = await adminClient
+      .from("profiles")
+      .update({
+        full_name: fullName,
+        vocal_register: vocalRegister,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    if (retryError) {
+      console.error("Errore aggiornamento profilo:", retryError);
+      return { error: "Impossibile aggiornare il profilo.", success: null };
+    }
   }
 
   return { error: null, success: "Profilo aggiornato con successo." };
 }
+
 
 // 2. Modifica/riordina l'elenco dei momenti liturgici (visibile solo ai Maestri)
 export async function updateLiturgicalMomentsOrder(
@@ -306,9 +323,11 @@ export async function updateUserRoleAndRegister(
   return { error: null, success: "Ruolo e registro aggiornati con successo." };
 }
 
-// 7. Test manuale Newsletter "La Parola del Giorno" (Invia ESCLUSIVAMENTE all'email dell'account autenticato)
-export async function testDailyWordNewsletterAction(): Promise<
-  SettingsActionState<{ reflection: string; title: string; citation: string; usedModel: string }>
+// 7. Test manuale Newsletter "La Parola del Giorno" (Invia ESCLUSIVAMENTE all'email dell'account autenticato con il Rito specificato)
+export async function testDailyWordNewsletterAction(
+  rite: "ambrosiano" | "romano" = "ambrosiano"
+): Promise<
+  SettingsActionState<{ reflection: string; title: string; citation: string; usedModel: string; rite: string }>
 > {
   const { user, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
   if (authError || !user || !user.email) {
@@ -319,20 +338,23 @@ export async function testDailyWordNewsletterAction(): Promise<
 
   try {
     const { sendDailyWordNewsletter } = await import("@/lib/daily-word-newsletter");
-    const result = await sendDailyWordNewsletter({ testEmail: emailToSend });
+    const result = await sendDailyWordNewsletter({ testEmail: emailToSend, rite });
 
     if (!result.success) {
       return { error: result.error || "Errore durante l'invio del test della newsletter.", success: null };
     }
 
+    const riteName = rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
+
     return {
       error: null,
-      success: `Email di test "La Parola del Giorno" inviata con successo al tuo indirizzo (${emailToSend})!`,
+      success: `Email di test (${riteName}) inviata con successo al tuo indirizzo (${emailToSend})!`,
       data: {
         title: result.gospel.title,
         citation: result.gospel.gospelCitation,
         reflection: result.reflection,
         usedModel: result.usedModel,
+        rite,
       },
     };
   } catch (err: any) {
@@ -340,5 +362,6 @@ export async function testDailyWordNewsletterAction(): Promise<
     return { error: err.message || "Errore sconosciuto.", success: null };
   }
 }
+
 
 

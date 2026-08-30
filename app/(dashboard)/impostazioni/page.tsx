@@ -22,6 +22,7 @@ type Profile = {
   full_name: string;
   role: "ospite" | "cantore" | "maestro" | "responsabile";
   vocal_register: string;
+  preferred_rite?: "ambrosiano" | "romano";
   created_at?: string;
 };
 
@@ -41,6 +42,7 @@ export default function ImpostazioniPage() {
   // States for Profile Tab
   const [fullNameInput, setFullNameInput] = useState("");
   const [vocalRegisterInput, setVocalRegisterInput] = useState("nessuno");
+  const [preferredRiteInput, setPreferredRiteInput] = useState<"ambrosiano" | "romano">("ambrosiano");
   const [profileMessage, setProfileMessage] = useState<{ error?: string; success?: string } | null>(null);
   const [profileUpdating, setProfileUpdating] = useState(false);
 
@@ -56,10 +58,9 @@ export default function ImpostazioniPage() {
   const [membersMessage, setMembersMessage] = useState<{ error?: string; success?: string } | null>(null);
 
   // States for Newsletter Tab
-  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [selectedTestRite, setSelectedTestRite] = useState<"ambrosiano" | "romano">("ambrosiano");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState<{ error?: string; success?: string; preview?: any } | null>(null);
-
 
   // Load session and profiles
   useEffect(() => {
@@ -89,6 +90,10 @@ export default function ImpostazioniPage() {
         setFullNameInput(profile.full_name || "");
         setVocalRegisterInput(profile.vocal_register || "nessuno");
 
+        const savedRite = (profile.preferred_rite || (typeof window !== "undefined" ? localStorage.getItem("preferred_rite") : "ambrosiano") || "ambrosiano") as "ambrosiano" | "romano";
+        setPreferredRiteInput(savedRite);
+        setSelectedTestRite(savedRite);
+
         // If maestro or responsabile, load all data
         if (profile.role === "maestro" || profile.role === "responsabile") {
           await refreshAdminData();
@@ -102,6 +107,7 @@ export default function ImpostazioniPage() {
 
     loadSessionAndProfile();
   }, [router]);
+
 
   async function refreshAdminData() {
     // 1. Fetch moments ordered by sort_order
@@ -134,12 +140,19 @@ export default function ImpostazioniPage() {
     setProfileUpdating(true);
 
     try {
-      const res = await updateUserProfile(fullNameInput, vocalRegisterInput);
+      const res = await updateUserProfile(fullNameInput, vocalRegisterInput, preferredRiteInput);
       if (res.error) {
         setProfileMessage({ error: res.error });
       } else {
-        setProfileMessage({ success: res.success || "Profilo modificato." });
-        setMyProfile((prev) => prev ? { ...prev, full_name: fullNameInput, vocal_register: vocalRegisterInput } : null);
+        setProfileMessage({ success: res.success || "Profilo modificato con successo." });
+        setMyProfile((prev) =>
+          prev
+            ? { ...prev, full_name: fullNameInput, vocal_register: vocalRegisterInput, preferred_rite: preferredRiteInput }
+            : null
+        );
+        if (typeof window !== "undefined") {
+          localStorage.setItem("preferred_rite", preferredRiteInput);
+        }
       }
     } catch (err) {
       setProfileMessage({ error: "Errore durante il salvataggio." });
@@ -147,6 +160,7 @@ export default function ImpostazioniPage() {
       setProfileUpdating(false);
     }
   };
+
 
   // --- Moments actions ---
   const handleMoveUp = (index: number) => {
@@ -289,12 +303,13 @@ export default function ImpostazioniPage() {
   };
 
   // --- Newsletter actions ---
-  const handleTestNewsletter = async () => {
+  const handleTestNewsletter = async (overrideRite?: "ambrosiano" | "romano") => {
     setNewsletterLoading(true);
     setNewsletterMessage(null);
+    const riteToTest = overrideRite || selectedTestRite;
 
     try {
-      const res = await testDailyWordNewsletterAction();
+      const res = await testDailyWordNewsletterAction(riteToTest);
       if (res.error) {
         setNewsletterMessage({ error: res.error });
       } else {
@@ -309,6 +324,7 @@ export default function ImpostazioniPage() {
       setNewsletterLoading(false);
     }
   };
+
 
 
   if (loading) {
@@ -467,10 +483,29 @@ export default function ImpostazioniPage() {
               </select>
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="profile-rite" className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e]">
+                Rito Liturgico Predefinito
+              </label>
+              <select
+                id="profile-rite"
+                value={preferredRiteInput}
+                onChange={(e) => setPreferredRiteInput(e.target.value as "ambrosiano" | "romano")}
+                className="w-full rounded-2xl border border-[#d9cdbf] bg-white px-4 py-3 text-sm text-[#3f3933] outline-none focus:border-[#aa9576] transition duration-200"
+              >
+                <option value="ambrosiano">🕊️ Rito Ambrosiano (Diocesi di Milano)</option>
+                <option value="romano">🏛️ Rito Romano (CEI Nazionale)</option>
+              </select>
+              <p className="text-[11px] text-[#8a755d]">
+                Determina il rito per la Liturgia delle Ore e l&apos;edizione della newsletter quotidiana ricevuta al mattino.
+              </p>
+            </div>
+
             <div className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e] block">
                 Ruolo Corale Attivo
               </span>
+
               <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider border ${
                 myProfile.role === "maestro" || myProfile.role === "responsabile"
                   ? "bg-amber-100 text-amber-800 border-amber-200"
@@ -779,6 +814,40 @@ export default function ImpostazioniPage() {
                 </p>
               </div>
 
+              {/* Selettore Rito da Testare */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-[#e4dcce] bg-[#fbf8f4]">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold text-[#5c4a37]">Rito da Testare</span>
+                  <p className="text-[11px] text-[#736555]">
+                    Scegli se testare l&apos;edizione Ambrosiana o Romana per verificarne il Vangelo e la riflessione.
+                  </p>
+                </div>
+                <div className="inline-flex rounded-xl bg-[#eee4d6] p-1 shrink-0 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTestRite("ambrosiano")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      selectedTestRite === "ambrosiano"
+                        ? "bg-[#5c4a37] text-white shadow-xs"
+                        : "text-[#6b5d4e] hover:text-[#3f3933]"
+                    }`}
+                  >
+                    🕊️ Ambrosiano
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTestRite("romano")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      selectedTestRite === "romano"
+                        ? "bg-[#5c4a37] text-white shadow-xs"
+                        : "text-[#6b5d4e] hover:text-[#3f3933]"
+                    }`}
+                  >
+                    🏛️ Romano
+                  </button>
+                </div>
+              </div>
+
               {newsletterMessage?.error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50/50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
                   <span>⚠️</span>
@@ -796,11 +865,13 @@ export default function ImpostazioniPage() {
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
                 <div className="flex-1 rounded-2xl border border-[#e4dcce] bg-[#fbf8f4] px-4 py-2.5 text-xs text-[#736555] flex items-center gap-2">
                   <span>👤</span>
-                  <span>Destinatario test: <strong className="text-[#3f3933]">{currentUser?.email}</strong></span>
+                  <span>
+                    Destinatario test: <strong className="text-[#3f3933]">{currentUser?.email}</strong> ({selectedTestRite === "romano" ? "Rito Romano" : "Rito Ambrosiano"})
+                  </span>
                 </div>
                 <button
                   type="button"
-                  onClick={handleTestNewsletter}
+                  onClick={() => handleTestNewsletter(selectedTestRite)}
                   disabled={newsletterLoading}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5c4a37] px-6 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-[#4b3c2c] disabled:opacity-50 cursor-pointer shrink-0"
                 >
@@ -812,7 +883,7 @@ export default function ImpostazioniPage() {
                   ) : (
                     <>
                       <span>📨</span>
-                      <span>Invia Email di Test a Me Stesso</span>
+                      <span>Invia Test ({selectedTestRite === "romano" ? "Romano" : "Ambrosiano"}) a Me Stesso</span>
                     </>
                   )}
                 </button>
@@ -824,9 +895,14 @@ export default function ImpostazioniPage() {
             {newsletterMessage?.preview && (
               <div className="mt-6 p-5 rounded-2xl border border-[#ebdcc8] bg-[#fbf9f4] space-y-3 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between border-b border-[#ebdcc8] pb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#92400e]">
-                    Anteprima Testo Elaborato
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#92400e]">
+                      Anteprima Testo Elaborato
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                      {newsletterMessage.preview.rite === "romano" ? "🏛️ Rito Romano" : "🕊️ Rito Ambrosiano"}
+                    </span>
+                  </div>
                   <span className="text-[10px] font-mono text-[#8a755d]">
                     Modello: {newsletterMessage.preview.usedModel}
                   </span>
@@ -847,6 +923,7 @@ export default function ImpostazioniPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -1,11 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireEnv } from "@/lib/env";
 
+export type LiturgyRite = "ambrosiano" | "romano";
+
 export interface DailyGospelData {
   title: string;
   riassunto: string;
   colore: string;
   dateStr: string;
+  rite: LiturgyRite;
   gospelCitation: string;
   gospelText: string;
   fullContentHtml?: string;
@@ -30,7 +33,7 @@ export function getItalianDateString(date = new Date()): string {
 }
 
 /**
- * Formatta la data in italiano (es. "Lunedì 31 Agosto 2026")
+ * Formatta la data in italiano (es. "Domenica 30 Agosto 2026")
  */
 export function formatItalianDateLong(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -45,12 +48,25 @@ export function formatItalianDateLong(dateStr: string): string {
 }
 
 /**
- * Estrae il Vangelo del giorno dalla liturgia della Messa di rito ambrosiano
+ * Estrae il Vangelo del giorno dalla liturgia della Messa (Rito Ambrosiano o Romano)
  */
-export async function fetchDailyGospel(dateStr?: string): Promise<DailyGospelData> {
+export async function fetchDailyGospel(
+  dateStr?: string,
+  rite: LiturgyRite = "ambrosiano"
+): Promise<DailyGospelData> {
   const targetDate = dateStr || getItalianDateString();
 
-  // 1. Tenta il recupero diretto da chiesadimilano.it (fonte primaria e completa)
+  if (rite === "romano") {
+    return fetchRomanGospel(targetDate);
+  } else {
+    return fetchAmbrosianGospel(targetDate);
+  }
+}
+
+/**
+ * Estrazione Vangelo Rito Ambrosiano (da chiesadimilano.it)
+ */
+async function fetchAmbrosianGospel(targetDate: string): Promise<DailyGospelData> {
   try {
     const calendarRes = await fetch("https://www.chiesadimilano.it/letture-rito-ambrosiano", {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0" },
@@ -70,7 +86,7 @@ export async function fetchDailyGospel(dateStr?: string): Promise<DailyGospelDat
         });
         if (pageRes.ok) {
           const pageHtml = await pageRes.text();
-          const parsed = parseGospelFromHtml(pageHtml, "Santa Messa", "", targetDate);
+          const parsed = parseAmbrosianGospelFromHtml(pageHtml, "Santa Messa", "", targetDate);
           if (parsed.gospelText && parsed.gospelText.length > 30) {
             return parsed;
           }
@@ -81,7 +97,7 @@ export async function fetchDailyGospel(dateStr?: string): Promise<DailyGospelDat
     console.error("Errore recupero diretto chiesadimilano:", err);
   }
 
-  // 2. Fallback su API interna della liturgia
+  // Fallback su API interna
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const res = await fetch(`${siteUrl}/api/liturgia?rite=ambrosiano&moment=messa&date=${targetDate}`, {
@@ -92,7 +108,7 @@ export async function fetchDailyGospel(dateStr?: string): Promise<DailyGospelDat
     if (res.ok) {
       const data = await res.json();
       if (data && data.contentHtml) {
-        const parsed = parseGospelFromHtml(data.contentHtml, data.title || "Santa Messa", data.riassunto || "", targetDate);
+        const parsed = parseAmbrosianGospelFromHtml(data.contentHtml, data.title || "Santa Messa", data.riassunto || "", targetDate);
         if (parsed.gospelText && parsed.gospelText.length > 30) {
           return parsed;
         }
@@ -102,28 +118,131 @@ export async function fetchDailyGospel(dateStr?: string): Promise<DailyGospelDat
     console.warn("Chiamata fallback API interna liturgia non riuscita:", err);
   }
 
-  // Fallback estremo di emergenza
   return {
     title: "Liturgia del Giorno",
     riassunto: "Rito Ambrosiano",
     colore: "verde",
     dateStr: targetDate,
+    rite: "ambrosiano",
     gospelCitation: "Vangelo del Giorno",
     gospelText: "In quel tempo, Gesù disse ai suoi discepoli: «Amatevi gli uni gli altri come io ho amato voi. Da questo tutti sapranno che siete miei discepoli: se avete amore gli uni per gli altri».",
   };
 }
 
 /**
- * Analizza l'HTML liturgico isolando ESCLUSIVAMENTE il paragrafo e la citazione del Vangelo
+ * Estrazione Vangelo Rito Romano (da lachiesa.it)
  */
-function parseGospelFromHtml(html: string, fallbackTitle: string, riassunto: string, dateStr: string): DailyGospelData {
-  // 1. Isola il contenuto dell'articolo (entry-content) per escludere menu, header e link di navigazione
+async function fetchRomanGospel(targetDate: string): Promise<DailyGospelData> {
+  const [y, m, d] = targetDate.split("-");
+  const url = `https://www.lachiesa.it/calendario/Detailed/${y}${m}${d}.shtml`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0" },
+      next: { revalidate: 3600 },
+    });
+
+    if (res.ok) {
+      const rawHtml = await res.text();
+
+      let title = "Santa Messa - Rito Romano";
+      let gospelCitation = "Dal Santo Vangelo di oggi";
+      let gospelText = "";
+
+      const saintMatch = rawHtml.match(/Scheda Agiografica:\s*<b>(?:<a[^>]*>)?([^<]+)/i);
+      const gradoMatch = rawHtml.match(/Grado della Celebrazione:\s*<b>([^<]+)<\/b>/i);
+      if (saintMatch) title = saintMatch[1].trim();
+      else if (gradoMatch) title = gradoMatch[1].trim();
+
+      const sectionMatches = [
+        ...rawHtml.matchAll(
+          /<div class="section">([\s\S]*?)<\/div>\s*(?=<div class="section"|<div id="footer"|<footer|$)/gi
+        ),
+      ];
+
+      for (const m of sectionMatches) {
+        const sHtml = m[1];
+        if (/id="vangelo"/i.test(sHtml) || /<div class="section-title"[^>]*>Vangelo<\/div>/i.test(sHtml)) {
+          const cMatch = sHtml.match(/<div class="section-content">([\s\S]*?)<\/div>\s*$/i) || [null, sHtml];
+          const content = cMatch[1] || "";
+
+          const miniMatch = content.match(/<div class="section-content-mini">([\s\S]*?)<\/div>/i);
+          let citationPrefix = "";
+          if (miniMatch) {
+            citationPrefix = miniMatch[1]
+              .replace(/<audio[\s\S]*?<\/audio>/gi, "")
+              .replace(/<[^>]+>/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+          }
+
+          const testoMatch = content.match(/<div class="section-content-testo">([\s\S]*?)<\/div>/i);
+          const cleanTesto = (testoMatch ? testoMatch[1] : content)
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+            .replace(/<[^>]+>/g, "\n")
+            .replace(/&nbsp;/g, " ")
+            .replace(/\r/g, "")
+            .replace(/\n\s*\n+/g, "\n")
+            .trim();
+
+          const lines = cleanTesto.split("\n").map((l) => l.trim()).filter(Boolean);
+          const textLines: string[] = [];
+
+          for (const line of lines) {
+            if (/^(?:Dal|Lettura del)\s+Vangelo/i.test(line) && textLines.length === 0) {
+              gospelCitation = citationPrefix ? `${citationPrefix} · ${line}` : line;
+            } else if (!/^(?:Parola del Signore|Rendo grazie a Dio|Gloria a te, o Cristo|Lode a te, o Cristo)/i.test(line)) {
+              textLines.push(line);
+            }
+          }
+
+          if (citationPrefix && !gospelCitation.includes(citationPrefix)) {
+            gospelCitation = `${citationPrefix} · ${gospelCitation}`;
+          }
+
+          gospelText = textLines.join("\n\n");
+          break;
+        }
+      }
+
+      if (gospelText && gospelText.length > 30) {
+        return {
+          title,
+          riassunto: "Rito Romano",
+          colore: "verde",
+          dateStr: targetDate,
+          rite: "romano",
+          gospelCitation,
+          gospelText,
+        };
+      }
+    }
+  } catch (err) {
+    console.error("Errore recupero Vangelo Rito Romano da lachiesa.it:", err);
+  }
+
+  // Fallback API interna o generico
+  return {
+    title: "Liturgia del Giorno",
+    riassunto: "Rito Romano",
+    colore: "verde",
+    dateStr: targetDate,
+    rite: "romano",
+    gospelCitation: "Vangelo del Giorno",
+    gospelText: "In quel tempo, Gesù disse ai suoi discepoli: «Se qualcuno vuole venire dietro a me, rinneghi se stesso, prenda la sua croce e mi segua».",
+  };
+}
+
+/**
+ * Analizza l'HTML liturgico ambrosiano isolando ESCLUSIVAMENTE il paragrafo e la citazione del Vangelo
+ */
+function parseAmbrosianGospelFromHtml(html: string, fallbackTitle: string, riassunto: string, dateStr: string): DailyGospelData {
   const contentMatch =
     html.match(/<div[^>]*class=['"][^'"]*entry-content[^'"]*['"][^>]*>([\s\S]*?)<\/div>\s*<!-- \.entry-content -->/i) ||
     html.match(/<div[^>]*class=['"][^'"]*entry-content[^'"]*['"][^>]*>([\s\S]*?)<\/div>/i);
   const entryContent = contentMatch ? contentMatch[1] : html;
 
-  // 2. Cerca in modo rigoroso il blocco delimitato da VANGELO fino alla sezione successiva
   const vangeloRegex = /(?:<strong>\s*VANGELO\s*<\/strong>|<h3>\s*VANGELO\s*<\/h3>|<p>\s*VANGELO\s*<\/p>|\bVANGELO\b)([\s\S]*?)(?:<!--|<audio|<div class=['"]audio|DOPO IL VANGELO|SUI DONI|ALLA COMUNIONE|PREGHIERA DEI FEDELI|PROFESSIONE DI FEDE|DOPO LA COMUNIONE|<h[1-6]|<\/article>)/i;
   const vMatch = entryContent.match(vangeloRegex);
 
@@ -146,7 +265,6 @@ function parseGospelFromHtml(html: string, fallbackTitle: string, riassunto: str
     const textLines: string[] = [];
 
     for (const line of lines) {
-      // Righe di citazione (es. "Lc 9, 7-11" o "Lettura del Vangelo secondo Luca")
       if (
         /^(?:[1-3]?\s*[A-Z][a-z]{1,4}\s*\d+|(?:Dal|Lettura del)\s+Vangelo)/i.test(line) &&
         textLines.length === 0
@@ -165,7 +283,6 @@ function parseGospelFromHtml(html: string, fallbackTitle: string, riassunto: str
     gospelText = textLines.join("\n\n");
   }
 
-  // 3. Titolo della celebrazione
   const titleMatch = html.match(/<h1[^>]*class=["']entry-title["'][^>]*>([\s\S]*?)<\/h1>/i);
   const cleanTitle = titleMatch
     ? titleMatch[1].replace(/<[^>]+>/g, "").replace(/ - Chiesa di Milano.*/i, "").trim()
@@ -176,6 +293,7 @@ function parseGospelFromHtml(html: string, fallbackTitle: string, riassunto: str
     riassunto,
     colore: "verde",
     dateStr,
+    rite: "ambrosiano",
     gospelCitation,
     gospelText: gospelText || "In quel tempo Gesù parlava alle folle del Regno di Dio.",
   };
@@ -247,7 +365,6 @@ REGOLE TASSATIVE:
         const data = await res.json();
         let text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         if (text && text.length > 20) {
-          // Pulizia di eventuali titoli markdown residui
           text = text
             .replace(/^\*\*.*?\*\*\s*/i, "")
             .replace(/^#+\s*.*?\n/i, "")
@@ -278,7 +395,6 @@ REGOLE TASSATIVE:
   return { reflection, usedModel };
 }
 
-
 /**
  * Genera l'HTML dell'email "La Parola del Giorno" con layout liturgico raffinato
  */
@@ -286,6 +402,7 @@ export function buildDailyWordEmailHtml(data: DailyWordResult): string {
   const { gospel, reflection } = data;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app";
   const dateFormatted = formatItalianDateLong(gospel.dateStr);
+  const riteLabel = gospel.rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
 
   return `
 <!DOCTYPE html>
@@ -310,7 +427,7 @@ export function buildDailyWordEmailHtml(data: DailyWordResult): string {
                   <td align="center">
                     <span style="font-size: 28px; display: inline-block; margin-bottom: 6px;">🕊️</span>
                     <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #f59e0b; margin-bottom: 4px;">
-                      Note di Fede · La Parola del Giorno
+                      Note di Fede · La Parola del Giorno (${riteLabel})
                     </div>
                     <h1 style="margin: 0; font-family: Georgia, serif; font-size: 24px; font-weight: normal; color: #ffffff; line-height: 1.3;">
                       ${gospel.title}
@@ -394,10 +511,63 @@ export function buildDailyWordEmailHtml(data: DailyWordResult): string {
 }
 
 /**
- * Esegue la pipeline completa di generazione e invio della newsletter
+ * Invia un'email o un lotto di email via Resend
+ */
+async function sendResendChunk(
+  resendApiKey: string,
+  recipients: string[],
+  subject: string,
+  html: string,
+  isTest: boolean
+) {
+  const batchSize = 40;
+  let count = 0;
+
+  for (let i = 0; i < recipients.length; i += batchSize) {
+    const chunk = recipients.slice(i, i + batchSize);
+    const payload = isTest
+      ? {
+          from: "Note di Fede <onboarding@resend.dev>",
+          to: chunk,
+          subject: `[TEST] ${subject}`,
+          html,
+        }
+      : {
+          from: "Note di Fede <onboarding@resend.dev>",
+          to: chunk[0],
+          bcc: chunk.length > 1 ? chunk.slice(1) : undefined,
+          subject,
+          html,
+        };
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendApiKey}`,
+        "User-Agent": "NoteDiFede-Newsletter/1.0",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Errore invio Resend chunk:", errText);
+      throw new Error(`Errore Resend: ${errText}`);
+    }
+
+    count += chunk.length;
+  }
+
+  return count;
+}
+
+/**
+ * Esegue la pipeline completa di generazione e invio della newsletter (Ambrosiano e Romano)
  */
 export async function sendDailyWordNewsletter(options?: {
   testEmail?: string;
+  rite?: LiturgyRite;
   dateStr?: string;
 }): Promise<{
   success: boolean;
@@ -420,103 +590,124 @@ export async function sendDailyWordNewsletter(options?: {
   }
 
   try {
-    // 1. Estrae Vangelo
-    const gospel = await fetchDailyGospel(options?.dateStr);
-
-    // 2. Genera riflessione su postura cristiana con Gemini
-    const { reflection, usedModel } = await generateChristianPosture(gospel);
-
-    // 3. Compila Template HTML
-    const emailHtml = buildDailyWordEmailHtml({ gospel, reflection, usedModel });
-
-    // 4. Determina i destinatari
-    let recipients: string[] = [];
-
+    // CASO 1: Test Personale singolo per un rito specifico
     if (options?.testEmail) {
-      recipients = [options.testEmail.trim()];
-    } else {
-      // Invio massivo a tutti gli utenti registrati su Supabase
-      const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-      const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+      const selectedRite = options.rite || "ambrosiano";
+      const gospel = await fetchDailyGospel(options.dateStr, selectedRite);
+      const { reflection, usedModel } = await generateChristianPosture(gospel);
+      const emailHtml = buildDailyWordEmailHtml({ gospel, reflection, usedModel });
 
-      const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
+      const emailSubject = `🕊️ La Parola del Giorno (${selectedRite === "romano" ? "Rito Romano" : "Rito Ambrosiano"}): ${gospel.title}`;
+      await sendResendChunk(resendApiKey, [options.testEmail.trim()], emailSubject, emailHtml, true);
 
-      const { data: usersData, error: usersErr } = await adminClient.auth.admin.listUsers({
-        perPage: 1000,
-      });
-
-      if (usersErr) {
-        throw new Error(`Errore recupero iscritti: ${usersErr.message}`);
-      }
-
-      recipients = (usersData?.users || [])
-        .map((u) => u.email)
-        .filter((email): email is string => Boolean(email && email.includes("@")));
-    }
-
-    if (recipients.length === 0) {
       return {
-        success: false,
-        recipientsCount: 0,
+        success: true,
+        recipientsCount: 1,
         reflection,
         gospel,
         usedModel,
-        error: "Nessun indirizzo email destinatario valido trovato.",
       };
     }
 
-    // 5. Invio tramite Resend API (singolo o a lotti se destinatari multipli)
-    const emailSubject = `🕊️ La Parola del Giorno: ${gospel.title}`;
+    // CASO 2: Esecuzione Cronjob alle 06:00 per TUTTI gli iscritti
+    const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
+    const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 
-    // Resend accetta fino a 50 destinatari per chiamata in 'to'/'bcc' o chiamate batch
-    const batchSize = 40;
-    let sentCount = 0;
+    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
-    for (let i = 0; i < recipients.length; i += batchSize) {
-      const chunk = recipients.slice(i, i + batchSize);
+    // 1. Recupera la lista di tutti gli utenti Auth
+    const { data: usersData, error: usersErr } = await adminClient.auth.admin.listUsers({
+      perPage: 1000,
+    });
 
-      const payload = options?.testEmail
-        ? {
-            from: "Note di Fede <onboarding@resend.dev>",
-            to: chunk,
-            subject: `[TEST] ${emailSubject}`,
-            html: emailHtml,
-          }
-        : {
-            from: "Note di Fede <onboarding@resend.dev>",
-            to: chunk[0],
-            bcc: chunk.length > 1 ? chunk.slice(1) : undefined,
-            subject: emailSubject,
-            html: emailHtml,
-          };
+    if (usersErr) {
+      throw new Error(`Errore recupero iscritti Auth: ${usersErr.message}`);
+    }
 
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
-          "User-Agent": "NoteDiFede-Newsletter/1.0",
-        },
-        body: JSON.stringify(payload),
-      });
+    const allUsers = usersData?.users || [];
+    if (allUsers.length === 0) {
+      return {
+        success: false,
+        recipientsCount: 0,
+        reflection: "",
+        gospel: {} as any,
+        usedModel: "",
+        error: "Nessun iscritto trovato su Supabase.",
+      };
+    }
 
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("Errore invio Resend chunk:", errText);
-        throw new Error(`Errore Resend: ${errText}`);
+    // 2. Recupera le preferenze di rito dai profili
+    const { data: profilesData } = await adminClient
+      .from("profiles")
+      .select("id, preferred_rite");
+
+    const profileMap = new Map<string, string>();
+    (profilesData || []).forEach((p: any) => {
+      if (p.id && p.preferred_rite) {
+        profileMap.set(p.id, p.preferred_rite);
       }
+    });
 
-      sentCount += chunk.length;
+    // 3. Suddivide i destinatari in Ambrosiano e Romano
+    const ambrosianoRecipients: string[] = [];
+    const romanoRecipients: string[] = [];
+
+    for (const u of allUsers) {
+      if (u.email && u.email.includes("@")) {
+        const userRite = profileMap.get(u.id);
+        if (userRite === "romano") {
+          romanoRecipients.push(u.email);
+        } else {
+          ambrosianoRecipients.push(u.email);
+        }
+      }
+    }
+
+    let totalSent = 0;
+    let lastReflection = "";
+    let lastGospel: DailyGospelData = {} as any;
+    let lastModel = "";
+
+    // 4. Genera e invia Rito Ambrosiano (se ci sono destinatari)
+    if (ambrosianoRecipients.length > 0) {
+      const ambrosianoGospel = await fetchDailyGospel(options?.dateStr, "ambrosiano");
+      const { reflection: ambReflection, usedModel: ambModel } = await generateChristianPosture(ambrosianoGospel);
+      const ambHtml = buildDailyWordEmailHtml({ gospel: ambrosianoGospel, reflection: ambReflection, usedModel: ambModel });
+
+      const ambSubject = `🕊️ La Parola del Giorno: ${ambrosianoGospel.title}`;
+      const sentAmb = await sendResendChunk(resendApiKey, ambrosianoRecipients, ambSubject, ambHtml, false);
+      totalSent += sentAmb;
+
+      lastReflection = ambReflection;
+      lastGospel = ambrosianoGospel;
+      lastModel = ambModel;
+    }
+
+    // 5. Genera e invia Rito Romano (se ci sono destinatari con preferenza romana)
+    if (romanoRecipients.length > 0) {
+      const romanoGospel = await fetchDailyGospel(options?.dateStr, "romano");
+      const { reflection: romReflection, usedModel: romModel } = await generateChristianPosture(romanoGospel);
+      const romHtml = buildDailyWordEmailHtml({ gospel: romanoGospel, reflection: romReflection, usedModel: romModel });
+
+      const romSubject = `🕊️ La Parola del Giorno (Rito Romano): ${romanoGospel.title}`;
+      const sentRom = await sendResendChunk(resendApiKey, romanoRecipients, romSubject, romHtml, false);
+      totalSent += sentRom;
+
+      if (!lastReflection) {
+        lastReflection = romReflection;
+        lastGospel = romanoGospel;
+        lastModel = romModel;
+      }
     }
 
     return {
       success: true,
-      recipientsCount: sentCount,
-      reflection,
-      gospel,
-      usedModel,
+      recipientsCount: totalSent,
+      reflection: lastReflection,
+      gospel: lastGospel,
+      usedModel: lastModel,
     };
   } catch (err: any) {
     console.error("Errore esecuzione newsletter:", err);
