@@ -340,12 +340,12 @@ export function buildDailyWordEmailHtml(data: DailyWordResult): string {
             </td>
           </tr>
 
-          <!-- Sezione: Il Santo Vangelo di Oggi -->
+          <!-- Sezione: Il Vangelo del Giorno -->
           <tr>
             <td style="padding: 16px 24px 28px 24px;">
               <div style="margin-bottom: 12px;">
                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #aa9576;">
-                  📖 Dal Santo Vangelo
+                  📖 Il Vangelo del Giorno
                 </span>
                 <div style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #6b21a8; margin-top: 2px;">
                   ${gospel.gospelCitation}
