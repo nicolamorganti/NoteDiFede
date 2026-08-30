@@ -526,22 +526,25 @@ async function sendResendChunk(
   const batchSize = 40;
   let count = 0;
 
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "Note di Fede <onboarding@resend.dev>";
+
   for (let i = 0; i < recipients.length; i += batchSize) {
     const chunk = recipients.slice(i, i + batchSize);
     const payload = isTest
       ? {
-          from: "Note di Fede <onboarding@resend.dev>",
+          from: fromAddress,
           to: chunk,
           subject: `[TEST] ${subject}`,
           html,
         }
       : {
-          from: "Note di Fede <onboarding@resend.dev>",
+          from: fromAddress,
           to: chunk[0],
           bcc: chunk.length > 1 ? chunk.slice(1) : undefined,
           subject,
           html,
         };
+
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
