@@ -336,17 +336,18 @@ Se ci sono canti alternativi o molteplici per lo stesso momento (es. 'oppure', '
 Se un momento è vuoto o non ha canti, non includerlo oppure lascia l'array 'songs' vuoto.
 Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
 
-    // Catena aggiornata dei modelli Gemini con supporto multimodale Vision per OCR
+    // Catena aggiornata e verificata dei modelli Gemini con supporto multimodale Vision per OCR
     const candidateModels = [
       process.env.GEMINI_MODEL,
       "gemini-3.7-flash",
       "gemini-flash-latest",
+      "gemini-3.6-flash",
       "gemini-3.5-flash",
       "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
+      "gemini-flash-lite-latest",
+      "gemini-3.1-flash-lite",
     ].filter(Boolean) as string[];
+
 
 
     let textOutput: string | null = null;

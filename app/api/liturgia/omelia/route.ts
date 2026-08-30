@@ -56,17 +56,18 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
 - Niente convenevoli di apertura o formule da pulpito (niente "Carissimi fratelli", "Cari amici", ecc.). Entra direttamente nella contemplazione del brano.`;
 
 
-    // Catena aggiornata dei modelli Gemini
+    // Catena aggiornata e verificata dei modelli Gemini
     const candidateModels = [
       process.env.GEMINI_MODEL,
       "gemini-3.7-flash",
       "gemini-flash-latest",
+      "gemini-3.6-flash",
       "gemini-3.5-flash",
       "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
+      "gemini-flash-lite-latest",
+      "gemini-3.1-flash-lite",
     ].filter(Boolean) as string[];
+
 
 
     const geminiPayload = {

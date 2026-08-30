@@ -56,17 +56,18 @@ REGOLE STILISTICHE FONDAMENTALI:
 - Tono: diretto, caloroso, usando un "noi" inclusivo che interpella personalmente chi legge, comprensibile e toccante per tutti (credenti, ricercatori, giovani, laici).
 - Mantieni il testo asciutto, profondo e privo di inutili premesse retoriche (circa 350-500 parole in totale). Formatta con titoli markdown netti ed elenchi puliti.`;
 
-    // Catena aggiornata dei modelli Gemini
+    // Catena aggiornata e verificata dei modelli Gemini
     const candidateModels = [
       process.env.GEMINI_MODEL,
       "gemini-3.7-flash",
       "gemini-flash-latest",
+      "gemini-3.6-flash",
       "gemini-3.5-flash",
       "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
+      "gemini-flash-lite-latest",
+      "gemini-3.1-flash-lite",
     ].filter(Boolean) as string[];
+
 
 
 
