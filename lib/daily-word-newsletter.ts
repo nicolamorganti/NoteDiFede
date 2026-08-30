@@ -329,11 +329,11 @@ REGOLE TASSATIVE:
 
   const candidateModels = [
     process.env.GEMINI_MODEL,
-    "gemini-2.5-flash",
-    "gemini-3.5-flash",
-    "gemini-3.6-flash",
     "gemini-3.7-flash",
     "gemini-flash-latest",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-3.6-flash",
     "gemini-flash-lite-latest",
     "gemini-3.1-flash-lite",
   ].filter(Boolean) as string[];
@@ -344,7 +344,8 @@ REGOLE TASSATIVE:
 
   for (const model of candidateModels) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
