@@ -49,29 +49,8 @@ export function formatItalianDateLong(dateStr: string): string {
  */
 export async function fetchDailyGospel(dateStr?: string): Promise<DailyGospelData> {
   const targetDate = dateStr || getItalianDateString();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-  // 1. Tenta di interrogare l'API interna della liturgia
-  try {
-    const res = await fetch(`${siteUrl}/api/liturgia?rite=ambrosiano&moment=messa&date=${targetDate}`, {
-      headers: { "User-Agent": "NoteDiFede-Newsletter/1.0" },
-      next: { revalidate: 1800 },
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.contentHtml) {
-        const parsed = parseGospelFromHtml(data.contentHtml, data.title || "Santa Messa", data.riassunto || "", targetDate);
-        if (parsed.gospelText.length > 30) {
-          return parsed;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Chiamata API interna liturgia non riuscita, fallback su scraping diretto:", err);
-  }
-
-  // 2. Fallback diretto su chiesadimilano.it
+  // 1. Tenta il recupero diretto da chiesadimilano.it (fonte primaria e completa)
   try {
     const calendarRes = await fetch("https://www.chiesadimilano.it/letture-rito-ambrosiano", {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0" },
@@ -91,76 +70,106 @@ export async function fetchDailyGospel(dateStr?: string): Promise<DailyGospelDat
         });
         if (pageRes.ok) {
           const pageHtml = await pageRes.text();
-          return parseGospelFromHtml(pageHtml, "Santa Messa", "", targetDate);
+          const parsed = parseGospelFromHtml(pageHtml, "Santa Messa", "", targetDate);
+          if (parsed.gospelText && parsed.gospelText.length > 30) {
+            return parsed;
+          }
         }
       }
     }
   } catch (err) {
-    console.error("Errore fallback scraping chiesadimilano:", err);
+    console.error("Errore recupero diretto chiesadimilano:", err);
   }
 
-  // Fallback se il recupero remoto non fosse momentaneamente accessibile
+  // 2. Fallback su API interna della liturgia
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const res = await fetch(`${siteUrl}/api/liturgia?rite=ambrosiano&moment=messa&date=${targetDate}`, {
+      headers: { "User-Agent": "NoteDiFede-Newsletter/1.0" },
+      next: { revalidate: 1800 },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.contentHtml) {
+        const parsed = parseGospelFromHtml(data.contentHtml, data.title || "Santa Messa", data.riassunto || "", targetDate);
+        if (parsed.gospelText && parsed.gospelText.length > 30) {
+          return parsed;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Chiamata fallback API interna liturgia non riuscita:", err);
+  }
+
+  // Fallback estremo di emergenza
   return {
     title: "Liturgia del Giorno",
     riassunto: "Rito Ambrosiano",
     colore: "verde",
     dateStr: targetDate,
     gospelCitation: "Vangelo del Giorno",
-    gospelText: "In quel tempo, Gesù disse ai suoi discepoli: «Amatevi gli uni gli altri come io ho amato voi. Da questo tutti sapranno che siete miei discepoli: se avete amore gli uni per gli altri». Amatevi e custodite la Parola della verità.",
+    gospelText: "In quel tempo, Gesù disse ai suoi discepoli: «Amatevi gli uni gli altri come io ho amato voi. Da questo tutti sapranno che siete miei discepoli: se avete amore gli uni per gli altri».",
   };
 }
 
 /**
- * Analizza l'HTML liturgico per isolare citazione e testo del Vangelo
+ * Analizza l'HTML liturgico isolando ESCLUSIVAMENTE il paragrafo e la citazione del Vangelo
  */
 function parseGospelFromHtml(html: string, fallbackTitle: string, riassunto: string, dateStr: string): DailyGospelData {
-  const plainText = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-    .replace(/<[^>]+>/g, "\n")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\r/g, "")
-    .replace(/\n\s*\n+/g, "\n")
-    .trim();
+  // 1. Isola il contenuto dell'articolo (entry-content) per escludere menu, header e link di navigazione
+  const contentMatch =
+    html.match(/<div[^>]*class=['"][^'"]*entry-content[^'"]*['"][^>]*>([\s\S]*?)<\/div>\s*<!-- \.entry-content -->/i) ||
+    html.match(/<div[^>]*class=['"][^'"]*entry-content[^'"]*['"][^>]*>([\s\S]*?)<\/div>/i);
+  const entryContent = contentMatch ? contentMatch[1] : html;
 
-  let gospelCitation = "Dal Vangelo di oggi";
+  // 2. Cerca in modo rigoroso il blocco delimitato da VANGELO fino alla sezione successiva
+  const vangeloRegex = /(?:<strong>\s*VANGELO\s*<\/strong>|<h3>\s*VANGELO\s*<\/h3>|<p>\s*VANGELO\s*<\/p>|\bVANGELO\b)([\s\S]*?)(?:<!--|<audio|<div class=['"]audio|DOPO IL VANGELO|SUI DONI|ALLA COMUNIONE|PREGHIERA DEI FEDELI|PROFESSIONE DI FEDE|DOPO LA COMUNIONE|<h[1-6]|<\/article>)/i;
+  const vMatch = entryContent.match(vangeloRegex);
+
+  let gospelCitation = "Dal Santo Vangelo di oggi";
   let gospelText = "";
 
-  // Cerca la sezione del Vangelo
-  const vangeloIndex = plainText.search(/(?:VANGELO|Dal Vangelo secondo|Lettura del Vangelo)/i);
-  if (vangeloIndex !== -1) {
-    const afterVangelo = plainText.slice(vangeloIndex);
-    
-    // Trova eventuale citazione (es. Dal Vangelo secondo Matteo (Mt 5,1-12))
-    const citationMatch = afterVangelo.match(/(?:Dal Vangelo secondo\s+[^\n]+|Lettura del Santo Vangelo\s+[^\n]+)/i);
-    if (citationMatch) {
-      gospelCitation = citationMatch[0].trim();
+  if (vMatch && vMatch[1]) {
+    const block = vMatch[1];
+    const cleanBlock = block
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+      .replace(/<[^>]+>/g, "\n")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\r/g, "")
+      .replace(/\n\s*\n+/g, "\n")
+      .trim();
+
+    const lines = cleanBlock.split("\n").map((l) => l.trim()).filter(Boolean);
+    const citationLines: string[] = [];
+    const textLines: string[] = [];
+
+    for (const line of lines) {
+      // Righe di citazione (es. "Lc 9, 7-11" o "Lettura del Vangelo secondo Luca")
+      if (
+        /^(?:[1-3]?\s*[A-Z][a-z]{1,4}\s*\d+|(?:Dal|Lettura del)\s+Vangelo)/i.test(line) &&
+        textLines.length === 0
+      ) {
+        citationLines.push(line);
+      } else if (
+        !/^(?:Parola del Signore|Rendo grazie a Dio|Gloria a te, o Cristo|Lode a te, o Cristo)/i.test(line)
+      ) {
+        textLines.push(line);
+      }
     }
 
-    const endSectionIndex = afterVangelo.search(
-      /(?:DOPO IL VANGELO|SUI DONI|ALLA COMUNIONE|PREGHIERA DEI FEDELI|PROFESSIONE DI FEDE|DOPO LA COMUNIONE|Parola del Signore|Rendo grazie a Dio)/i
-    );
-
-    if (endSectionIndex !== -1 && endSectionIndex > 80) {
-      gospelText = afterVangelo.slice(0, endSectionIndex).trim();
-    } else {
-      gospelText = afterVangelo.slice(0, 1500).trim();
+    if (citationLines.length > 0) {
+      gospelCitation = citationLines.join(" · ");
     }
-  } else {
-    gospelText = plainText.slice(0, 1200).trim();
+    gospelText = textLines.join("\n\n");
   }
 
-  // Pulizia finale del testo del Vangelo
-  gospelText = gospelText
-    .replace(/^VANGELO\s*/i, "")
-    .replace(/^Dal Vangelo secondo[^\n]+\n?/i, "")
-    .replace(/^Lettura del Santo Vangelo[^\n]+\n?/i, "")
-    .replace(/Parola del Signore.*/i, "")
-    .trim();
-
-  // Titolo della celebrazione
+  // 3. Titolo della celebrazione
   const titleMatch = html.match(/<h1[^>]*class=["']entry-title["'][^>]*>([\s\S]*?)<\/h1>/i);
-  const cleanTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").replace(/ - Chiesa di Milano.*/i, "").trim() : fallbackTitle;
+  const cleanTitle = titleMatch
+    ? titleMatch[1].replace(/<[^>]+>/g, "").replace(/ - Chiesa di Milano.*/i, "").trim()
+    : fallbackTitle;
 
   return {
     title: cleanTitle,
@@ -168,13 +177,12 @@ function parseGospelFromHtml(html: string, fallbackTitle: string, riassunto: str
     colore: "verde",
     dateStr,
     gospelCitation,
-    gospelText: gospelText || "Testo del Vangelo in ascolto.",
-    fullContentHtml: html,
+    gospelText: gospelText || "In quel tempo Gesù parlava alle folle del Regno di Dio.",
   };
 }
 
 /**
- * Genera con Gemini la "Postura Cristiana del Giorno" (50-100 parole)
+ * Genera con Gemini la "Postura Cristiana del Giorno" (50-100 parole, rigorosamente compiuta)
  */
 export async function generateChristianPosture(gospelData: DailyGospelData): Promise<{ reflection: string; usedModel: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -182,27 +190,30 @@ export async function generateChristianPosture(gospelData: DailyGospelData): Pro
     throw new Error("GEMINI_API_KEY non configurata nelle variabili d'ambiente.");
   }
 
-  const prompt = `Sei una guida spirituale dal tratto essenziale, limpido e profondo, nello stile autentico del Cardinale Carlo Maria Martini.
+  const prompt = `Sei una guida spirituale e biblista dal tratto essenziale, limpido e profondo, nello stile autentico del Cardinale Carlo Maria Martini.
 
-Leggi questo brano del Vangelo di oggi (${gospelData.title} - ${gospelData.gospelCitation}):
+Leggi questo brano del Santo Vangelo di oggi (${gospelData.title} - ${gospelData.gospelCitation}):
 """
 ${gospelData.gospelText}
 """
 
 Compito:
-Scrivi la "Postura Cristiana del Giorno" per chi si sveglia questa mattina:
-- Indica con precisione e concretezza COME dobbiamo impostare oggi il nostro pensiero, le nostre scelte e il nostro sguardo verso il prossimo per vivere secondo l'insegnamento di Gesù.
-- Lunghezza TASSATIVA: tra 50 e 100 parole (massimo 100 parole). Chi riceve l'email deve poterla leggere e meditare in meno di un minuto.
-- Stile: Incisivo, caldo, sobrio, diretto al cuore e alla vita reale della giornata (lavoro, relazioni, pazienza, ascolto, carità).
-- NON inserire saluti formali o formule introduttive (es. "Oggi Gesù ci invita...", "Cari amici..."). Entra immediatamente nel vivo del gesto interiore da compiere oggi.`;
+Scrivi una riflessione densa e incisiva sulla "Postura Cristiana per Oggi":
+- Indica con precisione e concretezza come dobbiamo impostare oggi il nostro pensiero, le nostre scelte interiori e il nostro sguardo verso il prossimo per essere vicini agli insegnamenti di Gesù.
+- Lunghezza: tra 50 e 100 parole (massimo 100 parole).
+
+REGOLE TASSATIVE:
+1. Concludi SEMPRE l'intero pensiero in modo compiuto con un punto fermo finale. NON lasciare MAI frasi a metà o troncate.
+2. NON inserire titoli markdown (es. NON scrivere "**La Postura Cristiana...**").
+3. Niente formule introduttive o convenevoli da pulpito (es. non iniziare con "Oggi Gesù ci invita...", "Cari fratelli..."). Entra immediatamente nel vivo dell'atteggiamento interiore da vivere oggi.`;
 
   const candidateModels = [
     process.env.GEMINI_MODEL,
+    "gemini-2.5-flash",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
     "gemini-3.7-flash",
     "gemini-flash-latest",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-2.5-flash",
     "gemini-flash-lite-latest",
     "gemini-3.1-flash-lite",
   ].filter(Boolean) as string[];
@@ -223,8 +234,8 @@ Scrivi la "Postura Cristiana del Giorno" per chi si sveglia questa mattina:
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500,
+            temperature: 0.65,
+            maxOutputTokens: 2048,
           },
         }),
         signal: controller.signal,
@@ -234,8 +245,16 @@ Scrivi la "Postura Cristiana del Giorno" per chi si sveglia questa mattina:
 
       if (res.ok) {
         const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        let text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         if (text && text.length > 20) {
+          // Pulizia di eventuali titoli markdown residui
+          text = text
+            .replace(/^\*\*.*?\*\*\s*/i, "")
+            .replace(/^#+\s*.*?\n/i, "")
+            .replace(/^[«"]/, "")
+            .replace(/[»"]$/, "")
+            .trim();
+
           reflection = text;
           usedModel = model;
           break;
@@ -258,6 +277,7 @@ Scrivi la "Postura Cristiana del Giorno" per chi si sveglia questa mattina:
 
   return { reflection, usedModel };
 }
+
 
 /**
  * Genera l'HTML dell'email "La Parola del Giorno" con layout liturgico raffinato
