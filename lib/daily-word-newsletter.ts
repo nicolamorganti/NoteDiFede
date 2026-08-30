@@ -308,7 +308,7 @@ export async function generateChristianPosture(gospelData: DailyGospelData): Pro
     throw new Error("GEMINI_API_KEY non configurata nelle variabili d'ambiente.");
   }
 
-  const prompt = `Sei una guida spirituale e biblista dal tratto essenziale, limpido e profondo, nello stile autentico del Cardinale Carlo Maria Martini.
+  const prompt = `Sei una guida spirituale e biblista dal tratto essenziale, limpido e profondamente concreto, nello stile autentico del Cardinale Carlo Maria Martini.
 
 Leggi questo brano del Santo Vangelo di oggi (${gospelData.title} - ${gospelData.gospelCitation}):
 """
@@ -316,14 +316,16 @@ ${gospelData.gospelText}
 """
 
 Compito:
-Scrivi una riflessione densa e incisiva sulla "Postura Cristiana per Oggi":
-- Indica con precisione e concretezza come dobbiamo impostare oggi il nostro pensiero, le nostre scelte interiori e il nostro sguardo verso il prossimo per essere vicini agli insegnamenti di Gesù.
-- Lunghezza: tra 50 e 100 parole (massimo 100 parole).
+Scrivi la "Postura Cristiana per Oggi", trasformando il Vangelo in indicazioni pratiche per le nostre relazioni quotidiane con il prossimo (a casa, al lavoro, con chi incontriamo oggi):
+- COME guardare oggi le persone accanto a noi: quale sguardo avere verso chi è stanco, fastidioso o in difficoltà?
+- GESTI E PAROLE CONCRETE: quale atteggiamento pratico assumere? (es. ascoltare senza fretta, non giudicare, trattenere una risposta pungente, accogliere un'interruzione, farsi carico con dolcezza di un bisogno nascosto).
+- Lunghezza: tra 50 e 90 parole (massimo 90 parole).
 
 REGOLE TASSATIVE:
-1. Concludi SEMPRE l'intero pensiero in modo compiuto con un punto fermo finale. NON lasciare MAI frasi a metà o troncate.
+1. Concludi SEMPRE l'intero pensiero in modo compiuto con un punto fermo finale. NON lasciare mai frasi a metà o troncate.
 2. NON inserire titoli markdown (es. NON scrivere "**La Postura Cristiana...**").
-3. Niente formule introduttive o convenevoli da pulpito (es. non iniziare con "Oggi Gesù ci invita...", "Cari fratelli..."). Entra immediatamente nel vivo dell'atteggiamento interiore da vivere oggi.`;
+3. Niente formule introduttive o convenevoli da pulpito (es. non iniziare con "Oggi Gesù ci invita...", "Cari fratelli..."). Entra immediatamente nel vivo dell'atteggiamento pratico di oggi.`;
+
 
   const candidateModels = [
     process.env.GEMINI_MODEL,
