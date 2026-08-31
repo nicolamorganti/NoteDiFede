@@ -4,9 +4,11 @@ import { useEffect, useState, useRef } from "react";
 
 interface LiturgicalTtsPlayerProps {
   htmlContent: string;
+  customSpeechText?: string;
   lang?: string;
   title?: string;
 }
+
 
 export function cleanTextForSpeech(html: string): string {
   if (!html || typeof window === "undefined") return "";
@@ -135,7 +137,13 @@ export function getAcousticWeight(text: string): number {
   return weight;
 }
 
-export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta" }: LiturgicalTtsPlayerProps) {
+export function LiturgicalTtsPlayer({
+  htmlContent,
+  customSpeechText,
+  lang = "it",
+  title = "Ascolta",
+}: LiturgicalTtsPlayerProps) {
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -312,11 +320,12 @@ export function LiturgicalTtsPlayer({ htmlContent, lang = "it", title = "Ascolta
   };
 
   const startSpeech = async () => {
-    if (!htmlContent) return;
+    if (!htmlContent && !customSpeechText) return;
     stopSpeech();
 
-    const fullText = cleanTextForSpeech(htmlContent);
+    const fullText = customSpeechText || cleanTextForSpeech(htmlContent);
     if (!fullText) return;
+
 
     setIsLoading(true);
 

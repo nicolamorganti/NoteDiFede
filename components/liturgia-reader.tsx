@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
 import { QuoteImageModal } from "@/components/quote-image-modal";
+import {
+  StructuredBreviaryView,
+  parseIBreviaryHours,
+  extractCleanSpeechFromParsedBreviary,
+} from "@/components/structured-breviary-view";
+
 
 
 
@@ -567,7 +573,21 @@ export function LiturgiaReader() {
   // Dettagli teologici e canonici del giorno liturgico (Tempo, Salterio I-IV, Anno I-II)
   const liturgicalDayDetails = getLiturgicalDayDetails(selectedDate, rite, temporalInfo);
 
+  // Parser per la Liturgia delle Ore strutturata in schede (Rito Romano)
+  const parsedBreviary = useMemo(() => {
+    if (moment !== "messa" && rite === "romano" && contentHtml) {
+      return parseIBreviaryHours(contentHtml);
+    }
+    return null;
+  }, [moment, rite, contentHtml]);
 
+  // Testo pulito ottimizzato per la sintesi vocale (TTS)
+  const cleanSpeechText = useMemo(() => {
+    if (parsedBreviary && parsedBreviary.isParsed) {
+      return extractCleanSpeechFromParsedBreviary(parsedBreviary);
+    }
+    return extractCleanLiturgicalText(contentHtml);
+  }, [parsedBreviary, contentHtml]);
 
   // Valori calcolati per l'interlinea
   const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
@@ -576,6 +596,7 @@ export function LiturgiaReader() {
 
   // Suddivide il testo esattamente dopo l'audio del Vangelo (per la Messa)
   const splitContent = splitContentAtGospelEnd(contentHtml);
+
 
   // Render del blocco "Supporto alla Comprensione" (Attivo sia per Messa che per Liturgia delle Ore)
   const renderSupportoComprensione = () => {
@@ -968,9 +989,11 @@ export function LiturgiaReader() {
           {/* Lettore Vocale Text-to-Speech */}
           <LiturgicalTtsPlayer
             htmlContent={contentHtml}
+            customSpeechText={cleanSpeechText}
             lang={rite === "romano" ? selectedLang : "it"}
             title="Ascolta"
           />
+
 
           {/* Dimensione Font */}
           <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
@@ -1191,6 +1214,14 @@ export function LiturgiaReader() {
               )}
             </div>
           </div>
+        ) : parsedBreviary && parsedBreviary.isParsed ? (
+          <StructuredBreviaryView
+            data={parsedBreviary}
+            isChurchMode={isChurchMode}
+            fontSize={fontSize}
+            lineHeightValue={lineHeightValue}
+            renderSupportoComprensione={renderSupportoComprensione}
+          />
         ) : (
           <article
             className="liturgia-content prose max-w-none font-serif"
@@ -1211,6 +1242,7 @@ export function LiturgiaReader() {
             )}
           </article>
         )}
+
       </div>
 
 
