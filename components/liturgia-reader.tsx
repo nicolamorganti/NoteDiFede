@@ -1,21 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
 import { QuoteImageModal } from "@/components/quote-image-modal";
-import {
-  StructuredBreviaryView,
-  parseIBreviaryHours,
-  extractCleanSpeechFromParsedBreviary,
-} from "@/components/structured-breviary-view";
-
-
-
-
 
 export type LiturgyRite = "ambrosiano" | "romano";
+
 export type LiturgyMoment = "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa";
 export type LineSpacingOption = "compact" | "normal" | "relaxed";
 
@@ -573,24 +565,12 @@ export function LiturgiaReader() {
   // Dettagli teologici e canonici del giorno liturgico (Tempo, Salterio I-IV, Anno I-II)
   const liturgicalDayDetails = getLiturgicalDayDetails(selectedDate, rite, temporalInfo);
 
-  // Parser per la Liturgia delle Ore strutturata in schede (Rito Romano)
-  const parsedBreviary = useMemo(() => {
-    if (moment !== "messa" && rite === "romano" && contentHtml) {
-      return parseIBreviaryHours(contentHtml);
-    }
-    return null;
-  }, [moment, rite, contentHtml]);
-
   // Testo pulito ottimizzato per la sintesi vocale (TTS)
-  const cleanSpeechText = useMemo(() => {
-    if (parsedBreviary && parsedBreviary.isParsed) {
-      return extractCleanSpeechFromParsedBreviary(parsedBreviary);
-    }
-    return extractCleanLiturgicalText(contentHtml);
-  }, [parsedBreviary, contentHtml]);
+  const cleanSpeechText = extractCleanLiturgicalText(contentHtml);
 
   // Valori calcolati per l'interlinea
   const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
+
   const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
   const spacingLabel = lineSpacing === "compact" ? "Compatta" : lineSpacing === "normal" ? "Normale" : "Ampia";
 
@@ -1214,16 +1194,9 @@ export function LiturgiaReader() {
               )}
             </div>
           </div>
-        ) : parsedBreviary && parsedBreviary.isParsed ? (
-          <StructuredBreviaryView
-            data={parsedBreviary}
-            isChurchMode={isChurchMode}
-            fontSize={fontSize}
-            lineHeightValue={lineHeightValue}
-            renderSupportoComprensione={renderSupportoComprensione}
-          />
         ) : (
           <article
+
             className="liturgia-content prose max-w-none font-serif"
             style={{
               fontSize: `${fontSize}px`,

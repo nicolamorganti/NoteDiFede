@@ -3,10 +3,32 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function sanitizeHtml(html: string): string {
-  return html
+function sanitizeHtml(rawHtml: string): string {
+  if (!rawHtml) return "";
+
+  // 1. Estrai il contenuto effettivo dal container inner
+  const innerMatch =
+    rawHtml.match(/<div id="contenuto">[\s\S]*?<div class="inner">([\s\S]*?)<\/div>\s*<script/i) ||
+    rawHtml.match(/<div class="inner">([\s\S]*?)<\/div>\s*(?:<div id="footer"|<\/div>\s*<\/body>|<script)/i) ||
+    rawHtml.match(/<div class="inner">([\s\S]*?)<\/div>/i) ||
+    rawHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+
+  let content = innerMatch ? innerMatch[1] : rawHtml;
+
+  // 2. Tagliamo via i banner di donazione/newsletter e l'appendice ripetitiva
+  const cutoffIdx = content.search(/<p>\s*\*{3,}\s*<\/p>|<a href="HTTP:\/\/www\.ibreviary\.com\/new\/donazione/i);
+  if (cutoffIdx !== -1) {
+    content = content.slice(0, cutoffIdx);
+  }
+
+  // 3. Pulizia accurata dei frammenti e link di navigazione
+  return content
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    .replace(/<p><a href="#(?:Inno|menu|ps99|ps66|ps23)"[^>]*>[\s\S]*?<\/a><\/p>/gi, "")
+    .replace(/<a name="Inno"><\/a>/gi, "")
+    .replace(/<a [^>]*href="#(?:Inno|menu|ps99|ps66|ps23)"[^>]*>[\s\S]*?<\/a>/gi, "")
+    .replace(/<p class="rubrica">Il salmo 94 pu&ograve; essere sostituito[\s\S]*?<\/p>/gi, "")
     .replace(/<a[^>]*href=["'][^"']*(?:donazione|newsletter|#menu|ibreviary\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, "")
     .replace(/<p[^>]*>(?:(?!<\/p>)[\s\S])*?(?:per sostenere lo sviluppo di|alla nostra Newsletter|ibreviary|donazione|-\s*Menu\s*-|\*{3,})(?:(?!<\/p>)[\s\S])*?<\/p>/gi, "")
     .replace(/per sostenere lo sviluppo di\s*iBreviary/gi, "")
@@ -14,8 +36,10 @@ function sanitizeHtml(html: string): string {
     .replace(/<p>\s*\*{3,}\s*<\/p>/gi, "")
     .replace(/<hr\s*\/?>/gi, "<hr class='my-4 border-[#e2d5c4]' />")
     .replace(/(?:<br\s*\/?>\s*){3,}/gi, "<br /><br />")
-    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "");
+    .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "")
+    .trim();
 }
+
 
 
 function cleanInfoText(raw: string): string {
