@@ -555,36 +555,54 @@ async function sendResendChunk(
 
   for (let i = 0; i < recipients.length; i += batchSize) {
     const chunk = recipients.slice(i, i + batchSize);
-    const payload = isTest
-      ? {
-          from: fromAddress,
-          to: chunk,
-          subject: `[TEST] ${subject}`,
-          html,
-        }
-      : {
-          from: fromAddress,
-          to: chunk[0],
-          bcc: chunk.length > 1 ? chunk.slice(1) : undefined,
-          subject,
-          html,
-        };
+    
+    if (isTest) {
+      const payload = {
+        from: fromAddress,
+        to: chunk,
+        subject: `[TEST] ${subject}`,
+        html,
+      };
 
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${resendApiKey}`,
+          "User-Agent": "NoteDiFede-Newsletter/1.0",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-        "User-Agent": "NoteDiFede-Newsletter/1.0",
-      },
-      body: JSON.stringify(payload),
-    });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Errore invio Resend test:", errText);
+        throw new Error(`Errore Resend: ${errText}`);
+      }
+    } else {
+      // Invio in produzione tramite Batch API ufficiale di Resend (ogni utente riceve una mail diretta)
+      const batchPayload = chunk.map((email) => ({
+        from: fromAddress,
+        to: [email],
+        subject,
+        html,
+      }));
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("Errore invio Resend chunk:", errText);
-      throw new Error(`Errore Resend: ${errText}`);
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${resendApiKey}`,
+          "User-Agent": "NoteDiFede-Newsletter/1.0",
+        },
+        body: JSON.stringify(batchPayload),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Errore invio Resend batch chunk:", errText);
+        throw new Error(`Errore Resend: ${errText}`);
+      }
     }
 
     count += chunk.length;
@@ -592,6 +610,7 @@ async function sendResendChunk(
 
   return count;
 }
+
 
 /**
  * Esegue la pipeline completa di generazione e invio della newsletter (Ambrosiano e Romano)
