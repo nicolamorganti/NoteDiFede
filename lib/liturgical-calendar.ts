@@ -57,6 +57,11 @@ export function getLiturgicalDayDetails(
   const pentecost = new Date(easter);
   pentecost.setUTCDate(pentecost.getUTCDate() + 49);
 
+  // Trova la Domenica della settimana corrente (all'inizio della settimana liturgica)
+  const dayOfWeek = d.getUTCDay(); // 0 = dom, 1 = lun...
+  const sundayOfCurrentWeek = new Date(d);
+  sundayOfCurrentWeek.setUTCDate(d.getUTCDate() - dayOfWeek);
+
   // Natale
   const christmas = new Date(Date.UTC(year, 11, 25, 12, 0, 0));
   const dayOfWeekChristmas = christmas.getUTCDay(); // 0 = dom, 1 = lun...
@@ -72,6 +77,10 @@ export function getLiturgicalDayDetails(
   const firstSundayAdventAmbrosiano = new Date(fourthSundayAdventRomano);
   firstSundayAdventAmbrosiano.setUTCDate(fourthSundayAdventRomano.getUTCDate() - 35);
 
+  // I Domenica di Quaresima (42 giorni prima di Pasqua)
+  const firstSundayLentRomano = new Date(easter);
+  firstSundayLentRomano.setUTCDate(easter.getUTCDate() - 42);
+
   let tempoLiturgico = "";
   let salterioSettimana = 1;
 
@@ -79,66 +88,81 @@ export function getLiturgicalDayDetails(
 
   if (d >= activeAdventStart && d < christmas) {
     // Tempo di Avvento
-    const diffWeeks = Math.floor((d.getTime() - activeAdventStart.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
+    const diffWeeks = Math.floor((sundayOfCurrentWeek.getTime() - activeAdventStart.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
     const numStr = ROMAN_NUMERALS[diffWeeks] || String(diffWeeks);
     tempoLiturgico = `${numStr} settimana di Avvento`;
     salterioSettimana = ((diffWeeks - 1) % 4) + 1;
   } else if (diffDaysToEaster >= -46 && diffDaysToEaster < 0) {
     // Tempo di Quaresima
-    const diffWeeksQuaresima = Math.floor((diffDaysToEaster + 46) / 7) + 1;
-    const numStr = ROMAN_NUMERALS[diffWeeksQuaresima] || String(diffWeeksQuaresima);
+    const diffWeeksQuaresima = Math.floor((sundayOfCurrentWeek.getTime() - firstSundayLentRomano.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
+    const safeWeeks = Math.max(1, Math.min(6, diffWeeksQuaresima));
+    const numStr = ROMAN_NUMERALS[safeWeeks] || String(safeWeeks);
     tempoLiturgico = `${numStr} settimana di Quaresima`;
-    salterioSettimana = ((diffWeeksQuaresima - 1) % 4) + 1;
+    salterioSettimana = ((safeWeeks - 1) % 4) + 1;
   } else if (diffDaysToEaster >= 0 && diffDaysToEaster <= 49) {
     // Tempo di Pasqua
-    const diffWeeksPasqua = Math.floor(diffDaysToEaster / 7) + 1;
-    const numStr = ROMAN_NUMERALS[diffWeeksPasqua] || String(diffWeeksPasqua);
+    const diffWeeksPasqua = Math.floor((sundayOfCurrentWeek.getTime() - easter.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
+    const safeWeeks = Math.max(1, Math.min(7, diffWeeksPasqua));
+    const numStr = ROMAN_NUMERALS[safeWeeks] || String(safeWeeks);
     tempoLiturgico = `${numStr} settimana di Pasqua`;
-    salterioSettimana = ((diffWeeksPasqua - 1) % 4) + 1;
+    salterioSettimana = ((safeWeeks - 1) % 4) + 1;
   } else if (d.getUTCMonth() === 11 && d.getUTCDate() >= 25) {
     // Ottava di Natale
     tempoLiturgico = "Ottava di Natale";
     salterioSettimana = 1;
   } else {
-    // Tempo Ordinario / Per Annum o Dopo Pentecoste
+    // Tempo Ordinario / Per Annum / Dopo Pentecoste / Dopo il Martirio
     const daysSincePentecost = Math.round((d.getTime() - pentecost.getTime()) / (1000 * 60 * 60 * 24));
     
     if (daysSincePentecost >= 0) {
       if (rite === "ambrosiano") {
-        const weeksAfterPentecost = Math.floor(daysSincePentecost / 7) + 1;
-        salterioSettimana = ((weeksAfterPentecost - 1) % 4) + 1;
+        // Martirio di San Giovanni: 29 Agosto (festa fissa)
+        // La domenica successiva o coincidente al 29 Agosto è la I Domenica dopo il Martirio
+        const martirioDate = new Date(Date.UTC(year, 7, 29, 12, 0, 0));
+        const martirioDayOfWeek = martirioDate.getUTCDay();
+        const firstSundayAfterMartirio = new Date(martirioDate);
+        firstSundayAfterMartirio.setUTCDate(martirioDate.getUTCDate() + (martirioDayOfWeek === 0 ? 0 : 7 - martirioDayOfWeek));
 
-        const month = d.getUTCMonth(); // 7 = Agosto, 8 = Settembre
-        const day = d.getUTCDate();
-        if (month === 7 && day >= 23 && day <= 28) {
+        if (d < martirioDate && d.getUTCMonth() === 7 && d.getUTCDate() >= 23) {
           tempoLiturgico = "Settimana che precede il Martirio di san Giovanni il Precursore";
-        } else if (month === 7 && day === 29) {
+          salterioSettimana = 1;
+        } else if (d.getUTCMonth() === 7 && d.getUTCDate() === 29) {
           tempoLiturgico = "Martirio di san Giovanni il Precursore";
-        } else if ((month === 7 && day >= 30) || month === 8 || month === 9) {
-          const weeksAfterMartirio = Math.floor((d.getTime() - new Date(Date.UTC(year, 7, 29, 12, 0, 0)).getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
+          salterioSettimana = 1;
+        } else if (sundayOfCurrentWeek >= firstSundayAfterMartirio && sundayOfCurrentWeek < firstSundayAdventAmbrosiano) {
+          const weeksAfterMartirio = Math.floor((sundayOfCurrentWeek.getTime() - firstSundayAfterMartirio.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
           const numStr = ROMAN_NUMERALS[weeksAfterMartirio] || String(weeksAfterMartirio);
           tempoLiturgico = `${numStr} settimana dopo il Martirio di san Giovanni il Precursore`;
+          salterioSettimana = ((weeksAfterMartirio - 1) % 4) + 1;
         } else {
+          const weeksAfterPentecost = Math.floor((sundayOfCurrentWeek.getTime() - pentecost.getTime()) / (1000 * 60 * 60 * 24 * 7)) + 1;
           const numStr = ROMAN_NUMERALS[weeksAfterPentecost] || String(weeksAfterPentecost);
           tempoLiturgico = `${numStr} settimana dopo Pentecoste`;
+          salterioSettimana = ((weeksAfterPentecost - 1) % 4) + 1;
         }
-
       } else {
-        // Settimane del Tempo Ordinario post-Pentecoste
-        const weekOfTO = Math.min(34, Math.max(1, Math.floor((daysSincePentecost + 56) / 7) + 1));
+        // Rito Romano post-Pentecoste: conta a ritroso dalla XXXIV Domenica del Tempo Ordinario (Cristo Re)
+        const diffWeeksToAdvent = Math.floor((firstSundayAdventRomano.getTime() - sundayOfCurrentWeek.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        const weekOfTO = Math.max(1, Math.min(34, 34 - diffWeeksToAdvent + 1));
         const numStr = ROMAN_NUMERALS[weekOfTO] || String(weekOfTO);
         tempoLiturgico = `${numStr} settimana del Tempo «per annum»`;
         salterioSettimana = ((weekOfTO - 1) % 4) + 1;
       }
     } else {
-      // Tempo Ordinario prima parte (Gennaio - Febbraio)
-      const dayOfYear = Math.floor((d.getTime() - new Date(Date.UTC(year, 0, 6)).getTime()) / (1000 * 60 * 60 * 24));
-      const weekOfTO = Math.max(1, Math.floor(dayOfYear / 7) + 1);
+      // Tempo Ordinario prima parte (Gennaio - Quaresima)
+      const epiphany = new Date(Date.UTC(year, 0, 6, 12, 0, 0));
+      const epDayOfWeek = epiphany.getUTCDay();
+      const baptismSunday = new Date(epiphany);
+      baptismSunday.setUTCDate(epiphany.getUTCDate() + (epDayOfWeek === 0 ? 0 : 7 - epDayOfWeek));
+
+      const weeksSinceBaptism = Math.floor((sundayOfCurrentWeek.getTime() - baptismSunday.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekOfTO = Math.max(1, Math.min(9, weeksSinceBaptism));
       const numStr = ROMAN_NUMERALS[weekOfTO] || String(weekOfTO);
       tempoLiturgico = `${numStr} settimana del Tempo «per annum»`;
       salterioSettimana = ((weekOfTO - 1) % 4) + 1;
     }
   }
+
 
   // Se l'API ufficiale fornisce già la denominazione temporale esatta, usala come prioritaria
   if (apiTemporalInfo && apiTemporalInfo.trim().length > 3) {
