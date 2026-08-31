@@ -26,6 +26,42 @@ const ROMAN_NUMERALS = [
   "XXXI", "XXXII", "XXXIII", "XXXIV"
 ];
 
+function romanToInt(roman: string): number {
+  const map: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100 };
+  let total = 0;
+  let prev = 0;
+  for (let i = roman.length - 1; i >= 0; i--) {
+    const val = map[roman[i]] || 0;
+    if (val < prev) total -= val;
+    else { total += val; prev = val; }
+  }
+  return total;
+}
+
+function extractSalterioFromSourceTitle(title?: string): number | null {
+  if (!title) return null;
+
+  // 1. Cerca diciture esplicite: "salterio: II settimana", "settimana II del salterio", "Salterio II"
+  const explicitMatch = title.match(/(?:settimana\s+([IVXLCDM]+|\d+)\s+del\s+salterio|salterio\s*[:\-]?\s*([IVXLCDM]+|\d+)\s*(?:settimana)?)/i);
+  if (explicitMatch) {
+    const raw = (explicitMatch[1] || explicitMatch[2]).toUpperCase();
+    const num = /^\d+$/.test(raw) ? parseInt(raw, 10) : romanToInt(raw);
+    if (num >= 1 && num <= 4) return num;
+  }
+
+  // 2. Cerca numeri ordinali della settimana nel titolo ufficiale (es. "XXII settimana", "I domenica dopo...", "3ª settimana")
+  const weekMatch = title.match(/\b([IVXLCDM]+|\d+)(?:ª|a)?\s+(?:settimana|domenica)/i);
+  if (weekMatch) {
+    const raw = weekMatch[1].toUpperCase();
+    const weekNum = /^\d+$/.test(raw) ? parseInt(raw, 10) : romanToInt(raw);
+    if (weekNum >= 1 && weekNum <= 34) {
+      return ((weekNum - 1) % 4) + 1;
+    }
+  }
+
+  return null;
+}
+
 export interface LiturgicalDayDetails {
   tempoLiturgico: string;
   salterioSettimana: number;
@@ -40,6 +76,7 @@ export function getLiturgicalDayDetails(
   rite: "ambrosiano" | "romano" = "romano",
   apiTemporalInfo?: string
 ): LiturgicalDayDetails {
+
   const d = typeof dateInput === "string" ? new Date(dateInput + "T12:00:00Z") : dateInput;
   const year = d.getUTCFullYear();
   const easter = getEasterDate(year);
@@ -164,10 +201,17 @@ export function getLiturgicalDayDetails(
   }
 
 
+  // Se la fonte ufficiale (chiesadimilano.it / lachiesa.it / iBreviary) fornisce il titolo del giorno, estrai da essa la settimana del salterio
+  const sourceSalterio = extractSalterioFromSourceTitle(apiTemporalInfo);
+  if (sourceSalterio !== null) {
+    salterioSettimana = sourceSalterio;
+  }
+
   // Se l'API ufficiale fornisce già la denominazione temporale esatta, usala come prioritaria
   if (apiTemporalInfo && apiTemporalInfo.trim().length > 3) {
     tempoLiturgico = apiTemporalInfo.trim();
   }
+
 
   const salterioLabel = `settimana ${ROMAN_NUMERALS[salterioSettimana]} del salterio`;
   const fullTagline = `${tempoLiturgico} · ${salterioLabel} · ${annoFeriale}`;
