@@ -75,16 +75,18 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
 
 
-  // Mostra il link Impostazioni solo se è Maestro o Responsabile
-  if (role === "maestro" || role === "responsabile") {
+  // Mostra il link Impostazioni / Profilo a tutti gli utenti autenticati
+  if (user) {
+    const isAdmin = role === "maestro" || role === "responsabile";
     navigation.push({
       href: "/impostazioni",
-      label: "Impostazioni",
-      subtitle: "Gestione coro e permessi",
-      badge: "Gestisci",
+      label: isAdmin ? "Impostazioni" : "Il mio Profilo",
+      subtitle: isAdmin ? "Gestione coro e permessi" : "Preferenze e newsletter",
+      badge: isAdmin ? "Gestisci" : "Profilo",
       icon: "⚙️",
     });
   }
+
 
   return (
     <div className="min-h-screen bg-[#f6f1ea] text-[#3e3933]">

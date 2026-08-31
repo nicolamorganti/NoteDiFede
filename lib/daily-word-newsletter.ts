@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireEnv } from "@/lib/env";
+import { generateUnsubscribeToken } from "@/lib/unsubscribe-token";
 
 export type LiturgyRite = "ambrosiano" | "romano";
+
 
 export interface DailyGospelData {
   title: string;
@@ -423,11 +425,19 @@ REGOLE TASSATIVE:
   return { reflection, usedModel };
 }
 
+export interface DailyWordEmailData {
+  gospel: DailyGospelData;
+  reflection: string;
+  usedModel?: string;
+  unsubscribeUrl?: string;
+}
+
+
 /**
  * Genera l'HTML dell'email "La Parola del Giorno" con layout liturgico raffinato
  */
-export function buildDailyWordEmailHtml(data: DailyWordResult): string {
-  const { gospel, reflection } = data;
+export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
+  const { gospel, reflection, unsubscribeUrl } = data;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app";
   const dateFormatted = formatItalianDateLong(gospel.dateStr);
   const riteLabel = gospel.rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
@@ -520,14 +530,16 @@ export function buildDailyWordEmailHtml(data: DailyWordResult): string {
           <!-- Footer -->
           <tr>
             <td style="background-color: #f4eee4; border-top: 1px solid #e8decb; padding: 20px 24px; text-align: center;">
-              <p style="margin: 0 0 6px 0; font-size: 11px; color: #8a7863;">
+              <p style="margin: 0 0 6px 0; font-size: 11px; color: #8a7863; line-height: 1.5;">
                 Ricevi questa email perché sei iscritto alla comunità di <strong>Note di Fede</strong>.
+                ${unsubscribeUrl ? `<br /><a href="${unsubscribeUrl}" target="_blank" style="color: #8a7863; text-decoration: underline; font-size: 10px; display: inline-block; margin-top: 6px;">Disiscriviti con un clic da questa newsletter</a>` : ""}
               </p>
               <p style="margin: 0; font-size: 10px; color: #aa9781;">
                 Note di Fede · Archivio Musica Liturgica, Liturgia delle Ore e Sacra Scrittura
               </p>
             </td>
           </tr>
+
 
         </table>
       </td>
@@ -612,6 +624,57 @@ async function sendResendChunk(
 }
 
 
+async function sendResendBatchPersonalized(
+  resendApiKey: string,
+  recipients: { id: string; email: string }[],
+  subject: string,
+  gospel: DailyGospelData,
+  reflection: string,
+  usedModel: string
+) {
+  const batchSize = 40;
+  let count = 0;
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "Note di Fede <onboarding@resend.dev>";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app";
+
+  for (let i = 0; i < recipients.length; i += batchSize) {
+    const chunk = recipients.slice(i, i + batchSize);
+
+    const batchPayload = chunk.map((u) => {
+      const token = generateUnsubscribeToken(u.id);
+      const unsubscribeUrl = `${siteUrl}/newsletter/disiscrizione?id=${u.id}&token=${token}`;
+      const html = buildDailyWordEmailHtml({ gospel, reflection, usedModel, unsubscribeUrl });
+
+      return {
+        from: fromAddress,
+        to: [u.email],
+        subject,
+        html,
+      };
+    });
+
+    const res = await fetch("https://api.resend.com/emails/batch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendApiKey}`,
+        "User-Agent": "NoteDiFede-Newsletter/1.0",
+      },
+      body: JSON.stringify(batchPayload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Errore invio Resend batch chunk:", errText);
+      throw new Error(`Errore Resend: ${errText}`);
+    }
+
+    count += chunk.length;
+  }
+
+  return count;
+}
+
 /**
  * Esegue la pipeline completa di generazione e invio della newsletter (Ambrosiano e Romano)
  */
@@ -688,29 +751,39 @@ export async function sendDailyWordNewsletter(options?: {
       };
     }
 
-    // 2. Recupera le preferenze di rito dai profili
+    // 2. Recupera preferenze di rito e newsletter_enabled dai profili
     const { data: profilesData } = await adminClient
       .from("profiles")
-      .select("id, preferred_rite");
+      .select("id, preferred_rite, newsletter_enabled");
 
-    const profileMap = new Map<string, string>();
+    const profileMap = new Map<string, { preferred_rite?: string; newsletter_enabled?: boolean }>();
     (profilesData || []).forEach((p: any) => {
-      if (p.id && p.preferred_rite) {
-        profileMap.set(p.id, p.preferred_rite);
+      if (p.id) {
+        profileMap.set(p.id, {
+          preferred_rite: p.preferred_rite,
+          newsletter_enabled: p.newsletter_enabled,
+        });
       }
     });
 
-    // 3. Suddivide i destinatari in Ambrosiano e Romano
-    const ambrosianoRecipients: string[] = [];
-    const romanoRecipients: string[] = [];
+    // 3. Suddivide i destinatari in Ambrosiano e Romano escludendo chi si è disiscritto
+    const ambrosianoRecipients: { id: string; email: string }[] = [];
+    const romanoRecipients: { id: string; email: string }[] = [];
 
     for (const u of allUsers) {
       if (u.email && u.email.includes("@")) {
-        const userRite = profileMap.get(u.id);
+        const userProf = profileMap.get(u.id);
+        
+        // Se l'utente ha esplicitamente disabilitato la newsletter, salta
+        if (userProf?.newsletter_enabled === false) {
+          continue;
+        }
+
+        const userRite = userProf?.preferred_rite;
         if (userRite === "romano") {
-          romanoRecipients.push(u.email);
+          romanoRecipients.push({ id: u.id, email: u.email });
         } else {
-          ambrosianoRecipients.push(u.email);
+          ambrosianoRecipients.push({ id: u.id, email: u.email });
         }
       }
     }
@@ -724,10 +797,16 @@ export async function sendDailyWordNewsletter(options?: {
     if (ambrosianoRecipients.length > 0) {
       const ambrosianoGospel = await fetchDailyGospel(options?.dateStr, "ambrosiano");
       const { reflection: ambReflection, usedModel: ambModel } = await generateChristianPosture(ambrosianoGospel);
-      const ambHtml = buildDailyWordEmailHtml({ gospel: ambrosianoGospel, reflection: ambReflection, usedModel: ambModel });
-
       const ambSubject = `🕊️ La Parola del Giorno: ${ambrosianoGospel.title}`;
-      const sentAmb = await sendResendChunk(resendApiKey, ambrosianoRecipients, ambSubject, ambHtml, false);
+
+      const sentAmb = await sendResendBatchPersonalized(
+        resendApiKey,
+        ambrosianoRecipients,
+        ambSubject,
+        ambrosianoGospel,
+        ambReflection,
+        ambModel
+      );
       totalSent += sentAmb;
 
       lastReflection = ambReflection;
@@ -739,10 +818,16 @@ export async function sendDailyWordNewsletter(options?: {
     if (romanoRecipients.length > 0) {
       const romanoGospel = await fetchDailyGospel(options?.dateStr, "romano");
       const { reflection: romReflection, usedModel: romModel } = await generateChristianPosture(romanoGospel);
-      const romHtml = buildDailyWordEmailHtml({ gospel: romanoGospel, reflection: romReflection, usedModel: romModel });
-
       const romSubject = `🕊️ La Parola del Giorno (Rito Romano): ${romanoGospel.title}`;
-      const sentRom = await sendResendChunk(resendApiKey, romanoRecipients, romSubject, romHtml, false);
+
+      const sentRom = await sendResendBatchPersonalized(
+        resendApiKey,
+        romanoRecipients,
+        romSubject,
+        romanoGospel,
+        romReflection,
+        romModel
+      );
       totalSent += sentRom;
 
       if (!lastReflection) {
@@ -759,6 +844,7 @@ export async function sendDailyWordNewsletter(options?: {
       gospel: lastGospel,
       usedModel: lastModel,
     };
+
   } catch (err: any) {
     console.error("Errore esecuzione newsletter:", err);
     return {

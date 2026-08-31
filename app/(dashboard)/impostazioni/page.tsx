@@ -23,6 +23,7 @@ type Profile = {
   role: "ospite" | "cantore" | "maestro" | "responsabile";
   vocal_register: string;
   preferred_rite?: "ambrosiano" | "romano";
+  newsletter_enabled?: boolean;
   created_at?: string;
 };
 
@@ -43,6 +44,7 @@ export default function ImpostazioniPage() {
   const [fullNameInput, setFullNameInput] = useState("");
   const [vocalRegisterInput, setVocalRegisterInput] = useState("nessuno");
   const [preferredRiteInput, setPreferredRiteInput] = useState<"ambrosiano" | "romano">("ambrosiano");
+  const [newsletterEnabledInput, setNewsletterEnabledInput] = useState(true);
   const [profileMessage, setProfileMessage] = useState<{ error?: string; success?: string } | null>(null);
   const [profileUpdating, setProfileUpdating] = useState(false);
 
@@ -89,6 +91,7 @@ export default function ImpostazioniPage() {
         setMyProfile(profile as Profile);
         setFullNameInput(profile.full_name || "");
         setVocalRegisterInput(profile.vocal_register || "nessuno");
+        setNewsletterEnabledInput(profile.newsletter_enabled !== false);
 
         const savedRite = (profile.preferred_rite || (typeof window !== "undefined" ? localStorage.getItem("preferred_rite") : "ambrosiano") || "ambrosiano") as "ambrosiano" | "romano";
         setPreferredRiteInput(savedRite);
@@ -121,7 +124,7 @@ export default function ImpostazioniPage() {
       setHasMomentsChanges(false);
     }
 
-    // 2. Fetch all profiles
+    // 2. Fetch all profiles for role management
     const { data: profilesData } = await supabase
       .from("profiles")
       .select("*")
@@ -140,14 +143,14 @@ export default function ImpostazioniPage() {
     setProfileUpdating(true);
 
     try {
-      const res = await updateUserProfile(fullNameInput, vocalRegisterInput, preferredRiteInput);
+      const res = await updateUserProfile(fullNameInput, vocalRegisterInput, preferredRiteInput, newsletterEnabledInput);
       if (res.error) {
         setProfileMessage({ error: res.error });
       } else {
         setProfileMessage({ success: res.success || "Profilo modificato con successo." });
         setMyProfile((prev) =>
           prev
-            ? { ...prev, full_name: fullNameInput, vocal_register: vocalRegisterInput, preferred_rite: preferredRiteInput }
+            ? { ...prev, full_name: fullNameInput, vocal_register: vocalRegisterInput, preferred_rite: preferredRiteInput, newsletter_enabled: newsletterEnabledInput }
             : null
         );
         if (typeof window !== "undefined") {
@@ -500,6 +503,36 @@ export default function ImpostazioniPage() {
                 Determina il rito per la Liturgia delle Ore e l&apos;edizione della newsletter quotidiana ricevuta al mattino.
               </p>
             </div>
+
+            {/* Preferenze Newsletter */}
+            <div className="p-4 rounded-2xl border border-[#ebdcc8] bg-[#fbf9f4] flex items-center justify-between gap-4">
+              <div className="space-y-0.5 pr-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e] flex items-center gap-1.5">
+                  <span>📬</span> Newsletter Quotidiana
+                </span>
+                <p className="text-xs text-[#3f3933] font-medium">
+                  La Parola del Giorno
+                </p>
+                <p className="text-[11px] text-[#8a755d] leading-relaxed">
+                  Ricevi ogni mattina alle ore 06:00 il Vangelo e la postura cristiana per oggi.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNewsletterEnabledInput(!newsletterEnabledInput)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  newsletterEnabledInput ? "bg-[#5c4a37]" : "bg-[#d9cdbf]"
+                }`}
+                aria-label="Attiva o disattiva la newsletter quotidiana"
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    newsletterEnabledInput ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
 
             <div className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-[#6b5d4e] block">

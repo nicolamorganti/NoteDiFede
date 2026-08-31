@@ -10,11 +10,12 @@ export type SettingsActionState<T = any> = {
   data?: T;
 };
 
-// 1. Aggiorna il profilo personale (visibile a Cantori e Maestri)
+// 1. Aggiorna il profilo personale (visibile a tutti i ruoli)
 export async function updateUserProfile(
   fullName: string,
   vocalRegister: string,
   preferredRite: "ambrosiano" | "romano" = "ambrosiano",
+  newsletterEnabled: boolean = true,
 ): Promise<SettingsActionState> {
   if (!fullName) {
     return { error: "Il nome completo è obbligatorio.", success: null };
@@ -30,6 +31,7 @@ export async function updateUserProfile(
     full_name: fullName,
     vocal_register: vocalRegister,
     preferred_rite: preferredRite,
+    newsletter_enabled: newsletterEnabled,
     updated_at: new Date().toISOString(),
   };
 
@@ -39,7 +41,7 @@ export async function updateUserProfile(
     .eq("id", user.id);
 
   if (updateError) {
-    // Se la colonna preferred_rite non dovesse esistere nello schema DB, prova senza
+    // Se la colonna preferred_rite o newsletter_enabled non dovesse esistere nello schema DB, prova senza
     const { error: retryError } = await adminClient
       .from("profiles")
       .update({
@@ -57,6 +59,7 @@ export async function updateUserProfile(
 
   return { error: null, success: "Profilo aggiornato con successo." };
 }
+
 
 
 // 2. Modifica/riordina l'elenco dei momenti liturgici (visibile solo ai Maestri)
