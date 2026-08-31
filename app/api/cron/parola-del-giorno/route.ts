@@ -3,6 +3,8 @@ import { sendDailyWordNewsletter } from "@/lib/daily-word-newsletter";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
+
 
 /**
  * Endpoint Cron invocato automaticamente da Vercel Crons ogni giorno alle 04:00 UTC (06:00 italiane)

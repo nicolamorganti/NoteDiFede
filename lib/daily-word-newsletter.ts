@@ -344,8 +344,7 @@ REGOLE TASSATIVE:
 
   for (const model of candidateModels) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
-
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -357,12 +356,16 @@ REGOLE TASSATIVE:
           generationConfig: {
             temperature: 0.65,
             maxOutputTokens: 2048,
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
           },
         }),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
+
 
       if (res.ok) {
         const data = await res.json();
