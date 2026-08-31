@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { PreghieraNav } from "@/components/preghiera-nav";
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
 import { QuoteImageModal } from "@/components/quote-image-modal";
+import { parseLiturgicalInvitatory } from "@/lib/liturgical-invitatory";
+
 
 export type LiturgyRite = "ambrosiano" | "romano";
 
@@ -167,7 +169,10 @@ export function LiturgiaReader() {
   const [copied, setCopied] = useState<boolean>(false);
 
 
+  const [selectedInvitatoryPsalmId, setSelectedInvitatoryPsalmId] = useState<string>("ps94");
+
   // Stato Supporto alla Comprensione (Omelia Card. Martini)
+
   const [omeliaLoading, setOmeliaLoading] = useState<boolean>(false);
   const [omeliaText, setOmeliaText] = useState<string | null>(null);
   const [omeliaError, setOmeliaError] = useState<string | null>(null);
@@ -565,11 +570,35 @@ export function LiturgiaReader() {
   // Dettagli teologici e canonici del giorno liturgico (Tempo, Salterio I-IV, Anno I-II)
   const liturgicalDayDetails = getLiturgicalDayDetails(selectedDate, rite, temporalInfo);
 
+  // Parsing dell'Invitatorio e dei 4 salmi invitatori
+  const parsedInvitatory = useMemo(() => {
+    if (moment !== "messa" && rite === "romano" && contentHtml) {
+      return parseLiturgicalInvitatory(contentHtml);
+    }
+    return null;
+  }, [moment, rite, contentHtml]);
+
+  // Salmo invitatorio attualmente selezionato
+  const activeInvitatoryPsalm = useMemo(() => {
+    if (!parsedInvitatory?.invitatoryPsalms?.length) return null;
+    return (
+      parsedInvitatory.invitatoryPsalms.find((p) => p.id === selectedInvitatoryPsalmId) ||
+      parsedInvitatory.invitatoryPsalms[0]
+    );
+  }, [parsedInvitatory, selectedInvitatoryPsalmId]);
+
   // Testo pulito ottimizzato per la sintesi vocale (TTS)
-  const cleanSpeechText = extractCleanLiturgicalText(contentHtml);
+  const cleanSpeechText = useMemo(() => {
+    if (parsedInvitatory && parsedInvitatory.hasInvitatory && activeInvitatoryPsalm) {
+      const combined = `${parsedInvitatory.introHtml}\n\n${activeInvitatoryPsalm.html}\n\n${parsedInvitatory.restOfLiturgyHtml}`;
+      return extractCleanLiturgicalText(combined);
+    }
+    return extractCleanLiturgicalText(contentHtml);
+  }, [parsedInvitatory, activeInvitatoryPsalm, contentHtml]);
 
   // Valori calcolati per l'interlinea
   const lineHeightValue = lineSpacing === "compact" ? 1.38 : lineSpacing === "normal" ? 1.58 : 1.85;
+
 
   const paragraphMarginValue = lineSpacing === "compact" ? "0.45em" : lineSpacing === "normal" ? "0.75em" : "1.15em";
   const spacingLabel = lineSpacing === "compact" ? "Compatta" : lineSpacing === "normal" ? "Normale" : "Ampia";
@@ -1194,9 +1223,86 @@ export function LiturgiaReader() {
               )}
             </div>
           </div>
+        ) : parsedInvitatory && parsedInvitatory.hasInvitatory && activeInvitatoryPsalm ? (
+          <article
+            className="liturgia-content prose max-w-none font-serif space-y-6"
+            style={{
+              fontSize: `${fontSize}px`,
+              lineHeight: lineHeightValue,
+            }}
+          >
+            {/* Blocco Invitatorio Raffinato con Selezione Salmo */}
+            <div
+              className="p-5 sm:p-6 rounded-3xl border shadow-xs space-y-4"
+              style={{
+                backgroundColor: isChurchMode ? "#201c19" : "#fdfbf7",
+                borderColor: isChurchMode ? "#3f3a36" : "#e8decb",
+              }}
+            >
+              <div
+                dangerouslySetInnerHTML={{ __html: parsedInvitatory.introHtml }}
+              />
+
+              {/* Selettore Salmi Invitatori */}
+              {parsedInvitatory.invitatoryPsalms.length > 1 && (
+                <div className="space-y-2 pt-2 border-t" style={{ borderColor: isChurchMode ? "#3f3a36" : "#e8decb" }}>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[#aa9576] block">
+                    Scegli il Salmo Invitatorio:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {parsedInvitatory.invitatoryPsalms.map((p) => {
+                      const isSelected = p.id === activeInvitatoryPsalm.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setSelectedInvitatoryPsalmId(p.id)}
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs"
+                          style={{
+                            backgroundColor: isSelected
+                              ? "#5c4a37"
+                              : isChurchMode
+                              ? "#2c2622"
+                              : "#ede4d8",
+                            color: isSelected
+                              ? "#ffffff"
+                              : isChurchMode
+                              ? "#d6cbbe"
+                              : "#5c4a37",
+                            border: `1px solid ${isChurchMode ? "#3f3a36" : "#dacbb8"}`,
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Testo del Salmo Invitatorio Scelto */}
+              <div
+                className="mt-3 p-4 rounded-2xl border transition"
+                style={{
+                  backgroundColor: isChurchMode ? "#181614" : "#fefefe",
+                  borderColor: isChurchMode ? "#3f3a36" : "#e8decb",
+                }}
+                dangerouslySetInnerHTML={{ __html: activeInvitatoryPsalm.html }}
+              />
+            </div>
+
+            {/* Supporto alla Comprensione */}
+            {renderSupportoComprensione()}
+
+            {/* Resto della Liturgia Completa (Inno, Salmodia, Lettura, Benedictus, Invocazioni, Orazione, Benedizione) */}
+            <div
+              dangerouslySetInnerHTML={{
+                __html: parsedInvitatory.restOfLiturgyHtml,
+              }}
+            />
+          </article>
         ) : (
           <article
-
             className="liturgia-content prose max-w-none font-serif"
             style={{
               fontSize: `${fontSize}px`,
@@ -1215,6 +1321,7 @@ export function LiturgiaReader() {
             )}
           </article>
         )}
+
 
       </div>
 
