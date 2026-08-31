@@ -253,6 +253,29 @@ function getAmbrosianColor(saint: string, grado: string, temporal: string): stri
 
 const ambrosianoMetaCache: Record<string, { saint: string; grado: string; colore: string; temporal: string; liturgicalInfo: string }> = {};
 
+async function getQuadrifoglioAmbrosianoData(): Promise<{ salterio?: string; volume?: string } | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch("https://www.ilquadrifogliocops.com/vivere-la-chiesa/liturgia/calendario-liturgico/", {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/2.0.0" },
+      next: { revalidate: 3600 },
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    const html = await res.text();
+    const salterioMatch = html.match(/Liturgia delle Ore:[\s\S]*?([IVXLCDM]+|\d+)\s+settimana\s+del\s+Salterio/i);
+    const volumeMatch = html.match(/Volume\s+([IVXLCDM]+|\d+)/i);
+    return {
+      salterio: salterioMatch ? salterioMatch[1].toUpperCase() : undefined,
+      volume: volumeMatch ? `Volume ${volumeMatch[1].toUpperCase()}` : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function getAmbrosianoDayMetadata(dateStr: string) {
   if (ambrosianoMetaCache[dateStr]) return ambrosianoMetaCache[dateStr];
 
@@ -264,16 +287,18 @@ async function getAmbrosianoDayMetadata(dateStr: string) {
   let temporal = "";
 
   try {
-    const [resMessa, resOre] = await Promise.all([
+    const [resMessa, resOre, quadData] = await Promise.all([
       fetch(`https://www.chiesadimilano.it/wp-json/wp/v2/posts?categories=${catIds}&after=${after}&before=${before}&per_page=5`, {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.40" },
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/2.0.0" },
         next: { revalidate: 1800 },
       }),
       fetch(`https://www.chiesadimilano.it/wp-json/wp/v2/giorno_liturgia_ore?after=${after}&before=${before}&per_page=5`, {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/1.9.40" },
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/2.0.0" },
         next: { revalidate: 1800 },
       }),
+      getQuadrifoglioAmbrosianoData(),
     ]);
+
 
     if (resMessa.ok) {
       const items = await resMessa.json();
@@ -302,9 +327,15 @@ async function getAmbrosianoDayMetadata(dateStr: string) {
         }
       }
     }
+
+    if (quadData?.salterio && temporal && !temporal.toLowerCase().includes("salterio")) {
+      temporal = `${temporal} · settimana ${quadData.salterio} del salterio`;
+    }
   } catch (err) {
     console.warn("Errore getAmbrosianoDayMetadata:", err);
   }
+
+
 
   const colore = getAmbrosianColor(saint, grado, temporal);
   let liturgicalInfo = "";
