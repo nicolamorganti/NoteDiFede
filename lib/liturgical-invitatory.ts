@@ -55,11 +55,14 @@ export function parseLiturgicalInvitatory(rawHtml: string): ProcessedLiturgicalC
 
   // Intro Invitatorio (versetti iniziali & antifona)
   const invPart = rawHtml.slice(invIdx, innoIdx);
-  const introMatch = invPart.match(/INVITATORIO[\s\S]*?(?=<p class="rubrica">Il salmo 94|<p><a title="#ps99"|SALMO 94|<br \/>SALMO 94)/i);
-  const introHtml = introMatch ? cleanBlock(introMatch[0]) : "";
+  const introMatch = invPart.match(/(?:<p[^>]*>)?(?:<span class="rubrica">)?INVITATORIO[\s\S]*?(?=<p class="rubrica">Il salmo 94|<p><a title="#ps99"|<span class="rubrica">(?:<br \/>\s*)*SALMO|<p>(?:<br \/>\s*)*SALMO)/i);
+  let introHtml = introMatch ? cleanBlock(introMatch[0]) : "";
+  if (!introHtml.startsWith("<p>") && !introHtml.startsWith("<div")) {
+    introHtml = `<p><span class="rubrica font-bold uppercase tracking-wider text-[#8c6d3f]">INVITATORIO</span></p>\n` + introHtml.replace(/^INVITATORIO\s*(?:<\/span>\s*<\/p>)?/i, "");
+  }
 
-  // 4 Salmi Invitatori
-  const ps94Match = rawHtml.match(/(?:<br \/>\s*)?SALMO 94[\s\S]*?(?=<p><a name="Inno">|<span class="rubrica">\s*INNO\s*<\/span>|<p><span class="rubrica">\s*INNO\s*<\/span>)/i);
+  // 4 Salmi Invitatori con i loro testi integrali autentici
+  const ps94Match = rawHtml.match(/(?:<span class="rubrica">|<p>)(?:<br \/>\s*)*SALMO\s*94[\s\S]*?(?=<p><a name="Inno">|<span class="rubrica">\s*INNO\s*<\/span>|<p><span class="rubrica">\s*INNO\s*<\/span>|<p class="rubrica">INNO<\/p>)/i);
   const ps99Match = rawHtml.match(/<a name="ps99"><\/a>[\s\S]*?(?=<a name="ps66"|<a href="#Inno"|$)/i) ||
                     rawHtml.match(/SALMO 99[\s\S]*?(?=SALMO 66|SALMO 23|<a href="#Inno"|$)/i);
   const ps66Match = rawHtml.match(/<a name="ps66"><\/a>[\s\S]*?(?=<a name="ps23"|<a href="#Inno"|$)/i) ||

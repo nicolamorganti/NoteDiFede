@@ -1291,15 +1291,15 @@ export function LiturgiaReader() {
               />
             </div>
 
-            {/* Supporto alla Comprensione */}
-            {renderSupportoComprensione()}
-
             {/* Resto della Liturgia Completa (Inno, Salmodia, Lettura, Benedictus, Invocazioni, Orazione, Benedizione) */}
             <div
               dangerouslySetInnerHTML={{
                 __html: parsedInvitatory.restOfLiturgyHtml,
               }}
             />
+
+            {/* Supporto alla Comprensione (Sempre in fondo alla pagina) */}
+            {renderSupportoComprensione()}
           </article>
         ) : (
           <article
@@ -1309,18 +1309,14 @@ export function LiturgiaReader() {
               lineHeight: lineHeightValue,
             }}
           >
-            {/* Prima parte del testo (fino alla fine dell'audio del Vangelo) */}
-            <div dangerouslySetInnerHTML={{ __html: splitContent.before }} />
+            {/* Testo liturgico completo */}
+            <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
 
-            {/* Pulsante & Card "Supporto alla Comprensione" esattamente dopo l'audio del Vangelo */}
+            {/* Supporto alla Comprensione (Sempre in fondo alla pagina) */}
             {renderSupportoComprensione()}
-
-            {/* Seconda parte del testo (se presente, es. Dopo il Vangelo, Sui Doni, Comunione) */}
-            {splitContent.after && (
-              <div dangerouslySetInnerHTML={{ __html: splitContent.after }} />
-            )}
           </article>
         )}
+
 
 
       </div>
