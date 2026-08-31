@@ -7,13 +7,16 @@ function sanitizeHtml(html: string): string {
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-    .replace(/<a[^>]*href=["'](?:http:\/\/www\.ibreviary\.com\/new\/donazione\.html|HTTP:\/\/www\.ibreviary\.com\/new\/newsletter\.html|#menu)["'][^>]*>.*?<\/a>/gi, "")
-    .replace(/<p>\s*<a[^>]*href=["'](?:HTTP:\/\/www\.ibreviary\.com|http:\/\/www\.ibreviary\.com)[^"']*["'][^>]*>.*?<\/a>\s*<\/p>/gi, "")
-    .replace(/<p>\s*\*{4,}\s*<\/p>/gi, "")
+    .replace(/<a[^>]*href=["'][^"']*(?:donazione|newsletter|#menu|ibreviary\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, "")
+    .replace(/<p[^>]*>(?:(?!<\/p>)[\s\S])*?(?:per sostenere lo sviluppo di|alla nostra Newsletter|ibreviary|donazione|-\s*Menu\s*-|\*{3,})(?:(?!<\/p>)[\s\S])*?<\/p>/gi, "")
+    .replace(/per sostenere lo sviluppo di\s*iBreviary/gi, "")
+    .replace(/(?:ISCRIVITI\s*)?alla nostra Newsletter/gi, "")
+    .replace(/<p>\s*\*{3,}\s*<\/p>/gi, "")
     .replace(/<hr\s*\/?>/gi, "<hr class='my-4 border-[#e2d5c4]' />")
     .replace(/(?:<br\s*\/?>\s*){3,}/gi, "<br /><br />")
     .replace(/<p>\s*(?:&nbsp;|\s)*<\/p>/gi, "");
 }
+
 
 function cleanInfoText(raw: string): string {
   if (!raw) return "";

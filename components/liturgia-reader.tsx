@@ -77,16 +77,20 @@ function extractGospelText(html: string): string {
 }
 
 function extractCleanLiturgicalText(html: string): string {
-
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    .replace(/<p[^>]*>(?:(?!<\/p>)[\s\S])*?(?:per sostenere lo sviluppo di|alla nostra Newsletter|ibreviary|donazione|-\s*Menu\s*-|\*{3,})(?:(?!<\/p>)[\s\S])*?<\/p>/gi, "")
+    .replace(/per sostenere lo sviluppo di\s*iBreviary/gi, "")
+    .replace(/(?:ISCRIVITI\s*)?alla nostra Newsletter/gi, "")
     .replace(/<[^>]+>/g, "\n")
     .replace(/&nbsp;/g, " ")
     .replace(/-\s*Menu\s*-/gi, "")
+    .replace(/\*{3,}/g, "")
     .replace(/\n\s*\n+/g, "\n")
     .trim();
 }
+
 
 
 
