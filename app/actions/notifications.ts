@@ -52,12 +52,14 @@ export async function notifyNewRegistration(userEmail: string, fullName: string)
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "Note di Fede <onboarding@resend.dev>";
 
     const payload = {
-      from: "Note di Fede <onboarding@resend.dev>",
+      from: fromEmail,
       to: adminEmails,
       subject: "Note di Fede - Nuova registrazione corista",
       html: `
+
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2dacb; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
           <h2 style="color: #735933; border-bottom: 1px solid #f2ede4; padding-bottom: 12px; font-family: Georgia, serif; font-size: 22px; font-weight: normal; margin-top: 0;">Nuovo Corista Registrato</h2>
           <p style="color: #4a3e3d; font-size: 15px; line-height: 1.6;">Un nuovo utente si è registrato sul portale <strong>Note di Fede</strong> ed è in attesa di abilitazione:</p>
