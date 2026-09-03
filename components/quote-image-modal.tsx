@@ -17,7 +17,8 @@ export interface QuoteImageModalProps {
 type AspectRatio = "banner" | "story" | "square";
 type ThemeId = "dark" | "parchment" | "porpora" | "liturgical_dynamic";
 
-interface LiturgicalColorDetails {
+export interface LiturgicalColorDetails {
+  colorKey: "bianco" | "rosso" | "viola" | "verde" | "rosa";
   colorName: string;
   icon: string;
   bgColor: string;
@@ -28,10 +29,172 @@ interface LiturgicalColorDetails {
   isWhiteBg?: boolean;
 }
 
-function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): LiturgicalColorDetails {
+export const LITURGICAL_COLORS: Record<string, LiturgicalColorDetails> = {
+  bianco: {
+    colorKey: "bianco",
+    colorName: "Bianco",
+    icon: "⚪",
+    bgColor: "#ffffff",
+    gradientStart: "#ffffff",
+    gradientEnd: "#f4ede2",
+    textColor: "#1a1510",
+    citationColor: "#7a5c3e",
+    isWhiteBg: true,
+  },
+  rosso: {
+    colorKey: "rosso",
+    colorName: "Rosso Scarlatto",
+    icon: "🔴",
+    bgColor: "#881320",
+    gradientStart: "#a11827",
+    gradientEnd: "#6b0a13",
+    textColor: "#ffffff",
+    citationColor: "#fef08a",
+    isWhiteBg: false,
+  },
+  viola: {
+    colorKey: "viola",
+    colorName: "Viola",
+    icon: "🟣",
+    bgColor: "#3b1a59",
+    gradientStart: "#4c2173",
+    gradientEnd: "#2c1143",
+    textColor: "#ffffff",
+    citationColor: "#fef08a",
+    isWhiteBg: false,
+  },
+  rosa: {
+    colorKey: "rosa",
+    colorName: "Rosa Liturgico",
+    icon: "🌸",
+    bgColor: "#831843",
+    gradientStart: "#9d174d",
+    gradientEnd: "#701a3c",
+    textColor: "#ffffff",
+    citationColor: "#fbcfe8",
+    isWhiteBg: false,
+  },
+  verde: {
+    colorKey: "verde",
+    colorName: "Verde",
+    icon: "🟢",
+    bgColor: "#14532d",
+    gradientStart: "#166534",
+    gradientEnd: "#0f3d21",
+    textColor: "#ffffff",
+    citationColor: "#fef08a",
+    isWhiteBg: false,
+  },
+};
+
+function resolveLiturgicalColor(liturgicalTitle?: string, text?: string, dateStr?: string): LiturgicalColorDetails {
   const combined = `${liturgicalTitle || ""} ${text || ""}`.toLowerCase();
 
-  // Rosso Scarlatto: Martiri, Decollazione, Pentecoste, Passione, Croce, Precursore, Apostoli
+  // 1. Riconoscimento PRIORITARIO del colore esplicito ("colore: bianco", "colore: rosso", ecc.)
+  if (
+    combined.includes("colore: bianco") ||
+    combined.includes("colore:bianco") ||
+    combined.includes("(colore: bianco)") ||
+    /\bbianco\b/i.test(liturgicalTitle || "")
+  ) {
+    return LITURGICAL_COLORS.bianco;
+  }
+
+  if (
+    combined.includes("colore: rosso") ||
+    combined.includes("colore:rosso") ||
+    combined.includes("(colore: rosso)") ||
+    /\brosso\b/i.test(liturgicalTitle || "")
+  ) {
+    return LITURGICAL_COLORS.rosso;
+  }
+
+  if (
+    combined.includes("colore: viola") ||
+    combined.includes("colore:viola") ||
+    combined.includes("(colore: viola)") ||
+    /\bviola\b/i.test(liturgicalTitle || "")
+  ) {
+    return LITURGICAL_COLORS.viola;
+  }
+
+  if (
+    combined.includes("colore: rosa") ||
+    combined.includes("colore:rosa") ||
+    combined.includes("(colore: rosa)") ||
+    /\brosa\b/i.test(liturgicalTitle || "")
+  ) {
+    return LITURGICAL_COLORS.rosa;
+  }
+
+  if (
+    combined.includes("colore: verde") ||
+    combined.includes("colore:verde") ||
+    combined.includes("(colore: verde)")
+  ) {
+    return LITURGICAL_COLORS.verde;
+  }
+
+  // 2. Controllo su data solenne o sanctorale fissa (MM-DD)
+  if (dateStr) {
+    const md = dateStr.slice(5); // "MM-DD"
+    const fixedColors: Record<string, keyof typeof LITURGICAL_COLORS> = {
+      "01-25": "bianco",
+      "02-02": "bianco",
+      "02-22": "bianco",
+      "03-19": "bianco",
+      "03-25": "bianco",
+      "04-25": "rosso",
+      "05-01": "bianco",
+      "05-03": "rosso",
+      "05-14": "rosso",
+      "05-31": "bianco",
+      "06-11": "rosso",
+      "06-24": "bianco",
+      "06-29": "rosso",
+      "07-03": "rosso",
+      "07-22": "bianco",
+      "07-25": "rosso",
+      "07-29": "bianco",
+      "08-06": "bianco",
+      "08-10": "rosso",
+      "08-15": "bianco",
+      "08-24": "rosso",
+      "08-27": "bianco",
+      "08-28": "bianco",
+      "08-29": "rosso",
+      "09-03": "bianco", // San Gregorio Magno
+      "09-08": "bianco",
+      "09-14": "rosso",
+      "09-15": "bianco",
+      "09-21": "rosso",
+      "09-29": "bianco",
+      "09-30": "bianco",
+      "10-01": "bianco",
+      "10-02": "bianco",
+      "10-04": "bianco",
+      "10-15": "bianco",
+      "10-18": "rosso",
+      "10-28": "rosso",
+      "11-01": "bianco",
+      "11-02": "viola",
+      "11-09": "bianco",
+      "11-30": "rosso",
+      "12-07": "bianco",
+      "12-08": "bianco",
+      "12-13": "rosso",
+      "12-14": "bianco",
+      "12-26": "rosso",
+      "12-27": "bianco",
+      "12-28": "rosso",
+    };
+    if (fixedColors[md]) {
+      return LITURGICAL_COLORS[fixedColors[md]];
+    }
+  }
+
+  // 3. Regole su parole chiave liturgiche e agiografiche
+  // Rosso Scarlatto: Martiri, Decollazione, Pentecoste, Passione, Croce, Precursore, Apostoli, Evangelisti
   if (
     combined.includes("martir") ||
     combined.includes("decollaz") ||
@@ -40,35 +203,18 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     combined.includes("palme") ||
     combined.includes("croce") ||
     combined.includes("precursore") ||
-    combined.includes("apostol")
+    combined.includes("apostol") ||
+    combined.includes("evangelist")
   ) {
-    return {
-      colorName: "Rosso Scarlatto",
-      icon: "🔴",
-      bgColor: "#881320",
-      gradientStart: "#a11827",
-      gradientEnd: "#6b0a13",
-      textColor: "#ffffff", // Bianco puro luminoso ad altissima leggibilità
-      citationColor: "#fef08a", // Oro chiaro caldo per la citazione
-      isWhiteBg: false,
-    };
+    return LITURGICAL_COLORS.rosso;
   }
 
   // Rosa: Domenica Gaudete e Laetare
   if (combined.includes("gaudete") || combined.includes("laetare") || combined.includes("rosa")) {
-    return {
-      colorName: "Rosa Liturgico",
-      icon: "🌸",
-      bgColor: "#831843",
-      gradientStart: "#9d174d",
-      gradientEnd: "#701a3c",
-      textColor: "#ffffff",
-      citationColor: "#fbcfe8",
-      isWhiteBg: false,
-    };
+    return LITURGICAL_COLORS.rosa;
   }
 
-  // Viola: Avvento, Quaresima, Defunti, Ceneri
+  // Viola: Avvento, Quaresima, Defunti, Ceneri, Penitenziale
   if (
     combined.includes("avvento") ||
     combined.includes("quaresima") ||
@@ -76,20 +222,18 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     combined.includes("defunt") ||
     combined.includes("penitenz")
   ) {
-    return {
-      colorName: "Viola",
-      icon: "🟣",
-      bgColor: "#3b1a59",
-      gradientStart: "#4c2173",
-      gradientEnd: "#2c1143",
-      textColor: "#ffffff",
-      citationColor: "#fef08a", // Oro per stacco nobile e visibile
-      isWhiteBg: false,
-    };
+    return LITURGICAL_COLORS.viola;
   }
 
-  // Bianco / Oro: Solennità, Pasqua, Natale, Vergine Maria, Santi (es. Agostino, Tommaso, Dottori, Pastori)
+  // Bianco / Oro: Solennità, Pasqua, Natale, Vergine Maria, Santi (es. Gregorio, Agostino, Tommaso, Dottori, Pastori, Memorie)
   if (
+    combined.includes("san ") ||
+    combined.includes("santa ") ||
+    combined.includes("santi ") ||
+    combined.includes("s. ") ||
+    combined.includes("memoria") ||
+    combined.includes("festa") ||
+    combined.includes("solennit") ||
     combined.includes("pasqua") ||
     combined.includes("natal") ||
     combined.includes("epifania") ||
@@ -100,6 +244,7 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     combined.includes("trinit") ||
     combined.includes("sacro cuore") ||
     combined.includes("agostino") ||
+    combined.includes("gregorio") ||
     combined.includes("vergine") ||
     combined.includes("maria") ||
     combined.includes("dottore") ||
@@ -108,29 +253,11 @@ function resolveLiturgicalColor(liturgicalTitle?: string, text?: string): Liturg
     combined.includes("vescovo") ||
     combined.includes("papa")
   ) {
-    return {
-      colorName: "Bianco",
-      icon: "⚪",
-      bgColor: "#ffffff",
-      gradientStart: "#ffffff",
-      gradientEnd: "#f4ede2",
-      textColor: "#1a1510", // Contrasto scuro nobiliare perfetto su fondo bianco
-      citationColor: "#7a5c3e",
-      isWhiteBg: true,
-    };
+    return LITURGICAL_COLORS.bianco;
   }
 
   // Verde: Tempo Ordinario / Per Annum predefinito
-  return {
-    colorName: "Verde",
-    icon: "🟢",
-    bgColor: "#14532d",
-    gradientStart: "#166534",
-    gradientEnd: "#0f3d21",
-    textColor: "#ffffff",
-    citationColor: "#fef08a", // Oro caldo per la citazione
-    isWhiteBg: false,
-  };
+  return LITURGICAL_COLORS.verde;
 }
 
 export function QuoteImageModal({
@@ -152,15 +279,21 @@ export function QuoteImageModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [shareSuccess, setShareSuccess] = useState(false);
-
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [selectedColorKey, setSelectedColorKey] = useState<string | null>(null);
 
-  // Calcola dettagli del colore liturgico dinamico
-  const dynamicColor = resolveLiturgicalColor(liturgicalTitle, text || initialText);
+
+  // Calcola dettagli del colore liturgico dinamico con priorità all'override manuale o all'auto-rilevamento
+  const autoLiturgicalColor = resolveLiturgicalColor(liturgicalTitle, text || initialText, dateStr);
+  const dynamicColor = (selectedColorKey && LITURGICAL_COLORS[selectedColorKey]) || autoLiturgicalColor;
 
   // Calcola la citazione canonica automatica al caricamento
   useEffect(() => {
     if (!isOpen) return;
+
+    // Reimposta l'eventuale override manuale per ogni nuova apertura
+    setSelectedColorKey(null);
+
 
     // Pulisci il testo selezionato rimuovendo virgolette preesistenti
     let cleanText = initialText
@@ -594,10 +727,37 @@ export function QuoteImageModal({
                     </button>
                   );
                 })}
-
               </div>
+
+
+              {/* Selettore rapido della tonalità liturgica */}
+              {theme === "liturgical_dynamic" && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5 px-0.5">
+                  <span className="text-[11px] text-[#8a755d] font-semibold">Tonalità:</span>
+                  {(["bianco", "verde", "rosso", "viola", "rosa"] as const).map((ckey) => {
+                    const c = LITURGICAL_COLORS[ckey];
+                    const isCurrent = dynamicColor.colorKey === ckey;
+                    return (
+                      <button
+                        key={ckey}
+                        type="button"
+                        onClick={() => setSelectedColorKey(ckey)}
+                        className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition cursor-pointer flex items-center gap-1 border ${
+                          isCurrent
+                            ? "bg-[#2c241c] text-white border-[#2c241c] font-bold shadow-xs"
+                            : "bg-white text-[#5c4e3f] border-[#d8c5ad] hover:bg-[#f7f2ea]"
+                        }`}
+                      >
+                        <span>{c.icon}</span>
+                        <span>{c.colorName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
+
 
           {/* Testo Citato Modificabile + Regolazione Pixel */}
           <div className="space-y-1.5">
