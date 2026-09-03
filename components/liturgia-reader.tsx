@@ -10,10 +10,11 @@ import { parseLiturgicalInvitatory } from "@/lib/liturgical-invitatory";
 
 export type LiturgyRite = "ambrosiano" | "romano";
 
-export type LiturgyMoment = "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa";
+export type LiturgyMoment = "invitatorio" | "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa";
 export type LineSpacingOption = "compact" | "normal" | "relaxed";
 
-const MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
+const ROMAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
+  { id: "invitatorio", label: "Invitatorio", icon: "🔔", timeHint: "Apertura" },
   { id: "lodi", label: "Lodi", icon: "☀️", timeHint: "06:00 - 09:30" },
   { id: "ora_media", label: "Ora Media", icon: "🕒", timeHint: "09:30 - 17:00" },
   { id: "vespri", label: "Vespri", icon: "🌅", timeHint: "17:00 - 21:00" },
@@ -22,14 +23,28 @@ const MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: strin
   { id: "messa", label: "Messa", icon: "✝️", timeHint: "Vangelo & Letture" },
 ];
 
-function getAutomaticMoment(): LiturgyMoment {
+const AMBROSIAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
+  { id: "lodi", label: "Lodi", icon: "☀️", timeHint: "06:00 - 09:30" },
+  { id: "ora_media", label: "Ora Media", icon: "🕒", timeHint: "09:30 - 17:00" },
+  { id: "vespri", label: "Vespri", icon: "🌅", timeHint: "17:00 - 21:00" },
+  { id: "compieta", label: "Compieta", icon: "🌙", timeHint: "21:00 - 06:00" },
+  { id: "ufficio", label: "Ufficio", icon: "📖", timeHint: "Letture" },
+  { id: "messa", label: "Messa", icon: "✝️", timeHint: "Vangelo & Letture" },
+];
+
+const ALL_MOMENTS = ROMAN_MOMENTS;
+
+function getAutomaticMoment(currentRite: LiturgyRite = "romano"): LiturgyMoment {
+
   const hour = new Date().getHours();
+  if (currentRite === "romano" && hour >= 5 && hour < 7) return "invitatorio";
   if (hour >= 6 && hour < 10) return "lodi";
   if (hour >= 10 && hour < 17) return "ora_media";
   if (hour >= 17 && hour < 21) return "vespri";
   if (hour >= 21 || hour < 5) return "compieta";
   return "ufficio";
 }
+
 
 function getTodayIsoString(): string {
   const d = new Date();
@@ -375,10 +390,14 @@ export function LiturgiaReader() {
   // Salva rito preferito su cambio
   const handleRiteChange = (newRite: LiturgyRite) => {
     setRite(newRite);
+    if (newRite === "ambrosiano" && moment === "invitatorio") {
+      setMoment("lodi");
+    }
     if (typeof window !== "undefined") {
       localStorage.setItem("preferred_rite", newRite);
     }
   };
+
 
   // Salva dimensione font
   const handleFontSizeChange = (delta: number) => {
@@ -900,8 +919,9 @@ export function LiturgiaReader() {
           </h2>
           <div className="mt-1 space-y-0.5">
             <p className="text-sm font-semibold text-[#5c4a37] capitalize">
-              {MOMENTS.find((m) => m.id === moment)?.label} · {formattedDateTitle}
+              {ALL_MOMENTS.find((m) => m.id === moment)?.label} · {formattedDateTitle}
             </p>
+
             <p className="text-xs text-[#8a755d] italic font-serif">
               {liturgicalDayDetails.tempoLiturgico}, {liturgicalDayDetails.salterioLabel} · <span className="font-sans font-bold text-[#6b5d4e] not-italic">{liturgicalDayDetails.annoFeriale}</span>
             </p>
@@ -942,8 +962,8 @@ export function LiturgiaReader() {
       </div>
 
       {/* Barra Selettore Momenti del Giorno */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        {MOMENTS.map((m) => {
+      <div className={`grid gap-2 ${rite === "romano" ? "grid-cols-3 sm:grid-cols-7" : "grid-cols-3 sm:grid-cols-6"}`}>
+        {(rite === "romano" ? ROMAN_MOMENTS : AMBROSIAN_MOMENTS).map((m) => {
           const isActive = moment === m.id;
           return (
             <button
@@ -968,6 +988,7 @@ export function LiturgiaReader() {
           );
         })}
       </div>
+
 
       {/* Barra di Controllo: Data + Strumenti Lettura */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-4 shadow-sm">
@@ -1186,8 +1207,9 @@ export function LiturgiaReader() {
           <div className="py-20 text-center space-y-4">
             <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-[#aa9576]/30 border-t-[#5c4a37]"></div>
             <p className="font-serif text-lg text-[#aa9576]">
-              Caricamento dei testi di {MOMENTS.find((m) => m.id === moment)?.label} ({rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano"})...
+              Caricamento dei testi di {ALL_MOMENTS.find((m) => m.id === moment)?.label} ({rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano"})...
             </p>
+
           </div>
         ) : error ? (
           <div className="py-12 text-center space-y-4">
@@ -1446,10 +1468,65 @@ export function LiturgiaReader() {
           font-weight: bold;
           color: ${isChurchMode ? "#f87171" : "#b91c1c"};
         }
+        /* Stili Ufficiali CEI (chiesacattolica.it) */
+        .liturgia-content .lo_titolo {
+          color: ${isChurchMode ? "#fbbf24" : "#8c6d3f"} !important;
+          display: block;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          margin-top: 1.4em;
+          margin-bottom: 0.3em;
+          font-size: 1.08em;
+          border-bottom: 1px solid ${isChurchMode ? "#292524" : "#f0e6d8"};
+          padding-bottom: 0.2em;
+        }
+        .liturgia-content .lo_sottotitolo {
+          display: block;
+          font-size: 0.9em;
+          font-style: italic;
+          opacity: 0.85;
+          margin-bottom: 0.4em;
+          clear: both;
+        }
+        .liturgia-content .lo_sottotitolorosso {
+          color: ${isChurchMode ? "#f87171" : "#b91c1c"} !important;
+          display: block;
+          font-size: 0.9em;
+          margin-bottom: 0.4em;
+          clear: both;
+        }
+        .liturgia-content .lo_antifona,
+        .liturgia-content .lo_rosso {
+          color: ${isChurchMode ? "#f87171" : "#b91c1c"} !important;
+          font-weight: 600;
+          display: inline;
+        }
+        .liturgia-content .lo_versetto {
+          margin-top: 0.4em;
+          margin-bottom: 0.9em;
+          line-height: inherit;
+          clear: both;
+        }
+        .liturgia-content .lo_nota {
+          display: block;
+          font-size: 0.88em;
+          color: ${isChurchMode ? "#f87171" : "#b91c1c"} !important;
+          font-style: italic;
+          margin-bottom: 0.5em;
+          clear: both;
+        }
+        .liturgia-content .lo_rif {
+          float: right;
+          color: ${isChurchMode ? "#f87171" : "#b91c1c"} !important;
+          font-style: normal;
+          font-size: 0.85em;
+        }
         .liturgia-content hr {
           border-color: ${isChurchMode ? "#3f3a36" : "#e2d5c4"};
           margin: 1.5em 0;
         }
+
         .omelia-rendered-content h2,
         .omelia-rendered-content h3,
         .omelia-rendered-content h4 {

@@ -329,6 +329,7 @@ export function QuoteImageModal({
       }
 
       const citationMap: Record<LiturgyMoment, { ambrosiano: string; romano: string }> = {
+        invitatorio: { ambrosiano: "Invitatorio Ambrosiano", romano: "Invitatorio Romano" },
         lodi: { ambrosiano: "Lodi Ambrosiane", romano: "Lodi Romane" },
         vespri: { ambrosiano: "Vespri Ambrosiani", romano: "Vespri Romani" },
         ora_media: { ambrosiano: "Ora Media Ambrosiana", romano: "Ora Media Romana" },
@@ -336,6 +337,7 @@ export function QuoteImageModal({
         ufficio: { ambrosiano: "Ufficio delle Letture Ambrosiano", romano: "Ufficio delle Letture Romano" },
         messa: { ambrosiano: "Messa del Giorno", romano: "Messa del Giorno" },
       };
+
 
       const def = citationMap[moment]?.[rite] || (rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano");
       setCitation(def);

@@ -657,9 +657,76 @@ function parseLaChiesaHtml(rawHtml: string) {
 }
 
 
+/**
+ * Recupera la Liturgia delle Ore in Rito Romano da ChiesaCattolica.it (Fonte Ufficiale CEI)
+ * Fornisce testi rigorosamente suddivisi per ogni ora (Invitatorio, Lodi, Ora Media, Vespri, Compieta, Ufficio)
+ */
+async function fetchRomanoHoursFromCei(isoDate: string, moment: string) {
+  const ceiOraMap: Record<string, string> = {
+    invitatorio: "invitatorio",
+    lodi: "lodi-mattutine",
+    ora_media: "ora-media",
+    vespri: "vespri",
+    compieta: "compieta",
+    ufficio: "ufficio-delle-letture",
+  };
+
+  const ceiOra = ceiOraMap[moment];
+  if (!ceiOra) return null;
+
+  const cleanDate = isoDate.replace(/-/g, "");
+  const url = `https://www.chiesacattolica.it/la-liturgia-delle-ore/?data-liturgia=${cleanDate}&ora=${ceiOra}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede/2.0",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    },
+    next: { revalidate: 3600 },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Errore HTTP ${res.status} da chiesacattolica.it`);
+  }
+
+  const html = await res.text();
+  const articleMatch = html.match(/<article[^>]*class=["'][^"']*seed-post[^"']*["'][^>]*>([\s\S]*?)<\/article>/i);
+  if (!articleMatch) {
+    throw new Error("Contenuto liturgico non trovato in chiesacattolica.it");
+  }
+
+  let textHtml = articleMatch[1]
+    .replace(/<div[^>]*class=["'][^"']*share-container[^"']*["'][\s\S]*$/i, "")
+    .replace(/<div[^>]*class=["'][^"']*fontsizehandler[^"']*["'][\s\S]*?<\/div>/gi, "")
+    .trim();
+
+  // Estrazione metadati (Santo e colore liturgico)
+  let celebrationTitle = "";
+  const colorClassMatch = html.match(/cci_main_header_colore_([a-z]+)/i);
+  const colore = colorClassMatch ? colorClassMatch[1].trim() : "";
+
+  const saintMatch = html.match(/class=["']cci-link-santo-del-giorno-header["'][^>]*title=["']([^"']+)["']/i);
+  const gradoMatch = html.match(/data-titololiturgialabel=["']([^"']+)["']/i);
+
+  if (saintMatch) {
+    celebrationTitle = `${saintMatch[1]}${colore ? ` (colore: ${colore})` : ""} - Rito Romano`;
+  } else if (gradoMatch) {
+    const cleanLabel = gradoMatch[1].replace(/-/g, " ");
+    celebrationTitle = `${cleanLabel}${colore ? ` (colore: ${colore})` : ""} - Rito Romano`;
+  } else {
+    celebrationTitle = await fetchRomanoCelebrationTitle(isoDate);
+  }
+
+  return {
+    contentHtml: sanitizeHtml(textHtml),
+    liturgicalInfo: celebrationTitle,
+  };
+}
+
 const cachedRomanoCelebrations: Record<string, string> = {};
 
 async function fetchRomanoCelebrationTitle(isoDate: string): Promise<string> {
+
   if (cachedRomanoCelebrations[isoDate]) {
     return cachedRomanoCelebrations[isoDate];
   }
@@ -868,20 +935,48 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Liturgia delle Ore o Multilingua via iBreviary
+      // Per la Liturgia delle Ore in Rito Romano in italiano: usa ChiesaCattolica.it (Ufficiale CEI con suddivisione separata di Invitatorio, Lodi, Ora Media, Vespri, Compieta, Ufficio)
+      if (lang === "it" && moment !== "messa") {
+        try {
+          const ceiData = await fetchRomanoHoursFromCei(isoDate, moment);
+          if (ceiData && ceiData.contentHtml && ceiData.contentHtml.length > 50) {
+            return NextResponse.json(
+              {
+                rite: "romano",
+                moment,
+                date: isoDate,
+                lang: "it",
+                liturgicalInfo: ceiData.liturgicalInfo,
+                contentHtml: ceiData.contentHtml,
+                source: "chiesacattolica.it (Ufficiale CEI)",
+              },
+              {
+                headers: {
+                  "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+                },
+              }
+            );
+          }
+        } catch (ceiErr) {
+          console.warn("Fallback su iBreviary per Liturgia delle Ore in Rito Romano:", ceiErr);
+        }
+      }
+
+      // Liturgia delle Ore o Multilingua via fallback iBreviary
       let url = "";
       if (moment === "messa") {
         url = `https://www.ibreviary.com/m2/letture.php?s=letture&lang=${lang}`;
       } else {
         let s = "lodi";
-        if (moment === "ufficio") s = "ufficio_delle_letture";
-        else if (moment === "lodi") s = "lodi";
+        if (moment === "invitatorio" || moment === "lodi") s = "lodi";
+        else if (moment === "ufficio") s = "ufficio_delle_letture";
         else if (moment === "ora_media") s = "ora_media";
         else if (moment === "vespri") s = "vespri";
         else if (moment === "compieta") s = "compieta";
 
         url = `https://www.ibreviary.com/m2/breviario.php?lang=${lang}&s=${s}`;
       }
+
 
       const res = await fetch(url, {
         headers: {
