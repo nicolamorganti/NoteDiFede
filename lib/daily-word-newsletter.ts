@@ -332,32 +332,41 @@ export async function generateChristianPosture(gospelData: DailyGospelData): Pro
     throw new Error("GEMINI_API_KEY non configurata nelle variabili d'ambiente.");
   }
 
-  const prompt = `Sei una guida spirituale e biblista dal tratto essenziale, limpido e profondamente concreto, nello stile autentico del Cardinale Carlo Maria Martini.
+  const prompt = `Sei una guida spirituale e biblista dal tratto essenziale, disadorno e penetrante, nello stile autentico del Cardinale Carlo Maria Martini.
 
-Leggi questo brano del Santo Vangelo di oggi (${gospelData.title} - ${gospelData.gospelCitation}):
+Vangelo di oggi (${gospelData.title} - ${gospelData.gospelCitation}):
 """
 ${gospelData.gospelText}
 """
 
 Compito:
-Scrivi la "Postura Cristiana per Oggi", trasformando il Vangelo in indicazioni pratiche per le nostre relazioni quotidiane con il prossimo (a casa, al lavoro, con chi incontriamo oggi):
-- COME guardare oggi le persone accanto a noi: quale sguardo avere verso chi è stanco, fastidioso o in difficoltà?
-- GESTI E PAROLE CONCRETE: quale atteggiamento pratico assumere? (es. ascoltare senza fretta, non giudicare, trattenere una risposta pungente, accogliere un'interruzione, farsi carico con dolcezza di un bisogno nascosto).
-- Lunghezza: tra 50 e 90 parole (massimo 90 parole).
+Estrai la "Postura Cristiana per Oggi": un atteggiamento relazionale ed esistenziale concreto, generato ESCLUSIVAMENTE dalla specificità e dal paradosso di questo brano.
+
+ISTRUZIONI PER EVITARE LA RIPETITIVITÀ:
+1. RADICAMENTO NEL TESTO: Individua un verbo, un gesto o una parola precisa e caratteristica di Gesù in questo racconto e fanne la chiave della postura di oggi.
+2. VARIETÀ DI SITUAZIONI: Non limitarti alla sola pazienza o all'ascolto. A seconda del brano, la postura può essere:
+   - Audacia o coraggio di esporsi
+   - Saper fare un passo indietro o fare spazio
+   - Difendere la verità con mitezza ma senza compromessi
+   - Meraviglia e gioia aperta verso la realtà
+   - Condivisione materiale o gratuità spiazzante
+   - Riposo e custodia del silenzio interiore
+3. SCENA CONCRETA: Descrivi una situazione reale della giornata (in ufficio, a tavola, per strada, di fronte a una decisione o a un imprevisto) in cui quel gesto evangelico si incarna oggi.
 
 REGOLE TASSATIVE:
-1. Concludi SEMPRE l'intero pensiero in modo compiuto con un punto fermo finale. NON lasciare mai frasi a metà o troncate.
-2. NON inserire titoli markdown (es. NON scrivere "**La Postura Cristiana...**").
-3. Niente formule introduttive o convenevoli da pulpito (es. non iniziare con "Oggi Gesù ci invita...", "Cari fratelli..."). Entra immediatamente nel vivo dell'atteggiamento pratico di oggi.`;
+- Niente cliché religiosi o formule ripetitive (VIETATO usare: "trattenere una risposta pungente", "senza fretta", "sguardo di misericordia", "accogliere con dolcezza", "in un mondo frenetico").
+- Niente convenevoli o prediche (non iniziare mai con "Oggi il Vangelo ci chiama...", "Gesù ci invita...": entra d'impatto nella postura).
+- Lunghezza: tra 60 e 95 parole.
+- Concludi SEMPRE con una frase compiuta e punto fermo finale. Niente titoli markdown.`;
 
 
   const candidateModels = [
     process.env.GEMINI_MODEL,
-    "gemini-3.7-flash",
     "gemini-flash-latest",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-2.5-flash",
-    "gemini-3.6-flash",
     "gemini-flash-lite-latest",
     "gemini-3.1-flash-lite",
   ].filter(Boolean) as string[];
@@ -378,13 +387,14 @@ REGOLE TASSATIVE:
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.65,
+            temperature: 0.68,
             maxOutputTokens: 2048,
             thinkingConfig: {
               thinkingBudget: 0,
             },
           },
         }),
+
         signal: controller.signal,
       });
 
