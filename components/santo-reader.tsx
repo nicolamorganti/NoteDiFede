@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useCallback, useTransition } from "react";
 import Link from "next/link";
 import { PreghieraNav } from "@/components/preghiera-nav";
-import { QuoteImageModal } from "@/components/quote-image-modal";
+import { QuoteImageModal, resolveLiturgicalColor } from "@/components/quote-image-modal";
+import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
+
+
 
 interface OtherSaint {
   nome: string;
@@ -38,11 +41,9 @@ export function SantoReader() {
   const [copied, setCopied] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
 
-  // TTS (Sintesi Vocale)
-  const [isPlayingTts, setIsPlayingTts] = useState<boolean>(false);
-
   // Lightbox Immagine
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
+
 
   // Modal Card WhatsApp
   const [quoteModalOpen, setQuoteModalOpen] = useState<boolean>(false);
@@ -92,49 +93,22 @@ export function SantoReader() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // TTS Speech
-  const toggleSpeech = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      alert("La sintesi vocale non è supportata da questo browser.");
-      return;
-    }
+  // Testo per la sintesi vocale neurale Azure
+  const speechText = data
+    ? `${data.title}. ${data.grado ? `Grado liturgico: ${data.grado}. ` : ""}Dal Martirologio Romano: ${data.martirologio}`
+    : "";
 
-    if (isPlayingTts) {
-      window.speechSynthesis.cancel();
-      setIsPlayingTts(false);
-      return;
-    }
-
-    if (!data) return;
-
-    window.speechSynthesis.cancel();
-    const textToSpeak = `${data.title}. ${data.grado ? `Grado liturgico: ${data.grado}.` : ""} Dal Martirologio Romano: ${data.martirologio}`;
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = "it-IT";
-    utterance.rate = 0.95;
-
-    utterance.onend = () => setIsPlayingTts(false);
-    utterance.onerror = () => setIsPlayingTts(false);
-
-    window.speechSynthesis.speak(utterance);
-    setIsPlayingTts(true);
-  };
-
-  // Ferma TTS se cambia giorno o si smonta
-  useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, [selectedDate]);
+  // Colore liturgico effettivo del Santo (Bianco, Rosso, ecc.)
+  const litColor = resolveLiturgicalColor(data?.title, data?.martirologio, selectedDate);
 
   // Apri Generatore Card
   const openQuoteModal = (text: string, citation: string) => {
+
     setQuoteText(text);
     setQuoteCitation(citation);
     setQuoteModalOpen(true);
   };
+
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-16">
@@ -267,8 +241,20 @@ export function SantoReader() {
                     📅 {data.dateLabel}
                   </span>
                   {data.grado && (
-                    <span className="rounded-full bg-[#fae8e8] px-3 py-1 text-xs font-bold text-[#991b1b] border border-[#fecaca]">
-                      ✝️ {data.grado}
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold border shadow-2xs flex items-center gap-1.5 ${
+                        litColor.colorKey === "rosso"
+                          ? "bg-rose-50 text-rose-900 border-rose-200"
+                          : litColor.colorKey === "verde"
+                          ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                          : litColor.colorKey === "viola"
+                          ? "bg-purple-50 text-purple-900 border-purple-200"
+                          : "bg-[#fcfaf7] text-[#634e35] border-[#d9cdbf]"
+                      }`}
+                      title={`Colore liturgico: ${litColor.colorName}`}
+                    >
+                      <span>{litColor.icon}</span>
+                      <span>{data.grado}</span>
                     </span>
                   )}
                   <span className="rounded-full bg-[#ecfdf5] px-3 py-1 text-xs font-bold text-[#065f46] border border-[#a7f3d0]">
@@ -294,18 +280,14 @@ export function SantoReader() {
 
                 {/* Barra Strumenti / Azioni */}
                 <div className="flex flex-wrap items-center gap-2.5 pt-2">
-                  {/* Ascolta Sintesi Vocale */}
-                  <button
-                    onClick={toggleSpeech}
-                    className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition cursor-pointer shadow-2xs ${
-                      isPlayingTts
-                        ? "border-[#991b1b] bg-[#fef2f2] text-[#991b1b]"
-                        : "border-[#d9cdbf] bg-[#fbf8f4] text-[#5c4a37] hover:bg-[#ede4d6]"
-                    }`}
-                  >
-                    <span>{isPlayingTts ? "⏹️" : "🔊"}</span>
-                    <span>{isPlayingTts ? "Ferma Voce" : "Ascolta"}</span>
-                  </button>
+                  {/* Lettore Vocale HD Neurale (Azure) */}
+                  <LiturgicalTtsPlayer
+                    htmlContent={data.martirologio || data.title}
+                    customSpeechText={speechText}
+                    lang="it"
+                    title="Ascolta"
+                  />
+
 
                   {/* Crea Stato WhatsApp */}
                   <button

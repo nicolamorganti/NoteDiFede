@@ -89,7 +89,7 @@ export const LITURGICAL_COLORS: Record<string, LiturgicalColorDetails> = {
   },
 };
 
-function resolveLiturgicalColor(liturgicalTitle?: string, text?: string, dateStr?: string): LiturgicalColorDetails {
+export function resolveLiturgicalColor(liturgicalTitle?: string, text?: string, dateStr?: string): LiturgicalColorDetails {
   const combined = `${liturgicalTitle || ""} ${text || ""}`.toLowerCase();
 
   // 1. Riconoscimento PRIORITARIO del colore esplicito ("colore: bianco", "colore: rosso", ecc.)
