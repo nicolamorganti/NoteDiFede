@@ -14,6 +14,13 @@ export function PreghieraNav() {
       description: "Lodi, Vespri, Ufficio e Letture (Ambrosiano e Romano)",
     },
     {
+      href: "/preghiera/santo",
+      label: "Santo del Giorno",
+      icon: "👑",
+      description: "Martirologio Romano e Iconografia dei Santi (Ufficiale CEI)",
+    },
+
+    {
       href: "/preghiera/infermi",
       label: "Comunione agli Infermi",
       icon: "🕊️",

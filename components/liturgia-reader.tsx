@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
+import Link from "next/link";
 import { PreghieraNav } from "@/components/preghiera-nav";
+
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
 import { QuoteImageModal } from "@/components/quote-image-modal";
@@ -1179,18 +1181,32 @@ export function LiturgiaReader() {
 
       {/* Info Liturgica del Giorno se presente */}
       <div
-        className="rounded-2xl border p-3 text-xs text-center transition space-y-1"
+        className="rounded-2xl border p-3.5 text-xs transition space-y-1 shadow-2xs"
         style={{
           borderColor: isChurchMode ? "#44403c" : "#ebdcc8",
           backgroundColor: isChurchMode ? "#1c1917" : "#fdfbf7",
           color: isChurchMode ? "#fde047" : "#8a755d",
         }}
       >
-        {liturgicalInfo && <div className="font-serif font-bold">{liturgicalInfo}</div>}
-        <div className="text-[11px] opacity-90 italic">
-          {liturgicalDayDetails.tempoLiturgico} · {liturgicalDayDetails.salterioLabel} · <span className="font-semibold not-italic">{liturgicalDayDetails.annoFeriale}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-left flex-1 space-y-0.5">
+            {liturgicalInfo && <div className="font-serif font-bold text-sm sm:text-base leading-snug">{liturgicalInfo}</div>}
+            <div className="text-[11px] opacity-90 italic">
+              {liturgicalDayDetails.tempoLiturgico} · {liturgicalDayDetails.salterioLabel} · <span className="font-semibold not-italic">{liturgicalDayDetails.annoFeriale}</span>
+            </div>
+          </div>
+          <Link
+            href={`/preghiera/santo?date=${selectedDate}`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition shadow-2xs self-start sm:self-center shrink-0 cursor-pointer"
+            title="Visualizza vita, iconografia e martirologio del Santo di oggi"
+          >
+            <span>👑</span>
+            <span>Santo del Giorno</span>
+            <span>→</span>
+          </Link>
         </div>
       </div>
+
 
 
       {/* Area di Lettura dei Testi Liturgici */}
