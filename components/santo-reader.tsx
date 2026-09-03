@@ -42,7 +42,8 @@ export function SantoReader() {
   const [isPending, startTransition] = useTransition();
 
   // Lightbox Immagine
-  const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
+
 
 
   // Modal Card WhatsApp
@@ -205,7 +206,7 @@ export function SantoReader() {
               {data.imgUrl ? (
                 <div className="md:col-span-5 flex flex-col items-center">
                   <div
-                    onClick={() => setLightboxOpen(true)}
+                    onClick={() => setLightboxImage({ url: data.imgUrl!, title: data.title })}
                     className="group relative w-full overflow-hidden rounded-2xl border-2 border-[#d9cdbf] bg-[#fbf8f4] shadow-md cursor-zoom-in transition-all duration-300 hover:shadow-xl hover:border-[#aa9576]"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -215,6 +216,7 @@ export function SantoReader() {
                       className="w-full h-auto max-h-[460px] object-cover object-top transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
                     />
+
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <span className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] shadow-md flex items-center gap-1.5">
                         <span>🔍</span> Clicca per ingrandire
@@ -347,22 +349,42 @@ export function SantoReader() {
                     key={idx}
                     className="rounded-2xl border border-[#e2d5c4] bg-white p-5 shadow-xs transition hover:shadow-md hover:border-[#aa9576] flex flex-col justify-between space-y-3"
                   >
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-[#aa9576]"></span>
-                        <h4 className="font-serif text-base font-bold text-[#2c2621]">
-                          {santo.nome}
-                        </h4>
-                      </div>
-                      {santo.martirologio ? (
-                        <p className="font-serif text-xs sm:text-sm text-[#4a423a] leading-relaxed">
-                          {santo.martirologio}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-[#8e7e6e] italic">
-                          Commemorazione nel Martirologio Romano.
-                        </p>
+                    <div className="flex items-start gap-3.5">
+                      {santo.imgUrl && (
+                        <div
+                          onClick={() => setLightboxImage({ url: santo.imgUrl!, title: santo.nome })}
+                          className="group relative w-16 sm:w-20 shrink-0 overflow-hidden rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] shadow-2xs cursor-zoom-in transition hover:shadow-md hover:border-[#aa9576]"
+                          title="Clicca per ingrandire"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={santo.imgUrl}
+                            alt={santo.nome}
+                            className="w-full h-20 sm:h-24 object-cover object-top transition duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <span className="text-white text-xs">🔍</span>
+                          </div>
+                        </div>
                       )}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-[#aa9576] shrink-0"></span>
+                          <h4 className="font-serif text-base font-bold text-[#2c2621] leading-snug">
+                            {santo.nome}
+                          </h4>
+                        </div>
+                        {santo.martirologio ? (
+                          <p className="font-serif text-xs sm:text-sm text-[#4a423a] leading-relaxed">
+                            {santo.martirologio}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-[#8e7e6e] italic">
+                            Commemorazione nel Martirologio Romano.
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f4efe6]">
@@ -394,24 +416,25 @@ export function SantoReader() {
       ) : null}
 
       {/* Lightbox Immagine Ingrandita */}
-      {lightboxOpen && data?.imgUrl && (
+      {lightboxImage && (
         <div
-          onClick={() => setLightboxOpen(false)}
+          onClick={() => setLightboxImage(null)}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-4 cursor-zoom-out animate-fadeIn"
         >
           <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={data.imgUrl}
-              alt={data.title}
+              src={lightboxImage.url}
+              alt={lightboxImage.title}
               className="w-full h-auto max-h-[85vh] object-contain rounded-2xl"
             />
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full text-white text-xs font-semibold text-center pointer-events-none">
-              {data.title} · Clicca ovunque per chiudere
+              {lightboxImage.title} · Clicca ovunque per chiudere
             </div>
           </div>
         </div>
       )}
+
 
       {/* Modal Card Stato WhatsApp */}
       <QuoteImageModal

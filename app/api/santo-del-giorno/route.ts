@@ -102,11 +102,12 @@ export async function GET(req: NextRequest) {
 
       const nome = decodeHtmlEntities(nomeMatch[1].replace(/<[^>]+>/g, ""));
 
-      const otherImgMatch = block.match(/<img[^>]+src=["']([^"']+)["']/i);
+      const otherImgMatch = block.match(/<div class="panel-image">[\s\S]*?<img[^>]+src=["']([^"']+)["']/i);
       let otherImg = otherImgMatch ? otherImgMatch[1] : null;
-      if (otherImg && otherImg.includes("logo_cci_contatti")) {
+      if (otherImg && (otherImg.includes("logo_cci_contatti") || !otherImg.includes("wp-content/uploads"))) {
         otherImg = null;
       }
+
 
       const otherMartiroMatch = block.match(/<div class="panel-body">\s*<p>([\s\S]*?)<\/p>/i);
       const otherMartiro = otherMartiroMatch
