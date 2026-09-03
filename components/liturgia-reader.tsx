@@ -132,6 +132,45 @@ function splitContentAtGospelEnd(html: string) {
   };
 }
 
+function detectMessaSection(selectedText: string, fullHtml: string): "vangelo" | "salmo" | "lettura" | "messa" {
+  if (!selectedText || !fullHtml) return "messa";
+
+  const cleanFull = fullHtml
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ");
+
+  const cleanSel = selectedText.replace(/\s+/g, " ").trim();
+  let selIdx = cleanFull.indexOf(cleanSel);
+  if (selIdx === -1) {
+    const snippet = cleanSel.slice(0, Math.min(cleanSel.length, 30));
+    selIdx = cleanFull.indexOf(snippet);
+    if (selIdx === -1) return "messa";
+  }
+
+  const preceding = cleanFull.slice(0, selIdx);
+  const lastVangelo = preceding.search(/\bVANGELO\b(?![^]*\bVANGELO\b)/i);
+  const afterVangeloEnd = cleanFull.slice(lastVangelo > -1 ? lastVangelo : 0).search(/\b(?:DOPO IL VANGELO|SUI DONI|ALLA COMUNIONE|PREGHIERA DEI FEDELI|PROFESSIONE DI FEDE|DOPO LA COMUNIONE)\b/i);
+  const vangeloEndIdx = lastVangelo > -1 && afterVangeloEnd > -1 ? lastVangelo + afterVangeloEnd : cleanFull.length;
+
+  if (lastVangelo > -1 && selIdx >= lastVangelo && selIdx <= vangeloEndIdx) {
+    return "vangelo";
+  }
+
+  const lastSalmo = preceding.search(/\bSALMO\b(?![^]*\bSALMO\b)/i);
+  if (lastSalmo > -1 && (lastVangelo === -1 || lastSalmo > lastVangelo)) {
+    return "salmo";
+  }
+
+  const lastLettura = preceding.search(/\b(?:PRIMA LETTURA|LETTURA|EPISTOLA)\b(?![^]*\b(?:PRIMA LETTURA|LETTURA|EPISTOLA)\b)/i);
+  if (lastLettura > -1) {
+    return "lettura";
+  }
+
+  return "messa";
+}
+
 const LITURGICAL_LANGUAGES = [
   { code: "it", name: "Italiano", flag: "🇮🇹" },
   { code: "la", name: "Latino", flag: "🇻🇦" },
@@ -143,6 +182,7 @@ const LITURGICAL_LANGUAGES = [
   { code: "monastico", name: "Monastico", flag: "⛪" },
   { code: "vetus", name: "Vetus Ordo", flag: "🕊️" },
 ];
+
 
 export function LiturgiaReader() {
   // Stato Rito con persistenza in localStorage (default: ambrosiano)
@@ -184,6 +224,7 @@ export function LiturgiaReader() {
   const [quoteModalOpen, setQuoteModalOpen] = useState<boolean>(false);
   const [selectedQuoteText, setSelectedQuoteText] = useState<string>("");
   const [hasActiveSelection, setHasActiveSelection] = useState<boolean>(false);
+  const [detectedSourceSection, setDetectedSourceSection] = useState<string>("messa");
 
   const readerContainerRef = useRef<HTMLDivElement | null>(null);
   const omeliaSectionRef = useRef<HTMLDivElement | null>(null);
@@ -214,6 +255,11 @@ export function LiturgiaReader() {
             const range = selection.getRangeAt(0);
             if (readerContainerRef.current.contains(range.commonAncestorContainer)) {
               setSelectedQuoteText(text);
+              if (moment === "messa") {
+                setDetectedSourceSection(detectMessaSection(text, contentHtml));
+              } else {
+                setDetectedSourceSection(moment);
+              }
               setHasActiveSelection(true);
               return;
             }
@@ -224,6 +270,7 @@ export function LiturgiaReader() {
         setHasActiveSelection(false);
       }, 120);
     };
+
 
     const handleMouseUp = () => checkSelection();
     const handleTouchEnd = () => checkSelection();
@@ -1075,15 +1122,22 @@ export function LiturgiaReader() {
               const sel = window.getSelection()?.toString().trim();
               if (sel && sel.length >= 4) {
                 setSelectedQuoteText(sel);
+                if (moment === "messa") {
+                  setDetectedSourceSection(detectMessaSection(sel, contentHtml));
+                } else {
+                  setDetectedSourceSection(moment);
+                }
               } else {
                 // Prendi un testo di esempio dalla liturgia o l'antifona
                 setSelectedQuoteText("Nella tua immensa misericordia è riposta ogni mia speranza; donami tu, Signore, ciò che comandi, comandami ciò che vuoi.");
+                setDetectedSourceSection(moment);
               }
               setQuoteModalOpen(true);
             }}
             className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition cursor-pointer shadow-2xs"
             title="Crea immagine per Stato WhatsApp o social dal testo selezionato"
           >
+
             <span>📸</span>
             <span className="hidden sm:inline">Crea Stato</span>
           </button>
@@ -1442,14 +1496,15 @@ export function LiturgiaReader() {
       {/* Modale Generatore Card Stato WhatsApp */}
       <QuoteImageModal
         isOpen={quoteModalOpen}
-
         onClose={() => setQuoteModalOpen(false)}
         initialText={selectedQuoteText}
         moment={moment}
         rite={rite}
         dateStr={selectedDate}
         liturgicalTitle={liturgicalInfo}
+        sourceSection={detectedSourceSection}
       />
+
     </div>
   );
 }

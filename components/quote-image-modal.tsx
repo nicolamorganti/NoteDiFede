@@ -12,7 +12,9 @@ export interface QuoteImageModalProps {
   dateStr?: string;
   liturgicalTitle?: string;
   defaultCitation?: string;
+  sourceSection?: string;
 }
+
 
 type AspectRatio = "banner" | "story" | "square";
 type ThemeId = "dark" | "parchment" | "porpora" | "liturgical_dynamic";
@@ -269,7 +271,9 @@ export function QuoteImageModal({
   dateStr,
   liturgicalTitle,
   defaultCitation,
+  sourceSection,
 }: QuoteImageModalProps) {
+
   const [text, setText] = useState("");
   const [citation, setCitation] = useState("");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("banner");
@@ -282,7 +286,6 @@ export function QuoteImageModal({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [selectedColorKey, setSelectedColorKey] = useState<string | null>(null);
 
-
   // Calcola dettagli del colore liturgico dinamico con priorità all'override manuale o all'auto-rilevamento
   const autoLiturgicalColor = resolveLiturgicalColor(liturgicalTitle, text || initialText, dateStr);
   const dynamicColor = (selectedColorKey && LITURGICAL_COLORS[selectedColorKey]) || autoLiturgicalColor;
@@ -293,7 +296,6 @@ export function QuoteImageModal({
 
     // Reimposta l'eventuale override manuale per ogni nuova apertura
     setSelectedColorKey(null);
-
 
     // Pulisci il testo selezionato rimuovendo virgolette preesistenti
     let cleanText = initialText
@@ -310,13 +312,29 @@ export function QuoteImageModal({
 
     // Costruisci la citazione canonica esatta e concordata
     if (moment && rite) {
+      if (moment === "messa") {
+        if (
+          sourceSection === "vangelo" ||
+          /in quel tempo|disse ai suoi discepoli|simone rispose|prendi il largo|pescatori|barche|disse a simone|gettate le reti/i.test(cleanText)
+        ) {
+          setCitation("Vangelo del Giorno");
+          return;
+        } else if (sourceSection === "salmo") {
+          setCitation("Salmo Responsoriale · Messa del Giorno");
+          return;
+        } else {
+          setCitation("Messa del Giorno");
+          return;
+        }
+      }
+
       const citationMap: Record<LiturgyMoment, { ambrosiano: string; romano: string }> = {
         lodi: { ambrosiano: "Lodi Ambrosiane", romano: "Lodi Romane" },
         vespri: { ambrosiano: "Vespri Ambrosiani", romano: "Vespri Romani" },
         ora_media: { ambrosiano: "Ora Media Ambrosiana", romano: "Ora Media Romana" },
         compieta: { ambrosiano: "Compieta Ambrosiana", romano: "Compieta Romana" },
         ufficio: { ambrosiano: "Ufficio delle Letture Ambrosiano", romano: "Ufficio delle Letture Romano" },
-        messa: { ambrosiano: "Liturgia della Parola (Rito Ambrosiano)", romano: "Liturgia della Parola (Rito Romano)" },
+        messa: { ambrosiano: "Messa del Giorno", romano: "Messa del Giorno" },
       };
 
       const def = citationMap[moment]?.[rite] || (rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano");
@@ -324,10 +342,10 @@ export function QuoteImageModal({
     } else {
       setCitation(liturgicalTitle || "Note di Fede");
     }
-  }, [isOpen, initialText, moment, rite, defaultCitation, liturgicalTitle]);
-
+  }, [isOpen, initialText, moment, rite, defaultCitation, liturgicalTitle, sourceSection]);
 
   // Generatore su Canvas HD
+
   useEffect(() => {
     if (!isOpen || !text) return;
 
