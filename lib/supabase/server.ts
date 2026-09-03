@@ -1,7 +1,9 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireEnv } from "@/lib/env";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+
+export { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
@@ -18,28 +20,17 @@ export async function createServerSupabaseClient() {
           cookiesToSet.forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
           });
-        } catch (error) {
-          // Si può ignorare questo errore se chiamato da un Server Component (non possono settare cookie direttamente)
+        } catch {
+          // Ignora se chiamato da un Server Component di sola lettura
         }
       },
     },
   });
 }
 
-export function createAdminSupabaseClient() {
-  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+export type UserRole = "ospite" | "cantore" | "maestro" | "responsabile";
 
-  return createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
-
-export async function verifyUserRole(requiredRoles: ("ospite" | "cantore" | "maestro" | "responsabile")[]) {
-  // Ora verifica la sessione automaticamente dai cookie
+export async function verifyUserRole(requiredRoles: UserRole[]) {
   const supabase = await createServerSupabaseClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -60,9 +51,11 @@ export async function verifyUserRole(requiredRoles: ("ospite" | "cantore" | "mae
     return { user, role: null, profile: null, error: "Profilo utente non trovato." };
   }
 
-  if (requiredRoles.length > 0 && !requiredRoles.includes(profile.role as any)) {
-    return { user, role: profile.role as any, profile, error: "Non autorizzato: permessi insufficienti." };
+  const userRole = profile.role as UserRole;
+
+  if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
+    return { user, role: userRole, profile, error: "Non autorizzato: permessi insufficienti." };
   }
 
-  return { user, role: profile.role as any, profile, error: null };
+  return { user, role: userRole, profile, error: null };
 }

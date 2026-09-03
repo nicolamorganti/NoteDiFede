@@ -39,12 +39,10 @@ export function SantoReader() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   // Lightbox Immagine
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
-
-
 
   // Modal Card WhatsApp
   const [quoteModalOpen, setQuoteModalOpen] = useState<boolean>(false);
@@ -62,12 +60,14 @@ export function SantoReader() {
       }
       const json: SantoData = await res.json();
       setData(json);
-    } catch (err: any) {
-      setError(err.message || "Errore di connessione al servizio liturgico.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Errore di connessione al servizio liturgico.";
+      setError(message);
     } finally {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     fetchSanto(selectedDate);

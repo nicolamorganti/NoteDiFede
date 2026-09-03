@@ -52,7 +52,9 @@ export async function GET(req: NextRequest) {
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
       next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(15000), // 15 secondi di timeout
     });
+
 
     if (!res.ok) {
       throw new Error(`Errore HTTP ${res.status} recuperando Santo del Giorno da ChiesaCattolica.it`);

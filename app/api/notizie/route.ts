@@ -173,7 +173,9 @@ export async function GET(request: NextRequest) {
             Accept: "application/rss+xml, application/xml, text/xml, */*",
           },
           next: { revalidate: isRefresh ? 0 : 900 },
+          signal: AbortSignal.timeout(15000), // 15 secondi di timeout
         });
+
 
         if (!res.ok) {
           console.warn(`Feed ${source.name} status ${res.status}`);

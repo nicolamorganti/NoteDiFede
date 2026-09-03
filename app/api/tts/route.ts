@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { Communicate } from "edge-tts-universal";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-// Audio-Cache in memoria (per servire all'istante lo stesso audio a tutta la comunità a costo e tempo zero)
-const audioCache: Record<string, { audioBase64: string; timestamp: number }> = {};
+// Audio-Cache controllata in memoria (LRU con massimo 60 tracce per proteggere la memoria RAM)
+const MAX_AUDIO_CACHE = 60;
+const audioCache = new Map<string, { audioBase64: string; timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 48; // 48 ore
+
+function getCachedAudio(key: string): { audioBase64: string; timestamp: number } | undefined {
+  return audioCache.get(key);
+}
+
+function setCachedAudio(key: string, audioBase64: string) {
+  if (audioCache.has(key)) {
+    audioCache.delete(key);
+  } else if (audioCache.size >= MAX_AUDIO_CACHE) {
+    const oldestKey = audioCache.keys().next().value;
+    if (oldestKey) audioCache.delete(oldestKey);
+  }
+  audioCache.set(key, { audioBase64, timestamp: Date.now() });
+}
 
 // Mappatura voci neurali realistiche Microsoft Azure (Voce 100% nativa italiana pura, senza cambio di accento)
 const VOICE_MAP: Record<string, { voice: string; rate: string; pitch: string }> = {
@@ -19,9 +35,17 @@ const VOICE_MAP: Record<string, { voice: string; rate: string; pitch: string }> 
   ro: { voice: "ro-RO-EmilNeural", rate: "-8%", pitch: "-4Hz" },
 };
 
-
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const { allowed } = checkRateLimit(`${ip}:tts`, 30, 60000);
+    if (!allowed) {
+      return NextResponse.json(
+        { fallback: true, message: "Troppe richieste vocali inviate. Attendi qualche istante." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { text, lang = "it" } = body;
 
@@ -39,6 +63,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ fallback: true, message: "Testo non valido o troppo breve" });
     }
 
+    // Limite proporzionato alla liturgia (max 30.000 caratteri per letture liturgiche estese)
+    if (cleanText.length > 30000) {
+      return NextResponse.json(
+        { fallback: true, message: "Testo troppo lungo per la sintesi vocale continua (massimo 30.000 caratteri)." },
+        { status: 400 }
+      );
+    }
+
     const voiceConfig = VOICE_MAP[lang] || VOICE_MAP.it;
 
     // Genera Hash univoco del testo per l'Audio-Cache
@@ -48,7 +80,7 @@ export async function POST(request: NextRequest) {
       .digest("hex");
 
     // 1. Controlla se è già presente in Cache Condivisa
-    const cached = audioCache[hashKey];
+    const cached = getCachedAudio(hashKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return NextResponse.json({
         success: true,
@@ -65,7 +97,6 @@ export async function POST(request: NextRequest) {
       pitch: voiceConfig.pitch,
     });
 
-
     const chunks: Buffer[] = [];
     for await (const chunk of communicate.stream()) {
       if (chunk.type === "audio" && chunk.data) {
@@ -81,11 +112,9 @@ export async function POST(request: NextRequest) {
     const fullAudioBuffer = Buffer.concat(chunks);
     const audioBase64 = fullAudioBuffer.toString("base64");
 
-    // 3. Salva in Audio-Cache
-    audioCache[hashKey] = {
-      audioBase64,
-      timestamp: Date.now(),
-    };
+    // 3. Salva in Audio-Cache (LRU)
+    setCachedAudio(hashKey, audioBase64);
+
 
     return NextResponse.json({
       success: true,

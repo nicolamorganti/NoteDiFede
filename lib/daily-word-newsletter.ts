@@ -90,7 +90,9 @@ async function fetchAmbrosianGospel(targetDate: string): Promise<DailyGospelData
         Accept: "application/json",
       },
       next: { revalidate: 1800 },
+      signal: AbortSignal.timeout(20000), // 20s timeout
     });
+
 
     if (res.ok) {
       const items = await res.json();
@@ -118,7 +120,9 @@ async function fetchAmbrosianGospel(targetDate: string): Promise<DailyGospelData
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0",
       },
       next: { revalidate: 1800 },
+      signal: AbortSignal.timeout(20000), // 20s timeout
     });
+
     if (res.ok) {
       const html = await res.text();
       const parsed = parseAmbrosianGospelFromHtml(html, "Santa Messa", "Rito Ambrosiano", targetDate);
@@ -153,7 +157,9 @@ async function fetchRomanGospel(targetDate: string): Promise<DailyGospelData> {
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0" },
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(20000), // 20s timeout
     });
+
 
     if (res.ok) {
       const rawHtml = await res.text();
@@ -594,7 +600,9 @@ async function sendResendChunk(
           "User-Agent": "NoteDiFede-Newsletter/1.0",
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(20000), // 20s timeout
       });
+
 
       if (!res.ok) {
         const errText = await res.text();
@@ -618,7 +626,9 @@ async function sendResendChunk(
           "User-Agent": "NoteDiFede-Newsletter/1.0",
         },
         body: JSON.stringify(batchPayload),
+        signal: AbortSignal.timeout(20000), // 20s timeout
       });
+
 
       if (!res.ok) {
         const errText = await res.text();
@@ -671,7 +681,9 @@ async function sendResendBatchPersonalized(
         "User-Agent": "NoteDiFede-Newsletter/1.0",
       },
       body: JSON.stringify(batchPayload),
+      signal: AbortSignal.timeout(20000), // 20s timeout
     });
+
 
     if (!res.ok) {
       const errText = await res.text();

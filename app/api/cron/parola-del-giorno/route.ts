@@ -10,12 +10,17 @@ export const maxDuration = 60;
  * Endpoint Cron invocato automaticamente da Vercel Crons ogni giorno alle 04:00 UTC (06:00 italiane)
  */
 export async function GET(request: NextRequest) {
-  // Verifica sicurezza facoltativa Vercel Cron Secret (se impostato)
+  // Verifica sicurezza obbligatoria: fail-closed per impedire chiamate non autorizzate
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    console.warn("⚠️ Tentativo non autorizzato di esecuzione Cronjob La Parola del Giorno");
+    return NextResponse.json(
+      { error: "Non autorizzato: token CRON non valido o non configurato." },
+      { status: 401 }
+    );
   }
+
 
   console.log("🕒 Esecuzione Cronjob 'La Parola del Giorno' avviata...");
   const result = await sendDailyWordNewsletter();

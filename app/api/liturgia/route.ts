@@ -683,7 +683,9 @@ async function fetchRomanoHoursFromCei(isoDate: string, moment: string) {
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     },
     next: { revalidate: 3600 },
+    signal: AbortSignal.timeout(15000), // 15s timeout
   });
+
 
   if (!res.ok) {
     throw new Error(`Errore HTTP ${res.status} da chiesacattolica.it`);

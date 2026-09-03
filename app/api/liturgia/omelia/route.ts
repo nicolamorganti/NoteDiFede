@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const { allowed } = checkRateLimit(`${ip}:omelia`, 20, 60000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Hai effettuato troppe richieste di riflessione in poco tempo. Attendi un momento prima di riprovare." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { text, liturgicalInfo, rite, date, moment, isGospel = true } = body;
 
@@ -13,6 +23,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Limite proporzionato alla liturgia (max 60.000 caratteri per accogliere anche i racconti completi della Passione)
+    if (text.length > 60000) {
+      return NextResponse.json(
+        { error: "Il testo liturgico fornito supera la lunghezza massima consentita di 60.000 caratteri." },
+        { status: 400 }
+      );
+    }
+
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
