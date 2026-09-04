@@ -614,7 +614,7 @@ export function SundayNewsletterEditor() {
                 {/* 1. Box Vangelo della Domenica */}
                 <div className="p-5 space-y-2 border-b border-[#f0e7dc]">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">
-                    📖 Il Vangelo del Giorno
+                    📖 Il Vangelo della Domenica
                   </div>
                   <div className="text-xs font-bold font-serif text-[#6b21a8]">
                     {gospel?.gospelCitation}

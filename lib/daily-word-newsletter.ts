@@ -647,6 +647,7 @@ export interface DailyWordEmailData {
   customTitle?: string;
   authorSignature?: string;
   unsubscribeUrl?: string;
+  isSunday?: boolean;
 }
 
 
@@ -678,13 +679,31 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
   const riteLabel = gospel.rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
   const formattedReflection = formatMarkdownToEmailHtml(reflection);
 
+  const [y, m, d] = gospel.dateStr.split("-").map(Number);
+  const isSunday =
+    data.isSunday !== undefined
+      ? data.isSunday
+      : new Date(y, m - 1, d).getDay() === 0 || Boolean(customTitle || authorSignature);
+
+  const mainHeaderLabel = isSunday
+    ? `Note di Fede · La Parola della Domenica (${riteLabel})`
+    : `Note di Fede · La Parola del Giorno (${riteLabel})`;
+
+  const gospelSectionTitle = isSunday
+    ? "📖 Il Vangelo della Domenica"
+    : "📖 Il Vangelo del Giorno";
+
+  const emailPageTitle = isSunday
+    ? "La Parola della Domenica · Note di Fede"
+    : "La Parola del Giorno · Note di Fede";
+
   return `
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>La Parola del Giorno · Note di Fede</title>
+  <title>${emailPageTitle}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f7f3ec; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d261e; -webkit-font-smoothing: antialiased;">
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f7f3ec; padding: 24px 12px;">
@@ -701,7 +720,7 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
                   <td align="center">
                     <span style="font-size: 28px; display: inline-block; margin-bottom: 6px;">🕊️</span>
                     <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #f59e0b; margin-bottom: 4px;">
-                      Note di Fede · La Parola del Giorno (${riteLabel})
+                      ${mainHeaderLabel}
                     </div>
                     <h1 style="margin: 0; font-family: Georgia, serif; font-size: 24px; font-weight: normal; color: #ffffff; line-height: 1.3;">
                       ${gospel.title}
@@ -720,7 +739,7 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
             <td style="padding: 24px 24px 16px 24px;">
               <div style="margin-bottom: 12px;">
                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #aa9576;">
-                  📖 Il Vangelo del Giorno
+                  ${gospelSectionTitle}
                 </span>
                 <div style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #6b21a8; margin-top: 2px;">
                   ${gospel.gospelCitation}
@@ -980,7 +999,12 @@ export async function sendDailyWordNewsletter(options?: {
         authorSignature: options.authorSignature,
       });
 
-      const emailSubject = `🕊️ La Parola del Giorno (${selectedRite === "romano" ? "Rito Romano" : "Rito Ambrosiano"}): ${gospel.title}`;
+      const [y, m, d] = gospel.dateStr.split("-").map(Number);
+      const isSundayTest =
+        new Date(y, m - 1, d).getDay() === 0 || Boolean(options.customTitle || options.authorSignature);
+      const riteName = selectedRite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
+      const subjectPrefix = isSundayTest ? "🕊️ La Parola della Domenica" : "🕊️ La Parola del Giorno";
+      const emailSubject = `${subjectPrefix} (${riteName}): ${gospel.title}`;
       await sendResendChunk(resendApiKey, [options.testEmail.trim()], emailSubject, emailHtml, true);
 
       return {
@@ -1121,7 +1145,9 @@ export async function sendDailyWordNewsletter(options?: {
         ambModel = generated.usedModel;
       }
 
-      const ambSubject = `🕊️ La Parola del Giorno: ${ambrosianoGospel.title}`;
+      const ambSubject = cycleInfo.isSundayToday
+        ? `🕊️ La Parola della Domenica: ${ambrosianoGospel.title}`
+        : `🕊️ La Parola del Giorno: ${ambrosianoGospel.title}`;
 
       const sentAmb = await sendResendBatchPersonalized(
         resendApiKey,
@@ -1160,7 +1186,9 @@ export async function sendDailyWordNewsletter(options?: {
         romModel = generated.usedModel;
       }
 
-      const romSubject = `🕊️ La Parola del Giorno (Rito Romano): ${romanoGospel.title}`;
+      const romSubject = cycleInfo.isSundayToday
+        ? `🕊️ La Parola della Domenica (Rito Romano): ${romanoGospel.title}`
+        : `🕊️ La Parola del Giorno (Rito Romano): ${romanoGospel.title}`;
 
       const sentRom = await sendResendBatchPersonalized(
         resendApiKey,
