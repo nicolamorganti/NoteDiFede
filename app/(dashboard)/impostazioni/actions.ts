@@ -435,11 +435,15 @@ export async function getSundayNewsletterDraftAction(
         console.warn("Errore recupero sunday_newsletter_drafts:", error);
       }
     } else if (data) {
+      const isOutdatedFallbackPrompt =
+        data.custom_prompt &&
+        data.custom_prompt.includes("In quel tempo Gesù parlava alle folle del Regno di Dio.");
+
       draft = {
         id: data.id,
         sunday_date: data.sunday_date,
         rite: data.rite,
-        custom_prompt: data.custom_prompt || defaultPrompt,
+        custom_prompt: isOutdatedFallbackPrompt ? defaultPrompt : (data.custom_prompt || defaultPrompt),
         reflection_title: data.reflection_title || "✨ Commento al Vangelo della Domenica",
         reflection_text: data.reflection_text || "",
         is_enabled: Boolean(data.is_enabled),

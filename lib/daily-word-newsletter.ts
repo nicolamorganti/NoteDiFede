@@ -148,11 +148,81 @@ export async function fetchDailyGospel(
   }
 }
 
+// Cache in memoria del calendario letture di Chiesa di Milano (aggiornata ogni ora)
+let cachedAmbrosianoMessaMap: Record<string, string> | null = null;
+let lastAmbrosianoCalendarFetch = 0;
+
+async function getAmbrosianoCalendarMap(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (cachedAmbrosianoMessaMap && now - lastAmbrosianoCalendarFetch < 3600000) {
+    return cachedAmbrosianoMessaMap;
+  }
+
+  try {
+    const res = await fetch("https://www.chiesadimilano.it/letture-rito-ambrosiano", {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0",
+      },
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (res.ok) {
+      const html = await res.text();
+      const messaMap: Record<string, string> = {};
+      const messaLinks = [...html.matchAll(/<a\s+[^>]*>/gi)];
+      for (const tag of messaLinks) {
+        const hrefMatch = tag[0].match(/href=["']([^"']+)["']/i);
+        const dateMatch = tag[0].match(/data-date=["'](\d{4})-(\d{1,2})-(\d{1,2})["']/i);
+        if (hrefMatch && dateMatch) {
+          const y = dateMatch[1];
+          const m = dateMatch[2].padStart(2, "0");
+          const d = dateMatch[3].padStart(2, "0");
+          messaMap[`${y}-${m}-${d}`] = hrefMatch[1];
+        }
+      }
+      cachedAmbrosianoMessaMap = messaMap;
+      lastAmbrosianoCalendarFetch = now;
+      return messaMap;
+    }
+  } catch (err) {
+    console.warn("Errore getAmbrosianoCalendarMap:", err);
+  }
+
+  return cachedAmbrosianoMessaMap || {};
+}
+
 /**
- * Estrazione Vangelo Rito Ambrosiano (da chiesadimilano.it REST API e fallback)
+ * Estrazione Vangelo Rito Ambrosiano (da calendario ufficiale di chiesadimilano.it, REST API e fallback)
  */
 async function fetchAmbrosianGospel(targetDate: string): Promise<DailyGospelData> {
-  // 1. Prova tramite la REST API ufficiale di Chiesa di Milano
+  // 1. Prova tramite la pagina del calendario ufficiale (copre sia oggi sia tutte le domeniche e date future)
+  try {
+    const messaMap = await getAmbrosianoCalendarMap();
+    const directUrl = messaMap[targetDate];
+    if (directUrl) {
+      const res = await fetch(directUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0",
+          Accept: "text/html,application/xhtml+xml",
+        },
+        next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (res.ok) {
+        const html = await res.text();
+        const parsed = parseAmbrosianGospelFromHtml(html, "Santa Messa", "Rito Ambrosiano", targetDate);
+        if (parsed.gospelText && parsed.gospelText.length > 30) {
+          return parsed;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Errore calendario Chiesa di Milano per Vangelo Ambrosiano:", err);
+  }
+
+  // 2. Prova tramite la REST API ufficiale di Chiesa di Milano (se pubblicata come post del giorno)
   try {
     const catIds = "4041,4044,4047,4045,7357,22737,4051,4049,5414,20537,4042,4048,6462,21704,10047,8463,9385";
     const d = new Date(targetDate + "T12:00:00Z");
@@ -173,9 +243,8 @@ async function fetchAmbrosianGospel(targetDate: string): Promise<DailyGospelData
         Accept: "application/json",
       },
       next: { revalidate: 1800 },
-      signal: AbortSignal.timeout(20000), // 20s timeout
+      signal: AbortSignal.timeout(15000),
     });
-
 
     if (res.ok) {
       const items = await res.json();
@@ -185,7 +254,7 @@ async function fetchAmbrosianGospel(targetDate: string): Promise<DailyGospelData
         const title = matchedPost.title?.rendered ? matchedPost.title.rendered.replace(/<[^>]+>/g, "").trim() : "Santa Messa";
         if (contentHtml) {
           const parsed = parseAmbrosianGospelFromHtml(contentHtml, title, "Rito Ambrosiano", targetDate);
-          if (parsed.gospelText && parsed.gospelText.length > 20) {
+          if (parsed.gospelText && parsed.gospelText.length > 30) {
             return parsed;
           }
         }
@@ -195,26 +264,28 @@ async function fetchAmbrosianGospel(targetDate: string): Promise<DailyGospelData
     console.warn("Errore REST API Chiesa di Milano per Vangelo Ambrosiano:", err);
   }
 
-  // 2. Fallback su iBreviary Messa Ambrosiana
-  try {
-    const url = "https://www.ibreviary.com/m2/messale.php?r=AMB";
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0",
-      },
-      next: { revalidate: 1800 },
-      signal: AbortSignal.timeout(20000), // 20s timeout
-    });
+  // 3. Fallback su iBreviary Messa Ambrosiana (se data odierna)
+  if (targetDate === getItalianDateString()) {
+    try {
+      const url = "https://www.ibreviary.com/m2/messale.php?r=AMB";
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NoteDiFede-Newsletter/1.0",
+        },
+        next: { revalidate: 1800 },
+        signal: AbortSignal.timeout(15000),
+      });
 
-    if (res.ok) {
-      const html = await res.text();
-      const parsed = parseAmbrosianGospelFromHtml(html, "Santa Messa", "Rito Ambrosiano", targetDate);
-      if (parsed.gospelText && parsed.gospelText.length > 20) {
-        return parsed;
+      if (res.ok) {
+        const html = await res.text();
+        const parsed = parseAmbrosianGospelFromHtml(html, "Santa Messa", "Rito Ambrosiano", targetDate);
+        if (parsed.gospelText && parsed.gospelText.length > 30) {
+          return parsed;
+        }
       }
+    } catch (err) {
+      console.warn("Errore fallback iBreviary per Vangelo Ambrosiano:", err);
     }
-  } catch (err) {
-    console.warn("Errore fallback iBreviary per Vangelo Ambrosiano:", err);
   }
 
   return {
@@ -243,7 +314,6 @@ async function fetchRomanGospel(targetDate: string): Promise<DailyGospelData> {
       signal: AbortSignal.timeout(20000), // 20s timeout
     });
 
-
     if (res.ok) {
       const rawHtml = await res.text();
 
@@ -251,10 +321,19 @@ async function fetchRomanGospel(targetDate: string): Promise<DailyGospelData> {
       let gospelCitation = "Dal Santo Vangelo di oggi";
       let gospelText = "";
 
+      const sundaySectionMatch = rawHtml.match(
+        /<div class="section-title">([^<]*(?:DOMENICA|TEMPO|AVVENTO|QUARESIMA|PASQUA|NATALE)[^<]*)<\/div>/i
+      );
       const saintMatch = rawHtml.match(/Scheda Agiografica:\s*<b>(?:<a[^>]*>)?([^<]+)/i);
       const gradoMatch = rawHtml.match(/Grado della Celebrazione:\s*<b>([^<]+)<\/b>/i);
-      if (saintMatch) title = saintMatch[1].trim();
-      else if (gradoMatch) title = gradoMatch[1].trim();
+
+      if (sundaySectionMatch && sundaySectionMatch[1].trim()) {
+        title = sundaySectionMatch[1].trim();
+      } else if (saintMatch) {
+        title = saintMatch[1].trim();
+      } else if (gradoMatch) {
+        title = gradoMatch[1].trim();
+      }
 
       const sectionMatches = [
         ...rawHtml.matchAll(
@@ -339,76 +418,98 @@ async function fetchRomanGospel(targetDate: string): Promise<DailyGospelData> {
 /**
  * Analizza l'HTML liturgico ambrosiano isolando ESCLUSIVAMENTE il paragrafo e la citazione del Vangelo
  */
-function parseAmbrosianGospelFromHtml(html: string, fallbackTitle: string, riassunto: string, dateStr: string): DailyGospelData {
-  let block = "";
+function parseAmbrosianGospelFromHtml(
+  html: string,
+  fallbackTitle: string,
+  riassunto: string,
+  dateStr: string
+): DailyGospelData {
+  const titleMatch =
+    html.match(/<h1[^>]*class=["']entry-title["'][^>]*>([\s\S]*?)<\/h1>/i) ||
+    html.match(/<title>([^<]+)<\/title>/i);
+  let title = titleMatch
+    ? titleMatch[1].replace(/<[^>]+>/g, "").replace(/ - Chiesa di Milano.*/i, "").trim()
+    : fallbackTitle;
 
-  // 1. Cerca il blocco intitolato VANGELO come intestazione/sezione distinta
-  const headingMatch = html.match(
-    /(?:<h[1-6][^>]*>\s*<strong>\s*VANGELO\b|<strong>\s*VANGELO\b\s*<\/strong>|<p>\s*<strong>\s*VANGELO\b)([\s\S]*?)(?:<!--|<audio|<div class=['"]audio|DOPO IL VANGELO|A CONCLUSIONE|SUI DONI|ALLA COMUNIONE|PREGHIERA DEI FEDELI|PROFESSIONE DI FEDE|DOPO LA COMUNIONE|<\/article>)/i
-  );
-
-  if (headingMatch && headingMatch[1]) {
-    block = headingMatch[1];
-  } else {
-    // Fallback: cerca <strong>VANGELO</strong> fino a tag successivo
-    const fallbackMatch = html.match(
-      /<strong>\s*VANGELO\s*<\/strong>([\s\S]*?)(?:<!--|<audio|DOPO IL VANGELO|SUI DONI)/i
-    );
-    if (fallbackMatch && fallbackMatch[1]) {
-      block = fallbackMatch[1];
-    }
-  }
+  const riassuntoMatch = html.match(/<div class=['"]riassunto['"]>([\s\S]*?)<\/div>/i);
+  const cleanRiassunto = riassuntoMatch
+    ? riassuntoMatch[1].replace(/<[^>]+>/g, " ").trim()
+    : riassunto;
 
   let gospelCitation = "Dal Santo Vangelo di oggi";
   let gospelText = "";
 
-  if (block) {
-    const cleanBlock = block
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-      .replace(/<[^>]+>/g, "\n")
-      .replace(/&nbsp;/g, " ")
-      .replace(/\r/g, "")
-      .replace(/\n\s*\n+/g, "\n")
-      .trim();
+  // Cerca il punto in cui inizia la sezione VANGELO
+  const vPos = html.search(/<(?:p|h[1-6]|div|strong|b)[^>]*>\s*(?:<strong>)?\s*VANGELO\b/i);
 
-    const lines = cleanBlock.split("\n").map((l) => l.trim()).filter(Boolean);
-    const citationLines: string[] = [];
-    const textLines: string[] = [];
+  if (vPos !== -1) {
+    const afterV = html.slice(vPos);
+    // Cerca la fine della sezione VANGELO
+    const endPos = afterV.search(
+      /<(?:p|h[1-6]|div)[^>]*>\s*(?:<strong>)?\s*(?:DOPO IL VANGELO|A CONCLUSIONE|SUI DONI|ALLA COMUNIONE|PREGHIERA DEI FEDELI|PROFESSIONE DI FEDE|DOPO LA COMUNIONE)/i
+    );
+    let vBlock = endPos !== -1 ? afterV.slice(0, endPos) : afterV.slice(0, 4000);
+
+    // Pulizia audio player, script, stili, commenti
+    vBlock = vBlock
+      .replace(/<audio[\s\S]*?<\/audio>/gi, "")
+      .replace(/<!--[\s\S]*?-->/gi, "")
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+
+    const lines = vBlock
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<\/h[1-6]>/gi, "\n\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&#8211;/g, "-")
+      .replace(/&#8217;/g, "'")
+      .replace(/&#8220;/g, "“")
+      .replace(/&#8221;/g, "”")
+      .replace(/\r/g, "")
+      .split("\n")
+      .map((l) => l.replace(/[ \t]+/g, " ").trim())
+      .filter(Boolean);
+
+    const citationParts: string[] = [];
+    const textParts: string[] = [];
 
     for (const line of lines) {
-      if (
-        /^(?:[1-3]?\s*[A-Z][a-z]{1,4}\s*\d+|(?:Dal|Lettura del)\s+Vangelo)/i.test(line) &&
-        textLines.length === 0
-      ) {
-        citationLines.push(line);
+      if (/^VANGELO\b/i.test(line)) {
+        const rest = line.replace(/^VANGELO\s*/i, "").trim();
+        if (rest) citationParts.push(rest);
+      } else if (/^(?:Lettura(?:\s+del)?|Dal)\s+Vangelo/i.test(line)) {
+        citationParts.push(line);
       } else if (
-        !/^(?:Parola del Signore|Rendo grazie a Dio|Gloria a te, o Cristo|Lode a te, o Cristo)/i.test(line)
+        /^(?:[1-3]?\s*[A-Z][a-z]{1,4}\s*\d+)/i.test(line) &&
+        textParts.length === 0
       ) {
-        textLines.push(line);
+        citationParts.push(line);
+      } else if (
+        !/^(?:Parola del Signore|Rendo grazie a Dio|Gloria a te, o Cristo|Lode a te, o Cristo)/i.test(
+          line
+        )
+      ) {
+        textParts.push(line);
       }
     }
 
-    if (citationLines.length > 0) {
-      gospelCitation = citationLines.join(" · ");
+    if (citationParts.length > 0) {
+      gospelCitation = citationParts.join(" · ");
     }
-    gospelText = textLines.join("\n\n");
+    gospelText = textParts.join("\n\n");
   }
-
-  const titleMatch = html.match(/<h1[^>]*class=["']entry-title["'][^>]*>([\s\S]*?)<\/h1>/i);
-  const cleanTitle = titleMatch
-    ? titleMatch[1].replace(/<[^>]+>/g, "").replace(/ - Chiesa di Milano.*/i, "").trim()
-    : fallbackTitle;
-
-
   return {
-    title: cleanTitle,
-    riassunto,
+    title,
+    riassunto: cleanRiassunto,
     colore: "verde",
     dateStr,
     rite: "ambrosiano",
     gospelCitation,
-    gospelText: gospelText || "In quel tempo Gesù parlava alle folle del Regno di Dio.",
+    gospelText:
+      gospelText ||
+      "In quel tempo, Gesù disse ai suoi discepoli: «Amatevi gli uni gli altri come io ho amato voi».",
   };
 }
 
