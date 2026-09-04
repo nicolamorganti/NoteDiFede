@@ -6,14 +6,70 @@ import type { LiturgyMoment, LiturgyRite } from "@/components/liturgia-reader";
 export interface QuoteImageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialText: string;
+  initialText?: string;
+  quoteText?: string;
   moment?: LiturgyMoment;
   rite?: LiturgyRite;
   dateStr?: string;
   liturgicalTitle?: string;
   defaultCitation?: string;
+  citation?: string;
   sourceSection?: string;
+  liturgicalColor?: string;
+  imageUrl?: string | null;
+  defaultImagePosition?: "top" | "left" | "none";
 }
+
+function drawRoundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x + r, y);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+}
+
+function drawImageCover(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  const imgRatio = img.width / img.height;
+  const targetRatio = w / h;
+  let sWidth = img.width;
+  let sHeight = img.height;
+  let sx = 0;
+  let sy = 0;
+
+  if (imgRatio > targetRatio) {
+    sWidth = img.height * targetRatio;
+    sx = (img.width - sWidth) / 2;
+  } else {
+    sHeight = img.width / targetRatio;
+    sy = (img.height - sHeight) / 2;
+  }
+
+  ctx.drawImage(img, sx, sy, sWidth, sHeight, x, y, w, h);
+}
+
 
 
 type AspectRatio = "banner" | "story" | "square";
@@ -28,6 +84,9 @@ export interface LiturgicalColorDetails {
   gradientEnd: string;
   textColor: string;
   citationColor: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
   isWhiteBg?: boolean;
 }
 
@@ -41,6 +100,9 @@ export const LITURGICAL_COLORS: Record<string, LiturgicalColorDetails> = {
     gradientEnd: "#f4ede2",
     textColor: "#1a1510",
     citationColor: "#7a5c3e",
+    badgeBg: "#fef9ee",
+    badgeText: "#854d0e",
+    badgeBorder: "#fde047",
     isWhiteBg: true,
   },
   rosso: {
@@ -52,6 +114,9 @@ export const LITURGICAL_COLORS: Record<string, LiturgicalColorDetails> = {
     gradientEnd: "#6b0a13",
     textColor: "#ffffff",
     citationColor: "#fef08a",
+    badgeBg: "#fef2f2",
+    badgeText: "#991b1b",
+    badgeBorder: "#fecaca",
     isWhiteBg: false,
   },
   viola: {
@@ -63,6 +128,9 @@ export const LITURGICAL_COLORS: Record<string, LiturgicalColorDetails> = {
     gradientEnd: "#2c1143",
     textColor: "#ffffff",
     citationColor: "#fef08a",
+    badgeBg: "#f5f3ff",
+    badgeText: "#5b21b6",
+    badgeBorder: "#ddd6fe",
     isWhiteBg: false,
   },
   rosa: {
@@ -74,6 +142,9 @@ export const LITURGICAL_COLORS: Record<string, LiturgicalColorDetails> = {
     gradientEnd: "#701a3c",
     textColor: "#ffffff",
     citationColor: "#fbcfe8",
+    badgeBg: "#fdf2f8",
+    badgeText: "#9d174d",
+    badgeBorder: "#fbcfe8",
     isWhiteBg: false,
   },
   verde: {
@@ -85,6 +156,9 @@ export const LITURGICAL_COLORS: Record<string, LiturgicalColorDetails> = {
     gradientEnd: "#0f3d21",
     textColor: "#ffffff",
     citationColor: "#fef08a",
+    badgeBg: "#f0fdf4",
+    badgeText: "#166534",
+    badgeBorder: "#bbf7d0",
     isWhiteBg: false,
   },
 };
@@ -265,19 +339,26 @@ export function resolveLiturgicalColor(liturgicalTitle?: string, text?: string, 
 export function QuoteImageModal({
   isOpen,
   onClose,
-  initialText,
+  initialText = "",
+  quoteText,
   moment,
   rite,
   dateStr,
   liturgicalTitle,
   defaultCitation,
+  citation: citationProp,
   sourceSection,
+  liturgicalColor,
+  imageUrl,
+  defaultImagePosition,
 }: QuoteImageModalProps) {
+  const effectiveInitialText = initialText || quoteText || "";
+  const effectiveDefaultCitation = defaultCitation || citationProp;
 
   const [text, setText] = useState("");
   const [citation, setCitation] = useState("");
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("banner");
-  const [theme, setTheme] = useState<ThemeId>("dark");
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("story");
+  const [theme, setTheme] = useState<ThemeId>("liturgical_dynamic");
   const [textSizeDelta, setTextSizeDelta] = useState<number>(0);
   const [citationSizeDelta, setCitationSizeDelta] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -286,8 +367,41 @@ export function QuoteImageModal({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [selectedColorKey, setSelectedColorKey] = useState<string | null>(null);
 
+  // Iconografia del Santo (Posizione e Immagine caricata)
+  const [imagePosition, setImagePosition] = useState<"top" | "left" | "none">(
+    imageUrl ? (defaultImagePosition || (aspectRatio === "banner" ? "left" : "top")) : "none"
+  );
+  const [loadedImage, setLoadedImage] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (imageUrl) {
+      setImagePosition(defaultImagePosition || (aspectRatio === "banner" ? "left" : "top"));
+    } else {
+      setImagePosition("none");
+    }
+  }, [imageUrl, defaultImagePosition, aspectRatio]);
+
+  // Caricamento sicuro immagine tramite proxy per evitare tainted canvas CORS
+  useEffect(() => {
+    if (!isOpen || !imageUrl) {
+      setLoadedImage(null);
+      return;
+    }
+    const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      setLoadedImage(img);
+    };
+    img.onerror = () => {
+      console.warn("Impossibile caricare iconografia del Santo per canvas:", imageUrl);
+      setLoadedImage(null);
+    };
+    img.src = proxyUrl;
+  }, [isOpen, imageUrl]);
+
   // Calcola dettagli del colore liturgico dinamico con priorità all'override manuale o all'auto-rilevamento
-  const autoLiturgicalColor = resolveLiturgicalColor(liturgicalTitle, text || initialText, dateStr);
+  const autoLiturgicalColor = resolveLiturgicalColor(liturgicalTitle, text || effectiveInitialText, dateStr);
   const dynamicColor = (selectedColorKey && LITURGICAL_COLORS[selectedColorKey]) || autoLiturgicalColor;
 
   // Calcola la citazione canonica automatica al caricamento
@@ -295,20 +409,26 @@ export function QuoteImageModal({
     if (!isOpen) return;
 
     // Reimposta l'eventuale override manuale per ogni nuova apertura
-    setSelectedColorKey(null);
+    if (liturgicalColor && LITURGICAL_COLORS[liturgicalColor]) {
+      setSelectedColorKey(liturgicalColor);
+      setTheme("liturgical_dynamic");
+    } else {
+      setSelectedColorKey(null);
+    }
 
     // Pulisci il testo selezionato rimuovendo virgolette preesistenti
-    let cleanText = initialText
+    let cleanText = effectiveInitialText
       .replace(/^[«"'\s]+|[»"'\s]+$/g, "")
       .replace(/\s+/g, " ")
       .trim();
 
     setText(cleanText);
 
-    if (defaultCitation) {
-      setCitation(defaultCitation);
+    if (effectiveDefaultCitation) {
+      setCitation(effectiveDefaultCitation);
       return;
     }
+
 
     // Costruisci la citazione canonica esatta e concordata
     if (moment && rite) {
@@ -336,6 +456,7 @@ export function QuoteImageModal({
         compieta: { ambrosiano: "Compieta Ambrosiana", romano: "Compieta Romana" },
         ufficio: { ambrosiano: "Ufficio delle Letture Ambrosiano", romano: "Ufficio delle Letture Romano" },
         messa: { ambrosiano: "Messa del Giorno", romano: "Messa del Giorno" },
+        santo: { ambrosiano: "Santo del Giorno · Rito Ambrosiano", romano: "Santo del Giorno · Martirologio Romano" },
       };
 
 
@@ -455,10 +576,105 @@ export function QuoteImageModal({
     // 2. Prepara il testo con le caporali « »
     const fullQuoteText = `«${text}»`;
 
-    // 3. Calcola dimensione font e wrapping
-    const paddingX = width * 0.08;
-    const maxTextWidth = width - paddingX * 2;
+    // 3. Verifica e posizionamento eventuale iconografia del Santo
+    const hasImage = Boolean(loadedImage && imagePosition !== "none");
+    const imageBorderColor =
+      theme === "porpora"
+        ? "#fef08a"
+        : theme === "parchment"
+        ? "#bfa07d"
+        : theme === "dark"
+        ? "#d8c5ad"
+        : dynamicColor.isWhiteBg
+        ? "#d4af37"
+        : "rgba(255, 255, 255, 0.4)";
 
+    let textStartX = width * 0.08;
+    let maxTextWidth = width - textStartX * 2;
+    let imageStartY = 0;
+    let imageX = 0;
+    let imageW = 0;
+    let imageH = 0;
+
+    if (hasImage && loadedImage) {
+      if (imagePosition === "top") {
+        if (aspectRatio === "story") {
+          imageW = width * 0.44;
+          imageH = imageW * 0.95;
+          imageX = (width - imageW) / 2;
+          imageStartY = height * 0.11;
+        } else if (aspectRatio === "square") {
+          imageW = width * 0.34;
+          imageH = imageW * 0.88;
+          imageX = (width - imageW) / 2;
+          imageStartY = height * 0.07;
+        } else {
+          // banner
+          imageH = height * 0.38;
+          imageW = imageH * 1.1;
+          imageX = (width - imageW) / 2;
+          imageStartY = height * 0.06;
+        }
+
+        // Disegna icona in alto con bordi arrotondati e cornice
+        ctx.save();
+        ctx.beginPath();
+        drawRoundedRectPath(ctx, imageX, imageStartY, imageW, imageH, Math.min(imageW, imageH) * 0.08);
+        ctx.clip();
+        drawImageCover(ctx, loadedImage, imageX, imageStartY, imageW, imageH);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        drawRoundedRectPath(ctx, imageX, imageStartY, imageW, imageH, Math.min(imageW, imageH) * 0.08);
+        ctx.strokeStyle = imageBorderColor;
+        ctx.lineWidth = Math.max(2, Math.round(width * 0.005));
+        ctx.stroke();
+        ctx.restore();
+      } else if (imagePosition === "left") {
+        if (aspectRatio === "banner") {
+          imageX = width * 0.06;
+          imageH = height * 0.74;
+          imageW = imageH * 0.78;
+          imageStartY = (height - imageH) / 2;
+          textStartX = imageX + imageW + width * 0.045;
+          maxTextWidth = width - textStartX - width * 0.06;
+        } else if (aspectRatio === "square") {
+          imageX = width * 0.06;
+          imageW = width * 0.38;
+          imageH = height * 0.65;
+          imageStartY = (height - imageH) / 2;
+          textStartX = imageX + imageW + width * 0.045;
+          maxTextWidth = width - textStartX - width * 0.06;
+        } else {
+          // story
+          imageX = width * 0.07;
+          imageW = width * 0.38;
+          imageH = height * 0.42;
+          imageStartY = height * 0.28;
+          textStartX = imageX + imageW + width * 0.045;
+          maxTextWidth = width - textStartX - width * 0.07;
+        }
+
+        // Disegna icona a sinistra
+        ctx.save();
+        ctx.beginPath();
+        drawRoundedRectPath(ctx, imageX, imageStartY, imageW, imageH, Math.min(imageW, imageH) * 0.08);
+        ctx.clip();
+        drawImageCover(ctx, loadedImage, imageX, imageStartY, imageW, imageH);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        drawRoundedRectPath(ctx, imageX, imageStartY, imageW, imageH, Math.min(imageW, imageH) * 0.08);
+        ctx.strokeStyle = imageBorderColor;
+        ctx.lineWidth = Math.max(2, Math.round(width * 0.005));
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 4. Calcola dimensione font e wrapping
     // Calcolo dinamico font size di base + delta utente
     let baseFontSize = width * 0.052;
     if (aspectRatio === "story") baseFontSize = width * 0.062;
@@ -466,7 +682,17 @@ export function QuoteImageModal({
     if (text.length > 300) baseFontSize *= 0.78;
     if (text.length > 450) baseFontSize *= 0.68;
 
-    let fontSize = Math.max(20, Math.round(baseFontSize + textSizeDelta));
+    // Aggiustamenti per layout con icona
+    if (hasImage) {
+      if (imagePosition === "left") {
+        baseFontSize *= 0.82;
+      } else if (imagePosition === "top") {
+        if (aspectRatio === "square") baseFontSize *= 0.86;
+        if (aspectRatio === "banner") baseFontSize *= 0.76;
+      }
+    }
+
+    let fontSize = Math.max(18, Math.round(baseFontSize + textSizeDelta));
 
     const fontFamily = isSerif
       ? "'Merriweather', 'Georgia', serif"
@@ -506,7 +732,10 @@ export function QuoteImageModal({
     const availableContentHeight = totalTextHeight + citationFontSize + Math.max(20, fontSize * 0.7);
 
     let startY = (height - availableContentHeight) / 2;
-    if (aspectRatio === "story") {
+
+    if (hasImage && imagePosition === "top") {
+      startY = imageStartY + imageH + height * 0.04;
+    } else if (aspectRatio === "story" && (!hasImage || imagePosition !== "left")) {
       startY = height * 0.35 - totalTextHeight / 2;
     }
 
@@ -516,10 +745,10 @@ export function QuoteImageModal({
 
     // Disegna le righe del testo
     for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], paddingX, startY + i * lineHeight);
+      ctx.fillText(lines[i], textStartX, startY + i * lineHeight);
     }
 
-    // 4. Disegna la Citazione in Basso (Corsivo)
+    // 5. Disegna la Citazione in Basso (Corsivo)
     ctx.font = `italic 600 ${citationFontSize}px ${fontFamily}`;
     ctx.fillStyle = citationColor;
 
@@ -528,16 +757,16 @@ export function QuoteImageModal({
       citationY = height - bottomSafetyMargin - citationFontSize;
     }
 
-    ctx.fillText(citation, paddingX, citationY);
+    ctx.fillText(citation, textStartX, citationY);
 
-    // 5. Genera Anteprima Data URL
+    // 6. Genera Anteprima Data URL
     try {
       const dataUrl = canvas.toDataURL("image/png");
       setPreviewUrl(dataUrl);
     } catch (e) {
       console.error("Errore generazione anteprima canvas:", e);
     }
-  }, [isOpen, text, citation, aspectRatio, theme, textSizeDelta, citationSizeDelta, dynamicColor]);
+  }, [isOpen, text, citation, aspectRatio, theme, textSizeDelta, citationSizeDelta, dynamicColor, loadedImage, imagePosition]);
 
   if (!isOpen) return null;
 
@@ -660,6 +889,47 @@ export function QuoteImageModal({
               )}
             </div>
           </div>
+
+          {/* Opzione Iconografia del Santo (se presente imageUrl) */}
+          {imageUrl && (
+            <div className="space-y-1.5 p-3 rounded-2xl bg-[#f5ede1] border border-[#d8c5ad]">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[#5c4a37] uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🖼️</span> Iconografia del Santo
+                </label>
+                {loadedImage ? (
+                  <span className="text-[10px] text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full font-semibold">
+                    Disponibile
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-full font-semibold animate-pulse">
+                    Caricamento icona...
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: "top", label: "⬆️ In Alto", desc: "Sopra al testo" },
+                  { id: "left", label: "⬅️ A Sinistra", desc: "A fianco" },
+                  { id: "none", label: "❌ Solo Testo", desc: "Nessuna icona" },
+                ].map((pos) => (
+                  <button
+                    key={pos.id}
+                    type="button"
+                    onClick={() => setImagePosition(pos.id as "top" | "left" | "none")}
+                    className={`px-2 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex flex-col items-center text-center ${
+                      imagePosition === pos.id
+                        ? "bg-[#2c241c] text-white border-[#2c241c] shadow-xs"
+                        : "bg-white text-[#5c4a37] border-[#d8c5ad] hover:bg-[#f7f2ea]"
+                    }`}
+                  >
+                    <span>{pos.label}</span>
+                    <span className="text-[10px] opacity-75">{pos.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Opzioni Rapide: Formato e Tema */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

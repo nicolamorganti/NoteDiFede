@@ -14,11 +14,12 @@ export function PreghieraNav() {
       description: "Lodi, Vespri, Ufficio e Letture (Ambrosiano e Romano)",
     },
     {
-      href: "/preghiera/santo",
+      href: "/liturgia?moment=santo",
       label: "Santo del Giorno",
       icon: "👑",
-      description: "Martirologio Romano e Iconografia dei Santi (Ufficiale CEI)",
+      description: "Agiografia e Martirologio (Chiesa di Milano e CEI)",
     },
+
 
     {
       href: "/preghiera/infermi",
@@ -65,7 +66,15 @@ export function PreghieraNav() {
   return (
     <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-[#ede4d8] border border-[#ddd0c0] shadow-inner mb-6">
       {tabs.map((tab) => {
-        const isActive = pathname === tab.href;
+        const isSantoTab = tab.href.includes("moment=santo");
+        const isActive = isSantoTab
+          ? pathname === "/preghiera/santo" ||
+            (pathname === "/liturgia" && typeof window !== "undefined" && window.location.search.includes("moment=santo"))
+          : tab.href === "/liturgia"
+          ? pathname === "/liturgia" &&
+            (typeof window === "undefined" || !window.location.search.includes("moment=santo"))
+          : pathname === tab.href;
+
         return (
           <Link
             key={tab.href}

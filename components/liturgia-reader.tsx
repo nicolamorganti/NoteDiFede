@@ -8,11 +8,11 @@ import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
 import { QuoteImageModal } from "@/components/quote-image-modal";
 import { parseLiturgicalInvitatory } from "@/lib/liturgical-invitatory";
-
+import { SantoView } from "@/components/santo-view";
 
 export type LiturgyRite = "ambrosiano" | "romano";
 
-export type LiturgyMoment = "invitatorio" | "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa";
+export type LiturgyMoment = "invitatorio" | "lodi" | "ora_media" | "vespri" | "compieta" | "ufficio" | "messa" | "santo";
 export type LineSpacingOption = "compact" | "normal" | "relaxed";
 
 const ROMAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
@@ -23,6 +23,7 @@ const ROMAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint:
   { id: "compieta", label: "Compieta", icon: "🌙", timeHint: "21:00 - 06:00" },
   { id: "ufficio", label: "Ufficio", icon: "📖", timeHint: "Letture" },
   { id: "messa", label: "Messa", icon: "✝️", timeHint: "Vangelo & Letture" },
+  { id: "santo", label: "Santo", icon: "👑", timeHint: "del Giorno" },
 ];
 
 const AMBROSIAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
@@ -32,7 +33,9 @@ const AMBROSIAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeH
   { id: "compieta", label: "Compieta", icon: "🌙", timeHint: "21:00 - 06:00" },
   { id: "ufficio", label: "Ufficio", icon: "📖", timeHint: "Letture" },
   { id: "messa", label: "Messa", icon: "✝️", timeHint: "Vangelo & Letture" },
+  { id: "santo", label: "Santo", icon: "👑", timeHint: "del Giorno" },
 ];
+
 
 const ALL_MOMENTS = ROMAN_MOMENTS;
 
@@ -316,12 +319,25 @@ export function LiturgiaReader() {
 
 
   // Inizializza preferenze da localStorage
+  // Inizializza preferenze da URL e localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlRite = sp.get("rite") as LiturgyRite;
+      const urlMoment = sp.get("moment") as LiturgyMoment;
+      const urlDate = sp.get("date");
+
+      if (urlDate) {
+        setSelectedDate(urlDate);
+      }
+
       const savedRite = localStorage.getItem("preferred_rite") as LiturgyRite;
-      if (savedRite === "ambrosiano" || savedRite === "romano") {
+      if (urlRite === "ambrosiano" || urlRite === "romano") {
+        setRite(urlRite);
+      } else if (savedRite === "ambrosiano" || savedRite === "romano") {
         setRite(savedRite);
       }
+
       const savedLang = localStorage.getItem("liturgia_pref_lang");
       if (savedLang) setSelectedLang(savedLang);
       const savedDual = localStorage.getItem("liturgia_dual_mode");
@@ -345,10 +361,15 @@ export function LiturgiaReader() {
         setIsChurchMode(true);
       }
 
-      // Imposta il momento automatico in base all'ora
-      setMoment(getAutomaticMoment());
+      // Imposta il momento da URL se presente, altrimenti automatico in base all'ora
+      if (urlMoment) {
+        setMoment(urlMoment);
+      } else {
+        setMoment(getAutomaticMoment());
+      }
     }
   }, []);
+
 
   const handleLangChange = (newLang: string) => {
     setSelectedLang(newLang);
@@ -440,6 +461,12 @@ export function LiturgiaReader() {
 
   // Caricamento dei testi (Primaria)
   const fetchLiturgy = async () => {
+    if (moment === "santo") {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setOmeliaText(null);
@@ -460,7 +487,6 @@ export function LiturgiaReader() {
       setLiturgicalInfo(data.liturgicalInfo || "");
       setTemporalInfo(data.temporalInfo || "");
 
-
       if (readerContainerRef.current) {
         readerContainerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
@@ -474,7 +500,7 @@ export function LiturgiaReader() {
 
   // Caricamento testo a fronte per lingua secondaria (Rito Romano)
   const fetchSecondaryLiturgy = async () => {
-    if (rite !== "romano" || !isDualMode) return;
+    if (moment === "santo" || rite !== "romano" || !isDualMode) return;
     setLoadingSecondary(true);
 
     try {
@@ -493,14 +519,19 @@ export function LiturgiaReader() {
   };
 
   useEffect(() => {
+    if (moment === "santo") {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     fetchLiturgy();
   }, [rite, moment, selectedDate, selectedLang]);
 
   useEffect(() => {
-    if (isDualMode && rite === "romano") {
-      fetchSecondaryLiturgy();
-    }
+    if (moment === "santo" || !isDualMode || rite !== "romano") return;
+    fetchSecondaryLiturgy();
   }, [rite, moment, selectedDate, secondaryLang, isDualMode]);
+
 
 
 
@@ -964,8 +995,9 @@ export function LiturgiaReader() {
       </div>
 
       {/* Barra Selettore Momenti del Giorno */}
-      <div className={`grid gap-2 ${rite === "romano" ? "grid-cols-3 sm:grid-cols-7" : "grid-cols-3 sm:grid-cols-6"}`}>
+      <div className={`grid gap-2 ${rite === "romano" ? "grid-cols-4 sm:grid-cols-8" : "grid-cols-3 sm:grid-cols-7"}`}>
         {(rite === "romano" ? ROMAN_MOMENTS : AMBROSIAN_MOMENTS).map((m) => {
+
           const isActive = moment === m.id;
           return (
             <button
@@ -1195,19 +1227,17 @@ export function LiturgiaReader() {
               {liturgicalDayDetails.tempoLiturgico} · {liturgicalDayDetails.salterioLabel} · <span className="font-semibold not-italic">{liturgicalDayDetails.annoFeriale}</span>
             </div>
           </div>
-          <Link
-            href={`/preghiera/santo?date=${selectedDate}`}
+          <button
+            onClick={() => setMoment("santo")}
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition shadow-2xs self-start sm:self-center shrink-0 cursor-pointer"
-            title="Visualizza vita, iconografia e martirologio del Santo di oggi"
+            title="Visualizza vita, iconografia e martirologio del Santo di oggi per il rito selezionato"
           >
             <span>👑</span>
             <span>Santo del Giorno</span>
             <span>→</span>
-          </Link>
+          </button>
         </div>
       </div>
-
-
 
       {/* Area di Lettura dei Testi Liturgici */}
       <div
@@ -1219,14 +1249,24 @@ export function LiturgiaReader() {
           color: isChurchMode ? "#ece8e2" : "#2c2621",
         }}
       >
-        {loading ? (
+        {moment === "santo" ? (
+          <SantoView
+            date={selectedDate}
+            rite={rite}
+            isChurchMode={isChurchMode}
+            fontSize={fontSize}
+            onRiteChange={handleRiteChange}
+            onDateChange={setSelectedDate}
+            showHeaderControls={false}
+          />
+        ) : loading ? (
           <div className="py-20 text-center space-y-4">
             <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-[#aa9576]/30 border-t-[#5c4a37]"></div>
             <p className="font-serif text-lg text-[#aa9576]">
               Caricamento dei testi di {ALL_MOMENTS.find((m) => m.id === moment)?.label} ({rite === "ambrosiano" ? "Rito Ambrosiano" : "Rito Romano"})...
             </p>
-
           </div>
+
         ) : error ? (
           <div className="py-12 text-center space-y-4">
             <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
