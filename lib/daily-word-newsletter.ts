@@ -50,6 +50,89 @@ export function formatItalianDateLong(dateStr: string): string {
 }
 
 /**
+ * Calcola le informazioni temporali del ciclo settimanale della Domenica:
+ * - Dal Lunedì mattina (00:00) alla Domenica (23:59), la domenica target è la domenica di questa settimana.
+ * - Durante la Domenica dopo le 06:00, isSundayPast6AM è true (la newsletter è già stata inviata).
+ * - Il Lunedì alle 00:00 il ciclo avanza automaticamente alla Domenica successiva (+6 giorni).
+ */
+export function getSundayCycleInfo(inputDate = new Date()): {
+  currentDateIso: string;
+  currentHour: number;
+  isSundayToday: boolean;
+  isSundayPast6AM: boolean;
+  targetSundayIso: string;
+  targetSundayLabel: string;
+} {
+  const romeFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+  });
+
+  const parts = romeFormatter.formatToParts(inputDate);
+  const partMap: Record<string, string> = {};
+  for (const p of parts) {
+    partMap[p.type] = p.value;
+  }
+
+  const currentDateIso = `${partMap.year}-${partMap.month}-${partMap.day}`;
+  const currentHour = parseInt(partMap.hour || "0", 10);
+
+  const [y, m, d] = currentDateIso.split("-").map(Number);
+  const localDate = new Date(y, m - 1, d);
+  const dayOfWeek = localDate.getDay(); // 0 = Domenica, 1 = Lunedì, ..., 6 = Sabato
+
+  let daysUntilSunday = 0;
+  let isSundayToday = false;
+
+  if (dayOfWeek === 0) {
+    isSundayToday = true;
+    daysUntilSunday = 0;
+  } else {
+    daysUntilSunday = 7 - dayOfWeek;
+  }
+
+  const targetSundayDate = new Date(localDate);
+  targetSundayDate.setDate(targetSundayDate.getDate() + daysUntilSunday);
+
+  const tYear = targetSundayDate.getFullYear();
+  const tMonth = String(targetSundayDate.getMonth() + 1).padStart(2, "0");
+  const tDay = String(targetSundayDate.getDate()).padStart(2, "0");
+  const targetSundayIso = `${tYear}-${tMonth}-${tDay}`;
+  const targetSundayLabel = formatItalianDateLong(targetSundayIso);
+
+  return {
+    currentDateIso,
+    currentHour,
+    isSundayToday,
+    isSundayPast6AM: isSundayToday && currentHour >= 6,
+    targetSundayIso,
+    targetSundayLabel,
+  };
+}
+
+export const DEFAULT_SUNDAY_PROMPT_TEMPLATE = `Sei una guida spirituale e biblista dal tratto essenziale, disadorno e penetrante, nello stile autentico del Cardinale Carlo Maria Martini.
+
+Vangelo di questa Domenica ({gospelTitle} - {gospelCitation}):
+"""
+{gospelText}
+"""
+
+Compito:
+Scrivi una meditazione spirituale ed esistenziale sulla Parola di questa Domenica per la comunità di fedeli e coristi.
+Estrai la postura interiore e l'atteggiamento concreto che questo Vangelo richiede nella vita quotidiana della settimana che inizia.
+
+ISTRUZIONI PER EVITARE LA RIPETITIVITÀ:
+1. RADICAMENTO NEL TESTO: Individua un verbo, un gesto o una parola precisa di Gesù in questo racconto e fanne la chiave della riflessione.
+2. ATTUALITÀ ESISTENZIALE: Collega il brano alle fatiche, alle speranze e alle relazioni concrete delle persone (nella vita familiare, nel lavoro, nella comunità parrocchiale o nelle decisioni personali).
+3. STILE: Sobrio, profondo, senza retorica o formule devozionali stanche (evita frasi fatte come "in un mondo frenetico", "accogliere con dolcezza", "Gesù ci invita oggi a...").
+4. LUNGHEZZA: tra 100 e 160 parole, con frasi incisive e ritmo meditativo.
+5. Concludi SEMPRE con una frase compiuta e punto fermo finale. Niente titoli markdown.`;
+
+/**
  * Estrae il Vangelo del giorno dalla liturgia della Messa (Rito Ambrosiano o Romano)
  */
 export async function fetchDailyGospel(
@@ -332,13 +415,27 @@ function parseAmbrosianGospelFromHtml(html: string, fallbackTitle: string, riass
 /**
  * Genera con Gemini la "Postura Cristiana del Giorno" (50-100 parole, rigorosamente compiuta)
  */
-export async function generateChristianPosture(gospelData: DailyGospelData): Promise<{ reflection: string; usedModel: string }> {
+export async function generateChristianPosture(
+  gospelData: DailyGospelData,
+  customPrompt?: string
+): Promise<{ reflection: string; usedModel: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY non configurata nelle variabili d'ambiente.");
   }
 
-  const prompt = `Sei una guida spirituale e biblista dal tratto essenziale, disadorno e penetrante, nello stile autentico del Cardinale Carlo Maria Martini.
+  let prompt = "";
+  if (customPrompt && customPrompt.trim().length > 10) {
+    prompt = customPrompt
+      .replace(/{gospelTitle}/g, gospelData.title)
+      .replace(/{gospelCitation}/g, gospelData.gospelCitation)
+      .replace(/{gospelText}/g, gospelData.gospelText);
+
+    if (!prompt.includes(gospelData.gospelText)) {
+      prompt = `Vangelo (${gospelData.title} - ${gospelData.gospelCitation}):\n"""\n${gospelData.gospelText}\n"""\n\n${prompt}`;
+    }
+  } else {
+    prompt = `Sei una guida spirituale e biblista dal tratto essenziale, disadorno e penetrante, nello stile autentico del Cardinale Carlo Maria Martini.
 
 Vangelo di oggi (${gospelData.title} - ${gospelData.gospelCitation}):
 """
@@ -364,6 +461,7 @@ REGOLE TASSATIVE:
 - Niente convenevoli o prediche (non iniziare mai con "Oggi il Vangelo ci chiama...", "Gesù ci invita...": entra d'impatto nella postura).
 - Lunghezza: tra 60 e 95 parole.
 - Concludi SEMPRE con una frase compiuta e punto fermo finale. Niente titoli markdown.`;
+  }
 
 
   const candidateModels = [
@@ -445,6 +543,7 @@ export interface DailyWordEmailData {
   gospel: DailyGospelData;
   reflection: string;
   usedModel?: string;
+  customTitle?: string;
   unsubscribeUrl?: string;
 }
 
@@ -471,7 +570,7 @@ export function formatMarkdownToEmailHtml(text: string): string {
  * Genera l'HTML dell'email "La Parola del Giorno" con layout liturgico raffinato
  */
 export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
-  const { gospel, reflection, unsubscribeUrl } = data;
+  const { gospel, reflection, unsubscribeUrl, customTitle } = data;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app";
   const dateFormatted = formatItalianDateLong(gospel.dateStr);
   const riteLabel = gospel.rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
@@ -520,7 +619,7 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
               <div style="background-color: #fcf9f2; border: 1px solid #ebdcc8; border-left: 5px solid #d97706; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.05);">
                 <div style="display: flex; align-items: center; margin-bottom: 10px;">
                   <span style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #92400e; letter-spacing: 0.5px;">
-                    ✨ La Postura Cristiana per Oggi
+                    ${customTitle || "✨ La Postura Cristiana per Oggi"}
                   </span>
                 </div>
                 <p style="margin: 0; font-family: Georgia, serif; font-size: 15px; line-height: 1.65; color: #3f2f1f; font-style: italic;">
@@ -670,7 +769,8 @@ async function sendResendBatchPersonalized(
   subject: string,
   gospel: DailyGospelData,
   reflection: string,
-  usedModel: string
+  usedModel: string,
+  customTitle?: string
 ) {
   const batchSize = 40;
   let count = 0;
@@ -683,7 +783,7 @@ async function sendResendBatchPersonalized(
     const batchPayload = chunk.map((u) => {
       const token = generateUnsubscribeToken(u.id);
       const unsubscribeUrl = `${siteUrl}/newsletter/disiscrizione?id=${u.id}&token=${token}`;
-      const html = buildDailyWordEmailHtml({ gospel, reflection, usedModel, unsubscribeUrl });
+      const html = buildDailyWordEmailHtml({ gospel, reflection, usedModel, unsubscribeUrl, customTitle });
 
       return {
         from: fromAddress,
@@ -704,7 +804,6 @@ async function sendResendBatchPersonalized(
       signal: AbortSignal.timeout(20000), // 20s timeout
     });
 
-
     if (!res.ok) {
       const errText = await res.text();
       console.error("Errore invio Resend batch chunk:", errText);
@@ -724,6 +823,8 @@ export async function sendDailyWordNewsletter(options?: {
   testEmail?: string;
   rite?: LiturgyRite;
   dateStr?: string;
+  customReflection?: string;
+  customTitle?: string;
 }): Promise<{
   success: boolean;
   recipientsCount: number;
@@ -749,8 +850,21 @@ export async function sendDailyWordNewsletter(options?: {
     if (options?.testEmail) {
       const selectedRite = options.rite || "ambrosiano";
       const gospel = await fetchDailyGospel(options.dateStr, selectedRite);
-      const { reflection, usedModel } = await generateChristianPosture(gospel);
-      const emailHtml = buildDailyWordEmailHtml({ gospel, reflection, usedModel });
+      let reflection = options.customReflection || "";
+      let usedModel = options.customReflection ? "Bozza Domenica Personalizzata" : "";
+
+      if (!reflection) {
+        const generated = await generateChristianPosture(gospel);
+        reflection = generated.reflection;
+        usedModel = generated.usedModel;
+      }
+
+      const emailHtml = buildDailyWordEmailHtml({
+        gospel,
+        reflection,
+        usedModel,
+        customTitle: options.customTitle,
+      });
 
       const emailSubject = `🕊️ La Parola del Giorno (${selectedRite === "romano" ? "Rito Romano" : "Rito Ambrosiano"}): ${gospel.title}`;
       await sendResendChunk(resendApiKey, [options.testEmail.trim()], emailSubject, emailHtml, true);
@@ -830,6 +944,42 @@ export async function sendDailyWordNewsletter(options?: {
       }
     }
 
+    // Controlla se oggi è domenica per verificare se ci sono bozze personalizzate congelate (is_enabled = true)
+    let customAmbrosianoDraft: { reflection_text: string; reflection_title: string } | null = null;
+    let customRomanoDraft: { reflection_text: string; reflection_title: string } | null = null;
+
+    const todayDateStr = options?.dateStr || getItalianDateString();
+    const cycleInfo = getSundayCycleInfo(new Date(todayDateStr + "T12:00:00Z"));
+
+    if (cycleInfo.isSundayToday && !options?.testEmail) {
+      try {
+        const { data: drafts } = await adminClient
+          .from("sunday_newsletter_drafts")
+          .select("rite, reflection_text, reflection_title, is_enabled")
+          .eq("sunday_date", todayDateStr)
+          .eq("is_enabled", true);
+
+        if (drafts && drafts.length > 0) {
+          for (const d of drafts as any[]) {
+            if (d.rite === "ambrosiano" && d.reflection_text && d.reflection_text.trim().length > 10) {
+              customAmbrosianoDraft = {
+                reflection_text: d.reflection_text.trim(),
+                reflection_title: d.reflection_title || "✨ Commento al Vangelo della Domenica",
+              };
+            }
+            if (d.rite === "romano" && d.reflection_text && d.reflection_text.trim().length > 10) {
+              customRomanoDraft = {
+                reflection_text: d.reflection_text.trim(),
+                reflection_title: d.reflection_title || "✨ Commento al Vangelo della Domenica",
+              };
+            }
+          }
+        }
+      } catch (draftErr) {
+        console.warn("Verifica bozze domenicali su Supabase:", draftErr);
+      }
+    }
+
     let totalSent = 0;
     let lastReflection = "";
     let lastGospel: DailyGospelData = {} as any;
@@ -838,7 +988,21 @@ export async function sendDailyWordNewsletter(options?: {
     // 4. Genera e invia Rito Ambrosiano (se ci sono destinatari)
     if (ambrosianoRecipients.length > 0) {
       const ambrosianoGospel = await fetchDailyGospel(options?.dateStr, "ambrosiano");
-      const { reflection: ambReflection, usedModel: ambModel } = await generateChristianPosture(ambrosianoGospel);
+      let ambReflection = "";
+      let ambModel = "";
+      let ambTitle: string | undefined = undefined;
+
+      if (customAmbrosianoDraft) {
+        ambReflection = customAmbrosianoDraft.reflection_text;
+        ambTitle = customAmbrosianoDraft.reflection_title;
+        ambModel = "Bozza Domenicale Personalizzata";
+        console.log("📌 Invio Newsletter Domenicale Ambrosiana PERSONALIZZATA:", ambTitle);
+      } else {
+        const generated = await generateChristianPosture(ambrosianoGospel);
+        ambReflection = generated.reflection;
+        ambModel = generated.usedModel;
+      }
+
       const ambSubject = `🕊️ La Parola del Giorno: ${ambrosianoGospel.title}`;
 
       const sentAmb = await sendResendBatchPersonalized(
@@ -847,7 +1011,8 @@ export async function sendDailyWordNewsletter(options?: {
         ambSubject,
         ambrosianoGospel,
         ambReflection,
-        ambModel
+        ambModel,
+        ambTitle
       );
       totalSent += sentAmb;
 
@@ -859,7 +1024,21 @@ export async function sendDailyWordNewsletter(options?: {
     // 5. Genera e invia Rito Romano (se ci sono destinatari con preferenza romana)
     if (romanoRecipients.length > 0) {
       const romanoGospel = await fetchDailyGospel(options?.dateStr, "romano");
-      const { reflection: romReflection, usedModel: romModel } = await generateChristianPosture(romanoGospel);
+      let romReflection = "";
+      let romModel = "";
+      let romTitle: string | undefined = undefined;
+
+      if (customRomanoDraft) {
+        romReflection = customRomanoDraft.reflection_text;
+        romTitle = customRomanoDraft.reflection_title;
+        romModel = "Bozza Domenicale Personalizzata";
+        console.log("📌 Invio Newsletter Domenicale Romana PERSONALIZZATA:", romTitle);
+      } else {
+        const generated = await generateChristianPosture(romanoGospel);
+        romReflection = generated.reflection;
+        romModel = generated.usedModel;
+      }
+
       const romSubject = `🕊️ La Parola del Giorno (Rito Romano): ${romanoGospel.title}`;
 
       const sentRom = await sendResendBatchPersonalized(
@@ -868,7 +1047,8 @@ export async function sendDailyWordNewsletter(options?: {
         romSubject,
         romanoGospel,
         romReflection,
-        romModel
+        romModel,
+        romTitle
       );
       totalSent += sentRom;
 

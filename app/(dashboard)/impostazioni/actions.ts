@@ -366,5 +366,232 @@ export async function testDailyWordNewsletterAction(
   }
 }
 
+// 8. Recupera la bozza e i dati della newsletter per la Domenica successiva
+export async function getSundayNewsletterDraftAction(
+  rite: "ambrosiano" | "romano" = "ambrosiano"
+): Promise<{
+  error: string | null;
+  cycleInfo: any;
+  gospel: any;
+  draft: {
+    id: string;
+    sunday_date: string;
+    rite: "ambrosiano" | "romano";
+    custom_prompt: string;
+    reflection_title: string;
+    reflection_text: string;
+    is_enabled: boolean;
+    last_edited_by_name: string | null;
+    updated_at: string | null;
+  };
+  tableMissing?: boolean;
+}> {
+  const { user, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError || !user) {
+    throw new Error(authError || "Non autorizzato.");
+  }
+
+  const {
+    getSundayCycleInfo,
+    fetchDailyGospel,
+    DEFAULT_SUNDAY_PROMPT_TEMPLATE,
+  } = await import("@/lib/daily-word-newsletter");
+
+  const cycleInfo = getSundayCycleInfo();
+  const gospel = await fetchDailyGospel(cycleInfo.targetSundayIso, rite);
+
+  const defaultPrompt = DEFAULT_SUNDAY_PROMPT_TEMPLATE
+    .replace(/{gospelTitle}/g, gospel.title)
+    .replace(/{gospelCitation}/g, gospel.gospelCitation)
+    .replace(/{gospelText}/g, gospel.gospelText);
+
+  let draft = {
+    id: `${cycleInfo.targetSundayIso}_${rite}`,
+    sunday_date: cycleInfo.targetSundayIso,
+    rite,
+    custom_prompt: defaultPrompt,
+    reflection_title: "✨ Commento al Vangelo della Domenica",
+    reflection_text: "",
+    is_enabled: false,
+    last_edited_by_name: null as string | null,
+    updated_at: null as string | null,
+  };
+
+  let tableMissing = false;
+
+  try {
+    const adminClient = createAdminSupabaseClient();
+    const { data, error } = await adminClient
+      .from("sunday_newsletter_drafts")
+      .select("*")
+      .eq("sunday_date", cycleInfo.targetSundayIso)
+      .eq("rite", rite)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === "42P01" || error.message?.includes("does not exist") || error.message?.includes("schema cache")) {
+        tableMissing = true;
+      } else {
+        console.warn("Errore recupero sunday_newsletter_drafts:", error);
+      }
+    } else if (data) {
+      draft = {
+        id: data.id,
+        sunday_date: data.sunday_date,
+        rite: data.rite,
+        custom_prompt: data.custom_prompt || defaultPrompt,
+        reflection_title: data.reflection_title || "✨ Commento al Vangelo della Domenica",
+        reflection_text: data.reflection_text || "",
+        is_enabled: Boolean(data.is_enabled),
+        last_edited_by_name: data.last_edited_by_name || null,
+        updated_at: data.updated_at || null,
+      };
+    }
+  } catch (err: any) {
+    console.error("Errore fetch bozza domenicale:", err);
+  }
+
+  return {
+    error: null,
+    cycleInfo,
+    gospel,
+    draft,
+    tableMissing,
+  };
+}
+
+// 9. Genera la meditazione AI per la Domenica dato il prompt e il Vangelo festivo
+export async function generateSundayReflectionAIAction(
+  rite: "ambrosiano" | "romano",
+  prompt: string
+): Promise<{ error: string | null; reflection: string; usedModel: string }> {
+  const { user, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError || !user) {
+    return { error: authError || "Non autorizzato.", reflection: "", usedModel: "" };
+  }
+
+  try {
+    const {
+      getSundayCycleInfo,
+      fetchDailyGospel,
+      generateChristianPosture,
+    } = await import("@/lib/daily-word-newsletter");
+
+    const cycleInfo = getSundayCycleInfo();
+    const gospel = await fetchDailyGospel(cycleInfo.targetSundayIso, rite);
+    const { reflection, usedModel } = await generateChristianPosture(gospel, prompt);
+
+    return { error: null, reflection, usedModel };
+  } catch (err: any) {
+    console.error("Errore generazione AI domenicale:", err);
+    return { error: err.message || "Errore durante la generazione con AI.", reflection: "", usedModel: "" };
+  }
+}
+
+// 10. Salva automaticamente la bozza della newsletter domenicale
+export async function saveSundayNewsletterDraftAction(payload: {
+  rite: "ambrosiano" | "romano";
+  custom_prompt: string;
+  reflection_title: string;
+  reflection_text: string;
+  is_enabled: boolean;
+}): Promise<{ error: string | null; success: boolean; savedAt: string; author: string }> {
+  const { user, profile, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError || !user) {
+    return { error: authError || "Non autorizzato.", success: false, savedAt: "", author: "" };
+  }
+
+  const { getSundayCycleInfo } = await import("@/lib/daily-word-newsletter");
+  const cycleInfo = getSundayCycleInfo();
+
+  const authorName = (profile as any)?.full_name || (profile as any)?.username || user.email?.split("@")[0] || "Amministratore";
+  const nowIso = new Date().toISOString();
+
+  const record = {
+    id: `${cycleInfo.targetSundayIso}_${payload.rite}`,
+    sunday_date: cycleInfo.targetSundayIso,
+    rite: payload.rite,
+    custom_prompt: payload.custom_prompt,
+    reflection_title: payload.reflection_title || "✨ Commento al Vangelo della Domenica",
+    reflection_text: payload.reflection_text,
+    is_enabled: payload.is_enabled,
+    last_edited_by: user.id,
+    last_edited_by_name: authorName,
+    updated_at: nowIso,
+  };
+
+  try {
+    const adminClient = createAdminSupabaseClient();
+    const { error } = await adminClient
+      .from("sunday_newsletter_drafts")
+      .upsert(record, { onConflict: "id" });
+
+    if (error) {
+      if (error.code === "42P01" || error.message?.includes("does not exist") || error.message?.includes("schema cache")) {
+        return {
+          error: "Tabella database 'sunday_newsletter_drafts' non trovata. Esegui la migrazione SQL in Supabase.",
+          success: false,
+          savedAt: "",
+          author: authorName,
+        };
+      }
+      throw error;
+    }
+
+    return {
+      error: null,
+      success: true,
+      savedAt: nowIso,
+      author: authorName,
+    };
+  } catch (err: any) {
+    console.error("Errore salvataggio bozza domenicale:", err);
+    return {
+      error: err.message || "Impossibile salvare la bozza.",
+      success: false,
+      savedAt: "",
+      author: authorName,
+    };
+  }
+}
+
+// 11. Invia email di test per la bozza domenicale personalizzata
+export async function testSundayNewsletterDraftAction(payload: {
+  rite: "ambrosiano" | "romano";
+  reflection_text: string;
+  reflection_title: string;
+}): Promise<SettingsActionState> {
+  const { user, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
+  if (authError || !user || !user.email) {
+    return { error: authError || "Non autorizzato o email account non trovata.", success: null };
+  }
+
+  try {
+    const { getSundayCycleInfo, sendDailyWordNewsletter } = await import("@/lib/daily-word-newsletter");
+    const cycleInfo = getSundayCycleInfo();
+
+    const result = await sendDailyWordNewsletter({
+      testEmail: user.email.trim(),
+      rite: payload.rite,
+      dateStr: cycleInfo.targetSundayIso,
+      customReflection: payload.reflection_text,
+      customTitle: payload.reflection_title,
+    });
+
+    if (!result.success) {
+      return { error: result.error || "Errore durante l'invio dell'anteprima di test.", success: null };
+    }
+
+    const riteName = payload.rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
+    return {
+      error: null,
+      success: `Email di test della Domenica (${riteName}) inviata con successo a ${user.email}!`,
+    };
+  } catch (err: any) {
+    console.error("Errore test anteprima domenicale:", err);
+    return { error: err.message || "Errore sconosciuto.", success: null };
+  }
+}
+
 
 

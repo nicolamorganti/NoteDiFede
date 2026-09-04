@@ -15,6 +15,7 @@ import {
   updateUserRoleAndRegister,
   testDailyWordNewsletterAction,
 } from "./actions";
+import { SundayNewsletterEditor } from "@/components/sunday-newsletter-editor";
 
 type Profile = {
   id: string;
@@ -793,19 +794,22 @@ export default function ImpostazioniPage() {
 
       {/* 4. Tab Newsletter: La Parola del Giorno */}
       {activeTab === "newsletter" && isMaestro && (
-        <div className="space-y-6">
-          {/* Card Descrittiva */}
+        <div className="space-y-8">
+          {/* Sezione Editor Domenica Personalizzata */}
+          <SundayNewsletterEditor />
+
+          {/* Card Descrittiva Newsletter Quotidiana Feriale */}
           <div className="rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-6 shadow-md md:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#ebdcc8] pb-5">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">🕊️</span>
                   <h3 className="font-serif text-xl font-normal text-[#3f3933]">
-                    La Parola del Giorno
+                    Newsletter Quotidiana Feriale (Automatica)
                   </h3>
                 </div>
                 <p className="text-xs text-[#736555]">
-                  Newsletter spirituale quotidiana inviata automaticamente a tutta la comunità registrata.
+                  Newsletter spirituale quotidiana inviata automaticamente a tutta la comunità registrata dal Lunedì al Sabato.
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 shrink-0">
