@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -23,6 +23,7 @@ export function SundayNewsletterEditor() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [reflectionTitle, setReflectionTitle] = useState("✨ Commento al Vangelo della Domenica");
   const [reflectionText, setReflectionText] = useState("");
+  const [authorSignature, setAuthorSignature] = useState("Dario");
   const [isEnabled, setIsEnabled] = useState(false);
 
   // Stato salvataggio e metadata
@@ -49,6 +50,7 @@ export function SundayNewsletterEditor() {
       setCustomPrompt(res.draft.custom_prompt);
       setReflectionTitle(res.draft.reflection_title || "✨ Commento al Vangelo della Domenica");
       setReflectionText(res.draft.reflection_text || "");
+      setAuthorSignature(res.draft.author_signature !== undefined && res.draft.author_signature !== null ? res.draft.author_signature : "Dario");
       setIsEnabled(res.draft.is_enabled);
       setLastSavedAuthor(res.draft.last_edited_by_name);
       setLastSavedTime(res.draft.updated_at ? new Date(res.draft.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null);
@@ -73,6 +75,7 @@ export function SundayNewsletterEditor() {
       promptToSave: string,
       titleToSave: string,
       textToSave: string,
+      signatureToSave: string,
       enabledToSave: boolean
     ) => {
       setSaveStatus("saving");
@@ -82,6 +85,7 @@ export function SundayNewsletterEditor() {
           custom_prompt: promptToSave,
           reflection_title: titleToSave,
           reflection_text: textToSave,
+          author_signature: signatureToSave,
           is_enabled: enabledToSave,
         });
 
@@ -101,11 +105,12 @@ export function SundayNewsletterEditor() {
     [selectedRite]
   );
 
-  // 3. Debounce per testo, titolo e prompt
+  // 3. Debounce per testo, titolo, firma e prompt
   const scheduleAutoSave = (
     newPrompt: string,
     newTitle: string,
     newText: string,
+    newSignature: string,
     newEnabled: boolean
   ) => {
     if (autoSaveTimerRef.current) {
@@ -113,26 +118,32 @@ export function SundayNewsletterEditor() {
     }
     setSaveStatus("saving");
     autoSaveTimerRef.current = setTimeout(() => {
-      executeSave(newPrompt, newTitle, newText, newEnabled);
+      executeSave(newPrompt, newTitle, newText, newSignature, newEnabled);
     }, 1200);
   };
 
   // Trigger cambio testo meditazione
   const handleTextChange = (val: string) => {
     setReflectionText(val);
-    scheduleAutoSave(customPrompt, reflectionTitle, val, isEnabled);
+    scheduleAutoSave(customPrompt, reflectionTitle, val, authorSignature, isEnabled);
   };
 
   // Trigger cambio titolo meditazione
   const handleTitleChange = (val: string) => {
     setReflectionTitle(val);
-    scheduleAutoSave(customPrompt, val, reflectionText, isEnabled);
+    scheduleAutoSave(customPrompt, val, reflectionText, authorSignature, isEnabled);
+  };
+
+  // Trigger cambio firma autore
+  const handleSignatureChange = (val: string) => {
+    setAuthorSignature(val);
+    scheduleAutoSave(customPrompt, reflectionTitle, reflectionText, val, isEnabled);
   };
 
   // Trigger cambio prompt
   const handlePromptChange = (val: string) => {
     setCustomPrompt(val);
-    scheduleAutoSave(val, reflectionTitle, reflectionText, isEnabled);
+    scheduleAutoSave(val, reflectionTitle, reflectionText, authorSignature, isEnabled);
   };
 
   // Trigger switch congelamento (salvataggio immediato senza debounce)
@@ -141,7 +152,7 @@ export function SundayNewsletterEditor() {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
-    executeSave(customPrompt, reflectionTitle, reflectionText, newVal);
+    executeSave(customPrompt, reflectionTitle, reflectionText, authorSignature, newVal);
   };
 
   // 4. Generazione assistita con AI
@@ -158,7 +169,7 @@ export function SundayNewsletterEditor() {
         setFeedbackMessage({ type: "error", text: res.error });
       } else {
         setReflectionText(res.reflection);
-        executeSave(customPrompt, reflectionTitle, res.reflection, isEnabled);
+        executeSave(customPrompt, reflectionTitle, res.reflection, authorSignature, isEnabled);
         setFeedbackMessage({
           type: "success",
           text: `Commento generato con successo con ${res.usedModel}! Puoi rifinirlo liberamente nel box sottostante.`,
@@ -184,6 +195,7 @@ export function SundayNewsletterEditor() {
         rite: selectedRite,
         reflection_text: reflectionText,
         reflection_title: reflectionTitle,
+        author_signature: authorSignature,
       });
 
       if (res.error) {
@@ -404,7 +416,7 @@ export function SundayNewsletterEditor() {
                       .replace(/{gospelCitation}/g, gospel?.gospelCitation || "")
                       .replace(/{gospelText}/g, gospel?.gospelText || "");
                     setCustomPrompt(restored);
-                    scheduleAutoSave(restored, reflectionTitle, reflectionText, isEnabled);
+                    scheduleAutoSave(restored, reflectionTitle, reflectionText, authorSignature, isEnabled);
                   }}
                   className="text-xs font-semibold text-[#8a755d] hover:text-[#5c4a37] hover:underline cursor-pointer"
                 >
@@ -432,7 +444,7 @@ export function SundayNewsletterEditor() {
               </div>
             </div>
 
-            {/* Box 3: Titolo e Testo del Commento (Editabile con Auto-Save) */}
+            {/* Box 3: Titolo, Testo e Firma del Commento (Editabile con Auto-Save) */}
             <div className="rounded-3xl border border-[#e0d6c7] bg-white p-6 sm:p-7 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-[#f0e7dc] pb-3">
                 <div className="flex items-center gap-2">
@@ -472,6 +484,26 @@ export function SundayNewsletterEditor() {
                   className="w-full rounded-2xl border border-[#d9cdbf] bg-[#faf7f2] p-4 text-xs font-serif leading-relaxed text-[#3f3933] focus:border-[#aa9576] focus:bg-white focus:outline-none transition resize-y"
                   placeholder="Scrivi o genera il commento qui. Ogni modifica viene salvata automaticamente..."
                 />
+              </div>
+
+              {/* Firma / Autore Personalizzabile */}
+              <div>
+                <label className="block text-xs font-bold text-[#5c4a37] mb-1.5 uppercase tracking-wider flex items-center justify-between">
+                  <span>Firma / Autore del Commento</span>
+                  <span className="text-[10px] font-normal text-[#8a755d] italic">Separata in calce alla riflessione</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-xs text-[#8a755d] font-serif font-bold">
+                    —
+                  </span>
+                  <input
+                    type="text"
+                    value={authorSignature}
+                    onChange={(e) => handleSignatureChange(e.target.value)}
+                    className="w-full rounded-xl border border-[#d9cdbf] bg-[#faf7f2] pl-8 pr-3.5 py-2 text-xs font-serif font-bold text-[#3f3933] focus:border-[#aa9576] focus:bg-white focus:outline-none transition"
+                    placeholder="Es. Dario, oppure a cura di Dario"
+                  />
+                </div>
               </div>
             </div>
 
@@ -579,29 +611,8 @@ export function SundayNewsletterEditor() {
                   </div>
                 </div>
 
-                {/* Box Meditazione / Postura Personalizzata */}
-                <div className="p-5">
-                  <div className="rounded-xl border border-[#ebdcc8] border-l-4 border-l-[#d97706] bg-[#fcf9f2] p-4 shadow-2xs">
-                    <div className="text-xs font-bold font-serif text-[#92400e] mb-2">
-                      {reflectionTitle || "✨ Commento al Vangelo della Domenica"}
-                    </div>
-                    {reflectionText ? (
-                      <p
-                        className="font-serif text-xs leading-relaxed text-[#3f2f1f] italic"
-                        dangerouslySetInnerHTML={{
-                          __html: `«${formatMarkdownToEmailHtml(reflectionText)}»`,
-                        }}
-                      />
-                    ) : (
-                      <p className="font-serif text-xs leading-relaxed text-[#8a755d] italic">
-                        (Nessun commento ancora presente. Scrivi nel box a sinistra o clicca &quot;Genera con AI&quot;).
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Box Vangelo */}
-                <div className="px-5 pb-5 space-y-2">
+                {/* 1. Box Vangelo della Domenica */}
+                <div className="p-5 space-y-2 border-b border-[#f0e7dc]">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-[#aa9576]">
                     📖 Il Vangelo del Giorno
                   </div>
@@ -612,6 +623,36 @@ export function SundayNewsletterEditor() {
                     {gospel?.gospelText?.split("\n\n").map((p: string, i: number) => (
                       <p key={i}>{p}</p>
                     ))}
+                  </div>
+                </div>
+
+                {/* 2. Box Commento e 3. Firma */}
+                <div className="p-5">
+                  <div className="rounded-xl border border-[#ebdcc8] border-l-4 border-l-[#d97706] bg-[#fcf9f2] p-4 shadow-2xs">
+                    <div className="text-xs font-bold font-serif text-[#92400e] mb-2">
+                      {reflectionTitle || "✨ Commento al Vangelo della Domenica"}
+                    </div>
+                    {reflectionText ? (
+                      <div>
+                        <p
+                          className="font-serif text-xs leading-relaxed text-[#3f2f1f] italic"
+                          dangerouslySetInnerHTML={{
+                            __html: `«${formatMarkdownToEmailHtml(reflectionText)}»`,
+                          }}
+                        />
+                        {authorSignature && (
+                          <div className="mt-3 pt-2.5 border-t border-dashed border-[#ebdcc8] text-right">
+                            <span className="font-serif text-xs italic font-bold text-[#7c644d] tracking-wide">
+                              — {authorSignature}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="font-serif text-xs leading-relaxed text-[#8a755d] italic">
+                        (Nessun commento ancora presente. Scrivi nel box a sinistra o clicca &quot;Genera con AI&quot;).
+                      </p>
+                    )}
                   </div>
                 </div>
 

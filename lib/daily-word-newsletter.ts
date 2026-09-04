@@ -645,6 +645,7 @@ export interface DailyWordEmailData {
   reflection: string;
   usedModel?: string;
   customTitle?: string;
+  authorSignature?: string;
   unsubscribeUrl?: string;
 }
 
@@ -671,7 +672,7 @@ export function formatMarkdownToEmailHtml(text: string): string {
  * Genera l'HTML dell'email "La Parola del Giorno" con layout liturgico raffinato
  */
 export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
-  const { gospel, reflection, unsubscribeUrl, customTitle } = data;
+  const { gospel, reflection, unsubscribeUrl, customTitle, authorSignature } = data;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app";
   const dateFormatted = formatItalianDateLong(gospel.dateStr);
   const riteLabel = gospel.rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
@@ -714,26 +715,9 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
             </td>
           </tr>
 
-          <!-- Box: Postura Cristiana del Giorno (In evidenza in alto) -->
+          <!-- 1. Il Vangelo del Giorno / della Domenica -->
           <tr>
-            <td style="padding: 28px 24px 16px 24px;">
-              <div style="background-color: #fcf9f2; border: 1px solid #ebdcc8; border-left: 5px solid #d97706; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.05);">
-                <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                  <span style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #92400e; letter-spacing: 0.5px;">
-                    ${customTitle || "✨ La Postura Cristiana per Oggi"}
-                  </span>
-                </div>
-                <p style="margin: 0; font-family: Georgia, serif; font-size: 15px; line-height: 1.65; color: #3f2f1f; font-style: italic;">
-                  «${formattedReflection}»
-                </p>
-              </div>
-            </td>
-          </tr>
-
-
-          <!-- Sezione: Il Vangelo del Giorno -->
-          <tr>
-            <td style="padding: 16px 24px 28px 24px;">
+            <td style="padding: 24px 24px 16px 24px;">
               <div style="margin-bottom: 12px;">
                 <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #aa9576;">
                   📖 Il Vangelo del Giorno
@@ -744,6 +728,32 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
               </div>
               <div style="font-family: Georgia, serif; font-size: 15px; line-height: 1.7; color: #2c251e; background-color: #ffffff; border: 1px solid #f0e7dc; border-radius: 14px; padding: 20px; text-align: justify;">
                 ${gospel.gospelText.split("\n").filter(Boolean).map(p => `<p style="margin: 0 0 12px 0;">${p}</p>`).join("")}
+              </div>
+            </td>
+          </tr>
+
+          <!-- 2. Commento al Vangelo e 3. Firma -->
+          <tr>
+            <td style="padding: 12px 24px 28px 24px;">
+              <div style="background-color: #fcf9f2; border: 1px solid #ebdcc8; border-left: 5px solid #d97706; border-radius: 14px; padding: 20px 22px; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.05);">
+                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                  <span style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #92400e; letter-spacing: 0.5px;">
+                    ${customTitle || "✨ Commento al Vangelo"}
+                  </span>
+                </div>
+                <p style="margin: 0; font-family: Georgia, serif; font-size: 15px; line-height: 1.65; color: #3f2f1f; font-style: italic;">
+                  «${formattedReflection}»
+                </p>
+                ${
+                  authorSignature
+                    ? `
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed #ebdcc8; text-align: right;">
+                  <span style="font-family: Georgia, serif; font-size: 13px; font-style: italic; color: #7c644d; font-weight: 700; letter-spacing: 0.3px;">
+                    — ${authorSignature}
+                  </span>
+                </div>`
+                    : ""
+                }
               </div>
             </td>
           </tr>
@@ -871,7 +881,8 @@ async function sendResendBatchPersonalized(
   gospel: DailyGospelData,
   reflection: string,
   usedModel: string,
-  customTitle?: string
+  customTitle?: string,
+  authorSignature?: string
 ) {
   const batchSize = 40;
   let count = 0;
@@ -884,7 +895,7 @@ async function sendResendBatchPersonalized(
     const batchPayload = chunk.map((u) => {
       const token = generateUnsubscribeToken(u.id);
       const unsubscribeUrl = `${siteUrl}/newsletter/disiscrizione?id=${u.id}&token=${token}`;
-      const html = buildDailyWordEmailHtml({ gospel, reflection, usedModel, unsubscribeUrl, customTitle });
+      const html = buildDailyWordEmailHtml({ gospel, reflection, usedModel, unsubscribeUrl, customTitle, authorSignature });
 
       return {
         from: fromAddress,
@@ -926,6 +937,7 @@ export async function sendDailyWordNewsletter(options?: {
   dateStr?: string;
   customReflection?: string;
   customTitle?: string;
+  authorSignature?: string;
 }): Promise<{
   success: boolean;
   recipientsCount: number;
@@ -965,6 +977,7 @@ export async function sendDailyWordNewsletter(options?: {
         reflection,
         usedModel,
         customTitle: options.customTitle,
+        authorSignature: options.authorSignature,
       });
 
       const emailSubject = `🕊️ La Parola del Giorno (${selectedRite === "romano" ? "Rito Romano" : "Rito Ambrosiano"}): ${gospel.title}`;
@@ -1046,8 +1059,8 @@ export async function sendDailyWordNewsletter(options?: {
     }
 
     // Controlla se oggi è domenica per verificare se ci sono bozze personalizzate congelate (is_enabled = true)
-    let customAmbrosianoDraft: { reflection_text: string; reflection_title: string } | null = null;
-    let customRomanoDraft: { reflection_text: string; reflection_title: string } | null = null;
+    let customAmbrosianoDraft: { reflection_text: string; reflection_title: string; author_signature?: string } | null = null;
+    let customRomanoDraft: { reflection_text: string; reflection_title: string; author_signature?: string } | null = null;
 
     const todayDateStr = options?.dateStr || getItalianDateString();
     const cycleInfo = getSundayCycleInfo(new Date(todayDateStr + "T12:00:00Z"));
@@ -1056,7 +1069,7 @@ export async function sendDailyWordNewsletter(options?: {
       try {
         const { data: drafts } = await adminClient
           .from("sunday_newsletter_drafts")
-          .select("rite, reflection_text, reflection_title, is_enabled")
+          .select("rite, reflection_text, reflection_title, author_signature, is_enabled")
           .eq("sunday_date", todayDateStr)
           .eq("is_enabled", true);
 
@@ -1066,12 +1079,14 @@ export async function sendDailyWordNewsletter(options?: {
               customAmbrosianoDraft = {
                 reflection_text: d.reflection_text.trim(),
                 reflection_title: d.reflection_title || "✨ Commento al Vangelo della Domenica",
+                author_signature: d.author_signature || undefined,
               };
             }
             if (d.rite === "romano" && d.reflection_text && d.reflection_text.trim().length > 10) {
               customRomanoDraft = {
                 reflection_text: d.reflection_text.trim(),
                 reflection_title: d.reflection_title || "✨ Commento al Vangelo della Domenica",
+                author_signature: d.author_signature || undefined,
               };
             }
           }
@@ -1092,10 +1107,12 @@ export async function sendDailyWordNewsletter(options?: {
       let ambReflection = "";
       let ambModel = "";
       let ambTitle: string | undefined = undefined;
+      let ambSignature: string | undefined = undefined;
 
       if (customAmbrosianoDraft) {
         ambReflection = customAmbrosianoDraft.reflection_text;
         ambTitle = customAmbrosianoDraft.reflection_title;
+        ambSignature = customAmbrosianoDraft.author_signature;
         ambModel = "Bozza Domenicale Personalizzata";
         console.log("📌 Invio Newsletter Domenicale Ambrosiana PERSONALIZZATA:", ambTitle);
       } else {
@@ -1113,7 +1130,8 @@ export async function sendDailyWordNewsletter(options?: {
         ambrosianoGospel,
         ambReflection,
         ambModel,
-        ambTitle
+        ambTitle,
+        ambSignature
       );
       totalSent += sentAmb;
 
@@ -1128,10 +1146,12 @@ export async function sendDailyWordNewsletter(options?: {
       let romReflection = "";
       let romModel = "";
       let romTitle: string | undefined = undefined;
+      let romSignature: string | undefined = undefined;
 
       if (customRomanoDraft) {
         romReflection = customRomanoDraft.reflection_text;
         romTitle = customRomanoDraft.reflection_title;
+        romSignature = customRomanoDraft.author_signature;
         romModel = "Bozza Domenicale Personalizzata";
         console.log("📌 Invio Newsletter Domenicale Romana PERSONALIZZATA:", romTitle);
       } else {
@@ -1149,7 +1169,8 @@ export async function sendDailyWordNewsletter(options?: {
         romanoGospel,
         romReflection,
         romModel,
-        romTitle
+        romTitle,
+        romSignature
       );
       totalSent += sentRom;
 

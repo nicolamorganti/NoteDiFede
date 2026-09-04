@@ -380,6 +380,7 @@ export async function getSundayNewsletterDraftAction(
     custom_prompt: string;
     reflection_title: string;
     reflection_text: string;
+    author_signature: string;
     is_enabled: boolean;
     last_edited_by_name: string | null;
     updated_at: string | null;
@@ -412,6 +413,7 @@ export async function getSundayNewsletterDraftAction(
     custom_prompt: defaultPrompt,
     reflection_title: "✨ Commento al Vangelo della Domenica",
     reflection_text: "",
+    author_signature: "Dario",
     is_enabled: false,
     last_edited_by_name: null as string | null,
     updated_at: null as string | null,
@@ -446,6 +448,7 @@ export async function getSundayNewsletterDraftAction(
         custom_prompt: isOutdatedFallbackPrompt ? defaultPrompt : (data.custom_prompt || defaultPrompt),
         reflection_title: data.reflection_title || "✨ Commento al Vangelo della Domenica",
         reflection_text: data.reflection_text || "",
+        author_signature: data.author_signature !== undefined && data.author_signature !== null ? data.author_signature : "Dario",
         is_enabled: Boolean(data.is_enabled),
         last_edited_by_name: data.last_edited_by_name || null,
         updated_at: data.updated_at || null,
@@ -498,6 +501,7 @@ export async function saveSundayNewsletterDraftAction(payload: {
   custom_prompt: string;
   reflection_title: string;
   reflection_text: string;
+  author_signature?: string;
   is_enabled: boolean;
 }): Promise<{ error: string | null; success: boolean; savedAt: string; author: string }> {
   const { user, profile, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
@@ -518,6 +522,7 @@ export async function saveSundayNewsletterDraftAction(payload: {
     custom_prompt: payload.custom_prompt,
     reflection_title: payload.reflection_title || "✨ Commento al Vangelo della Domenica",
     reflection_text: payload.reflection_text,
+    author_signature: payload.author_signature !== undefined ? payload.author_signature.trim() : null,
     is_enabled: payload.is_enabled,
     last_edited_by: user.id,
     last_edited_by_name: authorName,
@@ -564,6 +569,7 @@ export async function testSundayNewsletterDraftAction(payload: {
   rite: "ambrosiano" | "romano";
   reflection_text: string;
   reflection_title: string;
+  author_signature?: string;
 }): Promise<SettingsActionState> {
   const { user, error: authError } = await verifyUserRole(["maestro", "responsabile"]);
   if (authError || !user || !user.email) {
@@ -580,6 +586,7 @@ export async function testSundayNewsletterDraftAction(payload: {
       dateStr: cycleInfo.targetSundayIso,
       customReflection: payload.reflection_text,
       customTitle: payload.reflection_title,
+      authorSignature: payload.author_signature,
     });
 
     if (!result.success) {
