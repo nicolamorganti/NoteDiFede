@@ -18,14 +18,20 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&mdash;|&#8212;/g, "—")
     .replace(/&agrave;/g, "à")
     .replace(/&aacute;/g, "á")
+    .replace(/&acirc;/g, "â")
     .replace(/&egrave;/g, "è")
     .replace(/&eacute;/g, "é")
+    .replace(/&ecirc;/g, "ê")
     .replace(/&igrave;/g, "ì")
     .replace(/&iacute;/g, "í")
+    .replace(/&icirc;/g, "î")
     .replace(/&ograve;/g, "ò")
     .replace(/&oacute;/g, "ó")
+    .replace(/&ocirc;/g, "ô")
     .replace(/&ugrave;/g, "ù")
     .replace(/&uacute;/g, "ú")
+    .replace(/&ucirc;/g, "û")
+    .replace(/&ccedil;/g, "ç")
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/\s+/g, " ")
@@ -195,23 +201,18 @@ async function fetchRomanoSanto(cleanDate: string) {
 
   // 3. Immagine ad alta risoluzione del Santo Principale
   let imgUrl: string | null = null;
-  const imgTagMatch = html.match(/<img[^>]+class=["'][^"']*img-fluid[^"']*wp-post-image[^"']*["'][^>]*>/i);
-  if (imgTagMatch) {
-    const srcMatch = imgTagMatch[0].match(/src=["']([^"']+)["']/i);
-    if (srcMatch) {
-      imgUrl = srcMatch[1];
-    }
-  }
-  if (!imgUrl) {
-    const fallbackImgMatch = html.match(/<div class="santo-del-giorno-image[^"]*"[^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i);
-    if (fallbackImgMatch) {
-      imgUrl = fallbackImgMatch[1];
-    }
+  const mainImgMatch =
+    html.match(/<div[^>]*class=["'][^"']*santo-del-giorno-image[^"']*["'][^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i) ||
+    html.match(/<img[^>]+id=["']img-click-zoom["'][^>]+src=["']([^"']+)["']/i) ||
+    html.match(/<img[^>]+class=["'][^"']*img-responsive[^"']*["'][^>]+src=["']([^"']+)["']/i);
+  if (mainImgMatch && !mainImgMatch[1].includes("logo_cci") && !mainImgMatch[1].includes("default")) {
+    imgUrl = mainImgMatch[1];
   }
 
   // 4. Testo del Martirologio del Santo Principale
   let martirologio = "";
   const martirologioMatch =
+    html.match(/<div[^>]*class=["'][^"']*cci-santo-del-giorno-fonte-container[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*<\/div>/i) ||
     html.match(/<div[^>]*class=["'][^"']*martirologio[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
     html.match(/<div[^>]*class=["'][^"']*santo_del_giorno_content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
 
@@ -229,39 +230,36 @@ async function fetchRomanoSanto(cleanDate: string) {
       .join("\n\n");
   }
 
-  // 5. Altri Santi e Beati del giorno
+  // 5. Altri Santi e Beati del giorno con sotto-immagini (Santi Minori)
   const altriSanti: { nome: string; imgUrl: string | null; martirologio: string }[] = [];
-  const otherAccordionMatch = html.match(/<div[^>]*class=["'][^"']*collapse-others[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/i) ||
-    html.match(/<div[^>]*id=["']altri_santi["'][^>]*>([\s\S]*?)<\/div>/i);
+  const panelParts = html.split(/<div[^>]*class=["'][^"']*panel panel-default altri-santi[^"']*["'][^>]*>/i);
 
-  if (otherAccordionMatch) {
-    const panelBlocks = otherAccordionMatch[1].split(/<div[^>]*class=["'][^"']*panel[^"']*["'][^>]*>/i);
-    for (const block of panelBlocks) {
-      if (!block.trim()) continue;
+  for (let i = 1; i < panelParts.length; i++) {
+    const panel = panelParts[i];
+    const nomeM =
+      panel.match(/<h3[^>]*class=["'][^"']*cci-santo-del-giorno-accordion-nome[^"']*["'][^>]*>([\s\S]*?)<\/h3>/i) ||
+      panel.match(/<h4[^>]*class=["'][^"']*panel-title[^"']*["'][^>]*>([\s\S]*?)<\/h4>/i);
 
-      const titleM =
-        block.match(/<h4[^>]*class=["'][^"']*panel-title[^"']*["'][^>]*>([\s\S]*?)<\/h4>/i) ||
-        block.match(/<a[^>]*data-toggle=["']collapse["'][^>]*>([\s\S]*?)<\/a>/i);
+    const bodyM =
+      panel.match(/<div[^>]*class=["'][^"']*panel-body[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
+      panel.match(/<div[^>]*class=["'][^"']*collapse[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
 
-      const contentM =
-        block.match(/<div[^>]*class=["'][^"']*panel-body[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
-        block.match(/<div[^>]*class=["'][^"']*collapse[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+    const imgM =
+      panel.match(/<div[^>]*class=["'][^"']*panel-image[^"']*["'][^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i) ||
+      panel.match(/<img[^>]+class=["'][^"']*img-accordion[^"']*["'][^>]+src=["']([^"']+)["']/i);
 
-      const panelImgM = block.match(/<div[^>]*class=["'][^"']*panel-image[^"']*["'][^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i) ||
-        block.match(/<img[^>]+class=["'][^"']*img-responsive[^"']*["'][^>]+src=["']([^"']+)["']/i);
+    if (nomeM && bodyM) {
+      const nome = decodeHtmlEntities(nomeM[1].replace(/<[^>]+>/g, "").trim());
+      const testo = decodeHtmlEntities(bodyM[1].replace(/<[^>]+>/g, "").trim());
+      const rawImg = imgM ? imgM[1] : null;
+      const saintImg = rawImg && !rawImg.includes("logo_cci") && !rawImg.includes("default") ? rawImg : null;
 
-      if (titleM && contentM) {
-        const nome = decodeHtmlEntities(titleM[1].replace(/<[^>]+>/g, "").trim());
-        const testo = decodeHtmlEntities(contentM[1].replace(/<[^>]+>/g, "").trim());
-        const saintImg = panelImgM ? panelImgM[1] : null;
-
-        if (nome.length > 2 && testo.length > 5) {
-          altriSanti.push({
-            nome,
-            imgUrl: saintImg,
-            martirologio: testo,
-          });
-        }
+      if (nome.length > 1 && testo.length > 3) {
+        altriSanti.push({
+          nome,
+          imgUrl: saintImg,
+          martirologio: testo,
+        });
       }
     }
   }
@@ -280,7 +278,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get("date");
-    const rite = (searchParams.get("rite") || "ambrosiano").toLowerCase();
+    const rite = (searchParams.get("rite") || "romano").toLowerCase();
 
     const d = dateParam ? new Date(dateParam) : new Date();
     const year = d.getFullYear();

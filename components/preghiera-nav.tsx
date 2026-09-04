@@ -66,7 +66,7 @@ export function PreghieraNav() {
   return (
     <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-[#ede4d8] border border-[#ddd0c0] shadow-inner mb-6">
       {tabs.map((tab) => {
-        const isActive = pathname === tab.href;
+        const isActive = pathname === tab.href || (tab.href.startsWith("/preghiera/") && pathname.startsWith(tab.href));
 
         return (
           <Link

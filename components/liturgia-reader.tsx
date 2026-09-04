@@ -8,7 +8,8 @@ import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 import { getLiturgicalDayDetails } from "@/lib/liturgical-calendar";
 import { QuoteImageModal } from "@/components/quote-image-modal";
 import { parseLiturgicalInvitatory } from "@/lib/liturgical-invitatory";
-import { SantoView } from "@/components/santo-view";
+import { SantoRomanoView } from "@/components/santo-romano-view";
+import { SantoAmbrosianoView } from "@/components/santo-ambrosiano-view";
 
 export type LiturgyRite = "ambrosiano" | "romano";
 
@@ -23,6 +24,7 @@ const ROMAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint:
   { id: "compieta", label: "Compieta", icon: "🌙", timeHint: "21:00 - 06:00" },
   { id: "ufficio", label: "Ufficio", icon: "📖", timeHint: "Letture" },
   { id: "messa", label: "Messa", icon: "✝️", timeHint: "Vangelo & Letture" },
+  { id: "santo", label: "Santo", icon: "👑", timeHint: "del Giorno" },
 ];
 
 const AMBROSIAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
@@ -1230,27 +1232,17 @@ export function LiturgiaReader() {
               {liturgicalDayDetails.tempoLiturgico} · {liturgicalDayDetails.salterioLabel} · <span className="font-semibold not-italic">{liturgicalDayDetails.annoFeriale}</span>
             </div>
           </div>
-          {rite === "romano" ? (
-            <Link
-              href={`/preghiera/santo?date=${selectedDate}`}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition shadow-2xs self-start sm:self-center shrink-0 cursor-pointer"
-              title="Visualizza vita, iconografia e martirologio del Santo di oggi nel Martirologio Romano (CEI)"
-            >
-              <span>👑</span>
-              <span>Santo del Giorno</span>
-              <span>→</span>
-            </Link>
-          ) : moment !== "santo" ? (
+          {moment !== "santo" && (
             <button
               onClick={() => setMoment("santo")}
               className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition shadow-2xs self-start sm:self-center shrink-0 cursor-pointer"
-              title="Visualizza il Santo del Giorno secondo il Rito Ambrosiano (Chiesa di Milano)"
+              title={`Visualizza il Santo del Giorno (${rite === "ambrosiano" ? "Rito Ambrosiano · Chiesa di Milano" : "Rito Romano · Martirologio CEI"})`}
             >
               <span>👑</span>
               <span>Santo del Giorno</span>
               <span>→</span>
             </button>
-          ) : null}
+          )}
         </div>
       </div>
 
@@ -1265,15 +1257,19 @@ export function LiturgiaReader() {
         }}
       >
         {moment === "santo" ? (
-          <SantoView
-            date={selectedDate}
-            rite={rite}
-            isChurchMode={isChurchMode}
-            fontSize={fontSize}
-            onRiteChange={handleRiteChange}
-            onDateChange={setSelectedDate}
-            showHeaderControls={false}
-          />
+          rite === "ambrosiano" ? (
+            <SantoAmbrosianoView
+              date={selectedDate}
+              onDateChange={setSelectedDate}
+              isEmbedded={true}
+            />
+          ) : (
+            <SantoRomanoView
+              date={selectedDate}
+              onDateChange={setSelectedDate}
+              isEmbedded={true}
+            />
+          )
         ) : loading ? (
           <div className="py-20 text-center space-y-4">
             <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-[#aa9576]/30 border-t-[#5c4a37]"></div>
