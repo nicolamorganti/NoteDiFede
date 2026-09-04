@@ -450,6 +450,24 @@ export interface DailyWordEmailData {
 
 
 /**
+ * Converte i markup markdown (es. **grassetto**, *corsivo*) in tag HTML adatti ai client email
+ */
+export function formatMarkdownToEmailHtml(text: string): string {
+  if (!text) return "";
+  let clean = text.trim();
+  // Rimuovi eventuali caporali/virgolette già presenti agli estremi per non duplicarle
+  clean = clean.replace(/^«\s*/, "").replace(/\s*»$/, "");
+  // Converti **grassetto** in tag <strong> con stile solido e colore caldo in risalto
+  clean = clean.replace(
+    /\*\*(.*?)\*\*/g,
+    '<strong style="font-weight: 700; font-style: normal; color: #78350f;">$1</strong>'
+  );
+  // Converti *corsivo*
+  clean = clean.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  return clean;
+}
+
+/**
  * Genera l'HTML dell'email "La Parola del Giorno" con layout liturgico raffinato
  */
 export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
@@ -457,6 +475,7 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://note-di-fede.vercel.app";
   const dateFormatted = formatItalianDateLong(gospel.dateStr);
   const riteLabel = gospel.rite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
+  const formattedReflection = formatMarkdownToEmailHtml(reflection);
 
   return `
 <!DOCTYPE html>
@@ -505,11 +524,12 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
                   </span>
                 </div>
                 <p style="margin: 0; font-family: Georgia, serif; font-size: 15px; line-height: 1.65; color: #3f2f1f; font-style: italic;">
-                  «${reflection}»
+                  «${formattedReflection}»
                 </p>
               </div>
             </td>
           </tr>
+
 
           <!-- Sezione: Il Vangelo del Giorno -->
           <tr>

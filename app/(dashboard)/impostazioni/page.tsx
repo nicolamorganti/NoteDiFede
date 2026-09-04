@@ -948,9 +948,19 @@ export default function ImpostazioniPage() {
                     {newsletterMessage.preview.citation}
                   </p>
                 </div>
-                <div className="p-3.5 rounded-xl border border-amber-200/80 bg-amber-50/60 text-xs text-[#3f2f1f] leading-relaxed italic">
-                  «{newsletterMessage.preview.reflection}»
-                </div>
+                <div
+                  className="p-3.5 rounded-xl border border-amber-200/80 bg-amber-50/60 text-xs text-[#3f2f1f] leading-relaxed italic"
+                  dangerouslySetInnerHTML={{
+                    __html: `«${newsletterMessage.preview.reflection
+                      .replace(/^«\s*/, "")
+                      .replace(/\s*»$/, "")
+                      .replace(
+                        /\*\*(.*?)\*\*/g,
+                        '<strong class="font-bold not-italic text-amber-900">$1</strong>'
+                      )}»`,
+                  }}
+                />
+
               </div>
             )}
           </div>
