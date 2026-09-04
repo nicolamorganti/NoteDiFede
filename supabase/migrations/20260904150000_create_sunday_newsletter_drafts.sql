@@ -1,4 +1,4 @@
-﻿-- Migrazione per la gestione della newsletter domenicale personalizzata
+-- Migrazione per la gestione della newsletter domenicale personalizzata
 CREATE TABLE IF NOT EXISTS public.sunday_newsletter_drafts (
   id text PRIMARY KEY, -- es. '2026-09-06_ambrosiano', '2026-09-06_romano'
   sunday_date date NOT NULL,
