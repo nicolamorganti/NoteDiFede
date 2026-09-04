@@ -23,7 +23,6 @@ const ROMAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint:
   { id: "compieta", label: "Compieta", icon: "🌙", timeHint: "21:00 - 06:00" },
   { id: "ufficio", label: "Ufficio", icon: "📖", timeHint: "Letture" },
   { id: "messa", label: "Messa", icon: "✝️", timeHint: "Vangelo & Letture" },
-  { id: "santo", label: "Santo", icon: "👑", timeHint: "del Giorno" },
 ];
 
 const AMBROSIAN_MOMENTS: { id: LiturgyMoment; label: string; icon: string; timeHint: string }[] = [
@@ -414,6 +413,9 @@ export function LiturgiaReader() {
   const handleRiteChange = (newRite: LiturgyRite) => {
     setRite(newRite);
     if (newRite === "ambrosiano" && moment === "invitatorio") {
+      setMoment("lodi");
+    }
+    if (newRite === "romano" && moment === "santo") {
       setMoment("lodi");
     }
     if (typeof window !== "undefined") {
@@ -948,15 +950,17 @@ export function LiturgiaReader() {
             </span>
           </div>
           <h2 className="font-serif text-3xl font-normal text-[#3f3933] mt-1">
-            {moment === "messa" ? "Santa Messa" : "Liturgia delle Ore"}
+            {moment === "messa" ? "Santa Messa" : moment === "santo" ? "Santo del Giorno" : "Liturgia delle Ore"}
           </h2>
           <div className="mt-1 space-y-0.5">
             <p className="text-sm font-semibold text-[#5c4a37] capitalize">
-              {ALL_MOMENTS.find((m) => m.id === moment)?.label} · {formattedDateTitle}
+              {(rite === "ambrosiano" ? AMBROSIAN_MOMENTS : ROMAN_MOMENTS).find((m) => m.id === moment)?.label} · {formattedDateTitle}
             </p>
 
             <p className="text-xs text-[#8a755d] italic font-serif">
-              {liturgicalDayDetails.tempoLiturgico}, {liturgicalDayDetails.salterioLabel} · <span className="font-sans font-bold text-[#6b5d4e] not-italic">{liturgicalDayDetails.annoFeriale}</span>
+              {moment === "santo"
+                ? "Calendario Agiografico dell'Arcidiocesi di Milano (Rito Ambrosiano)"
+                : `${liturgicalDayDetails.tempoLiturgico}, ${liturgicalDayDetails.salterioLabel}`} · <span className="font-sans font-bold text-[#6b5d4e] not-italic">{liturgicalDayDetails.annoFeriale}</span>
             </p>
           </div>
         </div>
@@ -995,7 +999,7 @@ export function LiturgiaReader() {
       </div>
 
       {/* Barra Selettore Momenti del Giorno */}
-      <div className={`grid gap-2 ${rite === "romano" ? "grid-cols-4 sm:grid-cols-8" : "grid-cols-3 sm:grid-cols-7"}`}>
+      <div className="grid gap-2 grid-cols-3 sm:grid-cols-7">
         {(rite === "romano" ? ROMAN_MOMENTS : AMBROSIAN_MOMENTS).map((m) => {
 
           const isActive = moment === m.id;
@@ -1064,151 +1068,150 @@ export function LiturgiaReader() {
         </div>
 
         {/* Strumenti Lettura (Lingua + Dimensione Font + Interlinea + Modalità Chiesa + Copia) */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Selettore Lingua & Testo a Fronte (attivo per Rito Romano) */}
-          {rite === "romano" && (
-            <>
-              <div className="relative flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2 py-1">
-                <span className="text-xs mr-1">🌐</span>
-                <select
-                  value={selectedLang}
-                  onChange={(e) => handleLangChange(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer pr-1"
-                >
-                  {LITURGICAL_LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.flag} {l.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                onClick={toggleDualMode}
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                  isDualMode
-                    ? "bg-[#5c4a37] border-[#4a3c2c] text-amber-200 shadow-xs"
-                    : "bg-[#fbf8f4] border-[#d9cdbf] text-[#5c4a37] hover:bg-[#ede4d6]"
-                }`}
-                title="Attiva/disattiva visualizzazione a due colonne con testo a fronte bilingue"
-              >
-                <span>📖 Testo a Fronte</span>
-              </button>
-            </>
-          )}
-
-          {/* Lettore Vocale Text-to-Speech */}
-          <LiturgicalTtsPlayer
-            htmlContent={contentHtml}
-            customSpeechText={cleanSpeechText}
-            lang={rite === "romano" ? selectedLang : "it"}
-            title="Ascolta"
-          />
-
-
-          {/* Dimensione Font */}
-          <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
-
-            <button
-              onClick={() => handleFontSizeChange(-1)}
-              disabled={fontSize <= 14}
-              className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
-              title="Riduci dimensione testo"
-            >
-              A-
-            </button>
-            <span className="px-1 text-[11px] font-mono text-[#8a755d]">{fontSize}px</span>
-            <button
-              onClick={() => handleFontSizeChange(1)}
-              disabled={fontSize >= 26}
-              className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
-              title="Aumenta dimensione testo"
-            >
-              A+
-            </button>
-          </div>
-
-          {/* Regolazione Interlinea Spaziatura */}
-          <button
-            onClick={cycleLineSpacing}
-            className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
-            title="Cambia interlinea e spaziatura (Compatta / Normale / Ampia)"
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-            </svg>
-            <span>{spacingLabel}</span>
-          </button>
-
-          {/* Toggle Modalità Chiesa (Sfondo Scuro per penombra) */}
-          <button
-            onClick={toggleChurchMode}
-            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-              isChurchMode
-                ? "bg-[#292524] border-[#44403c] text-amber-300 shadow-sm"
-                : "bg-[#fbf8f4] border-[#d9cdbf] text-[#5c4a37] hover:bg-[#ede4d6]"
-            }`}
-            title="Modalità Chiesa Notturna (sfondo scuro per penombra)"
-          >
-            <span>{isChurchMode ? "🌙 Notturna" : "☀️ Diurna"}</span>
-          </button>
-
-          {/* Pulsante Copia */}
-          <button
-            onClick={handleCopyText}
-            className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
-            title="Copia testo negli appunti"
-          >
-            {copied ? (
-              <span className="text-emerald-600 font-bold">Copiato!</span>
-            ) : (
+        {moment !== "santo" && (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Selettore Lingua & Testo a Fronte (attivo per Rito Romano) */}
+            {rite === "romano" && (
               <>
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-                <span className="hidden sm:inline">Copia</span>
+                <div className="relative flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-2 py-1">
+                  <span className="text-xs mr-1">🌐</span>
+                  <select
+                    value={selectedLang}
+                    onChange={(e) => handleLangChange(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-[#5c4a37] focus:outline-none cursor-pointer pr-1"
+                  >
+                    {LITURGICAL_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.flag} {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={toggleDualMode}
+                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                    isDualMode
+                      ? "bg-[#5c4a37] border-[#4a3c2c] text-amber-200 shadow-xs"
+                      : "bg-[#fbf8f4] border-[#d9cdbf] text-[#5c4a37] hover:bg-[#ede4d6]"
+                  }`}
+                  title="Attiva/disattiva visualizzazione a due colonne con testo a fronte bilingue"
+                >
+                  <span>📖 Testo a Fronte</span>
+                </button>
               </>
             )}
-          </button>
 
-          {/* Pulsante Crea Stato WhatsApp */}
-          <button
-            onClick={() => {
-              const sel = window.getSelection()?.toString().trim();
-              if (sel && sel.length >= 4) {
-                setSelectedQuoteText(sel);
-                if (moment === "messa") {
-                  setDetectedSourceSection(detectMessaSection(sel, contentHtml));
+            {/* Lettore Vocale Text-to-Speech */}
+            <LiturgicalTtsPlayer
+              htmlContent={contentHtml}
+              customSpeechText={cleanSpeechText}
+              lang={rite === "romano" ? selectedLang : "it"}
+              title="Ascolta"
+            />
+
+
+            {/* Dimensione Font */}
+            <div className="flex items-center rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-0.5">
+              <button
+                onClick={() => handleFontSizeChange(-1)}
+                disabled={fontSize <= 14}
+                className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
+                title="Riduci dimensione testo"
+              >
+                A-
+              </button>
+              <span className="px-1 text-[11px] font-mono text-[#8a755d]">{fontSize}px</span>
+              <button
+                onClick={() => handleFontSizeChange(1)}
+                disabled={fontSize >= 26}
+                className="px-2.5 py-1 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] rounded-lg transition disabled:opacity-30"
+                title="Aumenta dimensione testo"
+              >
+                A+
+              </button>
+            </div>
+
+            {/* Regolazione Interlinea Spaziatura */}
+            <button
+              onClick={cycleLineSpacing}
+              className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+              title="Cambia interlinea e spaziatura (Compatta / Normale / Ampia)"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+              </svg>
+              <span>{spacingLabel}</span>
+            </button>
+
+            {/* Toggle Modalità Chiesa (Sfondo Scuro per penombra) */}
+            <button
+              onClick={toggleChurchMode}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                isChurchMode
+                  ? "bg-[#292524] border-[#44403c] text-amber-300 shadow-sm"
+                  : "bg-[#fbf8f4] border-[#d9cdbf] text-[#5c4a37] hover:bg-[#ede4d6]"
+              }`}
+              title="Modalità Chiesa Notturna (sfondo scuro per penombra)"
+            >
+              <span>{isChurchMode ? "🌙 Notturna" : "☀️ Diurna"}</span>
+            </button>
+
+            {/* Pulsante Copia */}
+            <button
+              onClick={handleCopyText}
+              className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition"
+              title="Copia testo negli appunti"
+            >
+              {copied ? (
+                <span className="text-emerald-600 font-bold">Copiato!</span>
+              ) : (
+                <>
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                  <span className="hidden sm:inline">Copia</span>
+                </>
+              )}
+            </button>
+
+            {/* Pulsante Crea Stato WhatsApp */}
+            <button
+              onClick={() => {
+                const sel = window.getSelection()?.toString().trim();
+                if (sel && sel.length >= 4) {
+                  setSelectedQuoteText(sel);
+                  if (moment === "messa") {
+                    setDetectedSourceSection(detectMessaSection(sel, contentHtml));
+                  } else {
+                    setDetectedSourceSection(moment);
+                  }
                 } else {
+                  // Prendi un testo di esempio dalla liturgia o l'antifona
+                  setSelectedQuoteText("Nella tua immensa misericordia è riposta ogni mia speranza; donami tu, Signore, ciò che comandi, comandami ciò che vuoi.");
                   setDetectedSourceSection(moment);
                 }
-              } else {
-                // Prendi un testo di esempio dalla liturgia o l'antifona
-                setSelectedQuoteText("Nella tua immensa misericordia è riposta ogni mia speranza; donami tu, Signore, ciò che comandi, comandami ciò che vuoi.");
-                setDetectedSourceSection(moment);
-              }
-              setQuoteModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition cursor-pointer shadow-2xs"
-            title="Crea immagine per Stato WhatsApp o social dal testo selezionato"
-          >
+                setQuoteModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5c4a37] hover:bg-[#ede4d6] transition cursor-pointer shadow-2xs"
+              title="Crea immagine per Stato WhatsApp o social dal testo selezionato"
+            >
+              <span>📸</span>
+              <span className="hidden sm:inline">Crea Stato</span>
+            </button>
 
-            <span>📸</span>
-            <span className="hidden sm:inline">Crea Stato</span>
-          </button>
-
-          {/* Ricarica */}
-          <button
-            onClick={fetchLiturgy}
-            className="rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-2 text-[#5c4a37] hover:bg-[#ede4d6] transition"
-            title="Ricarica testo"
-          >
-            <svg className={`h-3.5 w-3.5 ${loading ? "animate-spin text-[#aa9576]" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-
-        </div>
+            {/* Ricarica */}
+            <button
+              onClick={fetchLiturgy}
+              className="rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] p-2 text-[#5c4a37] hover:bg-[#ede4d6] transition"
+              title="Ricarica testo"
+            >
+              <svg className={`h-3.5 w-3.5 ${loading ? "animate-spin text-[#aa9576]" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Info Liturgica del Giorno se presente */}
@@ -1227,15 +1230,27 @@ export function LiturgiaReader() {
               {liturgicalDayDetails.tempoLiturgico} · {liturgicalDayDetails.salterioLabel} · <span className="font-semibold not-italic">{liturgicalDayDetails.annoFeriale}</span>
             </div>
           </div>
-          <button
-            onClick={() => setMoment("santo")}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition shadow-2xs self-start sm:self-center shrink-0 cursor-pointer"
-            title="Visualizza vita, iconografia e martirologio del Santo di oggi per il rito selezionato"
-          >
-            <span>👑</span>
-            <span>Santo del Giorno</span>
-            <span>→</span>
-          </button>
+          {rite === "romano" ? (
+            <Link
+              href={`/preghiera/santo?date=${selectedDate}`}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition shadow-2xs self-start sm:self-center shrink-0 cursor-pointer"
+              title="Visualizza vita, iconografia e martirologio del Santo di oggi nel Martirologio Romano (CEI)"
+            >
+              <span>👑</span>
+              <span>Santo del Giorno</span>
+              <span>→</span>
+            </Link>
+          ) : moment !== "santo" ? (
+            <button
+              onClick={() => setMoment("santo")}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d9cdbf] bg-white/90 px-3 py-1.5 text-xs font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition shadow-2xs self-start sm:self-center shrink-0 cursor-pointer"
+              title="Visualizza il Santo del Giorno secondo il Rito Ambrosiano (Chiesa di Milano)"
+            >
+              <span>👑</span>
+              <span>Santo del Giorno</span>
+              <span>→</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
