@@ -5,6 +5,12 @@ import Link from "next/link";
 import { QuoteImageModal, resolveLiturgicalColor } from "@/components/quote-image-modal";
 import { LiturgicalTtsPlayer } from "@/components/liturgical-tts-player";
 
+export interface OtherSaint {
+  nome: string;
+  imgUrl: string | null;
+  martirologio: string;
+}
+
 export interface SantoAmbrosianoData {
   date: string;
   dateLabel: string;
@@ -12,6 +18,7 @@ export interface SantoAmbrosianoData {
   grado: string;
   imgUrl: string | null;
   martirologio: string;
+  altriSanti?: OtherSaint[];
   source: string;
 }
 
@@ -81,7 +88,11 @@ export function SantoAmbrosianoView({
   };
 
   const speechText = data
-    ? `${data.title}. Secondo il calendario della Chiesa di Milano: ${data.martirologio}`
+    ? `${data.title}. Secondo il calendario della Chiesa di Milano: ${data.martirologio}${
+        data.altriSanti && data.altriSanti.length > 0
+          ? `. Si ricorda inoltre: ${data.altriSanti.map((s) => `${s.nome}. ${s.martirologio}`).join(". ")}`
+          : ""
+      }`
     : "";
 
   const litColor = resolveLiturgicalColor(data?.title, data?.martirologio, date);
@@ -293,6 +304,94 @@ export function SantoAmbrosianoView({
               </div>
             </div>
           </div>
+
+          {/* Sezione Altri Santi e Beati del Giorno (Rito Ambrosiano) */}
+          {data.altriSanti && data.altriSanti.length > 0 && (
+            <div className="rounded-3xl border border-[#e0d6c7] bg-[#fdfbf7] p-6 sm:p-8 shadow-md space-y-5">
+              <div className="flex items-center justify-between border-b border-[#e4dcce] pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">✨</span>
+                  <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#3f3933]">
+                    Altri Santi e Beati di Oggi
+                  </h3>
+                </div>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
+                  {data.altriSanti.length} {data.altriSanti.length === 1 ? "commemorazione" : "commemorazioni"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {data.altriSanti.map((santo, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-2xl border border-[#e2d5c4] bg-white p-5 shadow-xs transition hover:shadow-md hover:border-emerald-700/40 flex flex-col justify-between space-y-3"
+                  >
+                    <div className="flex items-start gap-3.5">
+                      {santo.imgUrl && (
+                        <div
+                          onClick={() => setLightboxImage({ url: santo.imgUrl!, title: santo.nome })}
+                          className="group relative w-16 sm:w-20 shrink-0 overflow-hidden rounded-xl border border-[#d9cdbf] bg-[#fbf8f4] shadow-2xs cursor-zoom-in transition hover:shadow-md hover:border-[#aa9576]"
+                          title="Clicca per ingrandire"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={santo.imgUrl}
+                            alt={santo.nome}
+                            className="w-full h-20 sm:h-24 object-cover object-top transition duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <span className="text-white text-xs">🔍</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-emerald-700 shrink-0"></span>
+                          <h4 className="font-serif text-base font-bold text-[#2c2621] leading-snug">
+                            {santo.nome}
+                          </h4>
+                        </div>
+                        {santo.martirologio ? (
+                          <div className="font-serif text-xs sm:text-sm text-[#4a423a] leading-relaxed space-y-2">
+                            {santo.martirologio.split("\n\n").map((p, pIdx) => (
+                              <p key={pIdx}>{p}</p>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-[#8e7e6e] italic">
+                            Commemorazione nel calendario della Chiesa di Milano.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f4efe6]">
+                      <button
+                        onClick={() =>
+                          openQuoteModal(
+                            santo.martirologio || santo.nome,
+                            `Santo del Giorno · ${santo.nome} (Rito Ambrosiano)`,
+                            santo.imgUrl
+                          )
+                        }
+                        className="rounded-lg border border-[#e0d6c7] bg-[#fdfbf7] px-2.5 py-1 text-[11px] font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition cursor-pointer"
+                        title="Crea Card per lo Stato WhatsApp con iconografia"
+                      >
+                        📸 Card
+                      </button>
+                      <button
+                        onClick={() => handleCopyText(santo.nome, santo.martirologio)}
+                        className="rounded-lg border border-[#e0d6c7] bg-[#fdfbf7] px-2.5 py-1 text-[11px] font-bold text-[#5c4a37] hover:bg-[#ede4d6] transition cursor-pointer"
+                      >
+                        📋 Copia
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 

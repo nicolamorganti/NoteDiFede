@@ -39,6 +39,89 @@ function decodeHtmlEntities(str: string): string {
 }
 
 /**
+ * Analizza il contenuto HTML da Chiesa di Milano estraendo il martirologio principale
+ * ed eventuali altri santi e beati commemorati nello stesso giorno (es. "Oggi si ricorda San Lorenzo Giustiniani")
+ */
+function parseAmbrosianoContent(contentHtml: string): {
+  martirologio: string;
+  altriSanti: { nome: string; imgUrl: string | null; martirologio: string }[];
+} {
+  const cleanHtml = contentHtml
+    .replace(/<span class="postimageinsidecontent">[\s\S]*?<\/span>/i, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "");
+
+  const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  const pMatches: string[] = [];
+  let match;
+  while ((match = pRegex.exec(cleanHtml)) !== null) {
+    pMatches.push(match[1]);
+  }
+
+  if (pMatches.length === 0) {
+    const splitPs = cleanHtml.split(/<\/?p>/).map((p) => p.trim()).filter(Boolean);
+    pMatches.push(...splitPs);
+  }
+
+  // Riconosce le frasi introduttive di ulteriori santi commemorati
+  const secondaryMarkerRegex = /^(?:Oggi\s+(?:si\s+ricorda(?:no)?(?:\s+anche)?|la\s+(?:Chiesa|liturgia)\s+ricorda(?:no)?(?:\s+anche)?|si\s+fa\s+memoria(?:\s+anche)?\s+di|si\s+celebra(?:no)?(?:\s+anche)?)|(?:Si\s+ricorda(?:no)?(?:\s+anche)?|La\s+(?:Chiesa|liturgia)\s+ricorda(?:\s+anche)?|Si\s+fa\s+memoria(?:\s+anche)?\s+di|Commemorazione\s+di|Memoria\s+di))\s*:?\s*/i;
+
+  const mainParagraphs: string[] = [];
+  const altriSanti: { nome: string; imgUrl: string | null; martirologio: string }[] = [];
+  let currentOtherSaint: { nome: string; imgUrl: string | null; paragraphs: string[] } | null = null;
+
+  for (const rawP of pMatches) {
+    const subParts = rawP.split(/<br\s*\/?>\s*(?:<br\s*\/?>)?/i);
+
+    for (const subPart of subParts) {
+      const textOnly = decodeHtmlEntities(subPart.replace(/<[^>]+>/g, " ")).trim();
+      if (textOnly.length < 5) continue;
+
+      if (secondaryMarkerRegex.test(textOnly)) {
+        let saintName = textOnly.replace(secondaryMarkerRegex, "").trim();
+        saintName = saintName.replace(/^[\s:–—-]+|[\s:–—.-]+$/g, "").trim();
+
+        if (currentOtherSaint && currentOtherSaint.paragraphs.length > 0) {
+          altriSanti.push({
+            nome: currentOtherSaint.nome,
+            imgUrl: currentOtherSaint.imgUrl,
+            martirologio: currentOtherSaint.paragraphs.join("\n\n"),
+          });
+        }
+
+        const imgM = subPart.match(/<img[^>]+src=["']([^"']+)["']/i);
+        currentOtherSaint = {
+          nome: saintName || "Altro Santo",
+          imgUrl: imgM && !imgM[1].includes("logo") ? imgM[1] : null,
+          paragraphs: [],
+        };
+      } else if (currentOtherSaint) {
+        const imgM = subPart.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (imgM && !currentOtherSaint.imgUrl && !imgM[1].includes("logo")) {
+          currentOtherSaint.imgUrl = imgM[1];
+        }
+        currentOtherSaint.paragraphs.push(textOnly);
+      } else {
+        mainParagraphs.push(textOnly);
+      }
+    }
+  }
+
+  if (currentOtherSaint && currentOtherSaint.paragraphs.length > 0) {
+    altriSanti.push({
+      nome: currentOtherSaint.nome,
+      imgUrl: currentOtherSaint.imgUrl,
+      martirologio: currentOtherSaint.paragraphs.join("\n\n"),
+    });
+  }
+
+  return {
+    martirologio: mainParagraphs.join("\n\n"),
+    altriSanti,
+  };
+}
+
+/**
  * Recupera il Santo del Giorno per il Rito Ambrosiano da Chiesa di Milano
  */
 async function fetchAmbrosianoSanto(isoDate: string) {
@@ -79,23 +162,15 @@ async function fetchAmbrosianoSanto(isoDate: string) {
           if (imgMatch) imgUrl = imgMatch[1];
         }
 
-        const paragraphs = contentHtml
-          .replace(/<span class="postimageinsidecontent">[\s\S]*?<\/span>/i, "")
-          .replace(/<script[\s\S]*?<\/script>/gi, "")
-          .replace(/<style[\s\S]*?<\/style>/gi, "")
-          .split(/<\/?p>/)
-          .map((p: string) => decodeHtmlEntities(p.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ")).trim())
-          .filter((p: string) => p.length > 10);
+        const parsed = parseAmbrosianoContent(contentHtml);
 
-        const martirologio = paragraphs.join("\n\n");
-
-        if (martirologio.length > 20) {
+        if (parsed.martirologio.length > 20 || parsed.altriSanti.length > 0) {
           return {
             title,
             grado: "Rito Ambrosiano",
             imgUrl,
-            martirologio,
-            altriSanti: [],
+            martirologio: parsed.martirologio,
+            altriSanti: parsed.altriSanti,
             source: "Chiesa di Milano (Arcidiocesi di Milano)",
           };
         }
@@ -138,22 +213,14 @@ async function fetchAmbrosianoSanto(isoDate: string) {
           const title = titleMatch ? decodeHtmlEntities(titleMatch[1].replace(/<[^>]+>/g, "")) : "Santo del Giorno";
           const imgUrl = imgMatch ? imgMatch[1] : null;
 
-          let martirologio = "";
-          if (contentMatch) {
-            martirologio = contentMatch[1]
-              .replace(/<span class="postimageinsidecontent">[\s\S]*?<\/span>/i, "")
-              .split(/<\/?p>/)
-              .map((p: string) => decodeHtmlEntities(p.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ")).trim())
-              .filter((p: string) => p.length > 10)
-              .join("\n\n");
-          }
+          const parsed = parseAmbrosianoContent(contentMatch ? contentMatch[1] : "");
 
           return {
             title,
             grado: "Rito Ambrosiano",
             imgUrl,
-            martirologio,
-            altriSanti: [],
+            martirologio: parsed.martirologio,
+            altriSanti: parsed.altriSanti,
             source: "Chiesa di Milano (Arcidiocesi di Milano)",
           };
         }
