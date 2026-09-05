@@ -587,6 +587,8 @@ export async function testSundayNewsletterDraftAction(payload: {
       customReflection: payload.reflection_text,
       customTitle: payload.reflection_title,
       authorSignature: payload.author_signature,
+      isSunday: true,
+      isSundayCommentary: true,
     });
 
     if (!result.success) {

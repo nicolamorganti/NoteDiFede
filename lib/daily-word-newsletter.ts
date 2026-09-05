@@ -561,19 +561,16 @@ REGOLE TASSATIVE:
 - Niente cliché religiosi o formule ripetitive (VIETATO usare: "trattenere una risposta pungente", "senza fretta", "sguardo di misericordia", "accogliere con dolcezza", "in un mondo frenetico").
 - Niente convenevoli o prediche (non iniziare mai con "Oggi il Vangelo ci chiama...", "Gesù ci invita...": entra d'impatto nella postura).
 - Lunghezza: tra 60 e 95 parole.
-- Concludi SEMPRE con una frase compiuta e punto fermo finale. Niente titoli markdown.`;
+- Concludi SEMPRE e TASSATIVAMENTE con una frase compiuta e punto fermo finale. Non interrompere MAI a metà frase. Niente titoli markdown.`;
   }
-
 
   const candidateModels = [
     process.env.GEMINI_MODEL,
-    "gemini-flash-latest",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
     "gemini-2.5-flash",
-    "gemini-flash-lite-latest",
-    "gemini-3.1-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
   ].filter(Boolean) as string[];
 
   let reflection: string | null = null;
@@ -582,41 +579,78 @@ REGOLE TASSATIVE:
 
   for (const model of candidateModels) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const requestBody: any = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.65,
+          maxOutputTokens: 2048,
+        },
+      };
+
+      // thinkingConfig è supportato da gemini-2.5-flash ma genera errore 400 su gemini-1.5-flash
+      if (model.includes("2.5") || model.includes("2.0")) {
+        requestBody.generationConfig.thinkingConfig = {
+          thinkingBudget: 0,
+        };
+      }
+
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.68,
-            maxOutputTokens: 2048,
-            thinkingConfig: {
-              thinkingBudget: 0,
-            },
-          },
-        }),
-
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
-
       if (res.ok) {
         const data = await res.json();
-        let text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (text && text.length > 20) {
-          text = text
-            .replace(/^\*\*.*?\*\*\s*/i, "")
-            .replace(/^#+\s*.*?\n/i, "")
-            .replace(/^[«"]/, "")
-            .replace(/[»"]$/, "")
-            .trim();
+        const candidate = data.candidates?.[0];
+        if (!candidate) continue;
 
+        // Concatena tutte le parti testuali non-thought
+        const textParts = (candidate.content?.parts || [])
+          .filter((p: any) => !p.thought && typeof p.text === "string")
+          .map((p: any) => p.text)
+          .join("");
+
+        let text = textParts.trim()
+          .replace(/^(\*\*.*?\*\*|#+.*?\n)\s*/gi, "")
+          .replace(/^[«"“\s]+/, "")
+          .replace(/[»"”\s]+$/, "")
+          .trim();
+
+        // Controllo completezza: lunghezza minima (almeno 25 parole e 130 caratteri)
+        const words = text.split(/\s+/).filter(Boolean);
+        if (words.length < 25 || text.length < 130) {
+          console.warn(`[${model}] Testo troppo breve (${words.length} parole): "${text}". Provo modello successivo...`);
+          continue;
+        }
+
+        // Se il testo è stato tagliato a metà frase (non termina con punto, ! o ?), estrai fino all'ultima frase completa
+        if (!/[.!?»"]$/.test(text)) {
+          const lastPunct = Math.max(
+            text.lastIndexOf("."),
+            text.lastIndexOf("!"),
+            text.lastIndexOf("?")
+          );
+          if (lastPunct > 110) {
+            text = text.substring(0, lastPunct + 1).trim();
+          } else {
+            console.warn(`[${model}] Testo troncato a metà frase senza punto fermo: "${text}". Provo modello successivo...`);
+            continue;
+          }
+        }
+
+        // Pulizia finale quote residui
+        text = text.replace(/^[«"“\s]+/, "").replace(/[»"”\s]+$/, "").trim();
+
+        const verifiedWords = text.split(/\s+/).filter(Boolean);
+        if (verifiedWords.length >= 22) {
           reflection = text;
           usedModel = model;
           break;
@@ -648,6 +682,7 @@ export interface DailyWordEmailData {
   authorSignature?: string;
   unsubscribeUrl?: string;
   isSunday?: boolean;
+  isSundayCommentary?: boolean;
 }
 
 
@@ -657,8 +692,8 @@ export interface DailyWordEmailData {
 export function formatMarkdownToEmailHtml(text: string): string {
   if (!text) return "";
   let clean = text.trim();
-  // Rimuovi eventuali caporali/virgolette già presenti agli estremi per non duplicarle
-  clean = clean.replace(/^«\s*/, "").replace(/\s*»$/, "");
+  // Rimuovi tutti i caporali o virgolette già presenti agli estremi per non duplicarle MAI
+  clean = clean.replace(/^[«"“\s]+/, "").replace(/[»"”\s]+$/, "").trim();
   // Converti **grassetto** in tag <strong> con stile solido e colore caldo in risalto
   clean = clean.replace(
     /\*\*(.*?)\*\*/g,
@@ -680,10 +715,16 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
   const formattedReflection = formatMarkdownToEmailHtml(reflection);
 
   const [y, m, d] = gospel.dateStr.split("-").map(Number);
-  const isSunday =
-    data.isSunday !== undefined
-      ? data.isSunday
-      : new Date(y, m - 1, d).getDay() === 0 || Boolean(customTitle || authorSignature);
+  const dayOfWeek = new Date(y, m - 1, d).getDay(); // 0 = Domenica
+  const isSunday = data.isSunday !== undefined ? data.isSunday : dayOfWeek === 0;
+
+  // Modalità commento personalizzato della Domenica:
+  // - ATTIVA SOLO la domenica se è presente un commento personalizzato (o test domenicale esplicito)
+  // - DISATTIVA dal lunedì al sabato (feriali/sabato usano SEMPRE e SOLO la Postura Cristiana per Oggi)
+  const isSundayCommentary =
+    data.isSundayCommentary !== undefined
+      ? data.isSundayCommentary
+      : isSunday && Boolean(authorSignature || (customTitle && !customTitle.includes("Postura")));
 
   const mainHeaderLabel = isSunday
     ? `Note di Fede · La Parola della Domenica (${riteLabel})`
@@ -696,6 +737,75 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
   const emailPageTitle = isSunday
     ? "La Parola della Domenica · Note di Fede"
     : "La Parola del Giorno · Note di Fede";
+
+  // Titolo della sezione meditazione/commento
+  const reflectionSectionTitle = isSundayCommentary
+    ? (customTitle || "✨ Commento al Vangelo della Domenica")
+    : (isSunday ? "✨ La Postura Cristiana per la Domenica" : "✨ La Postura Cristiana per Oggi");
+
+  // Blocco 1: Il Vangelo
+  const gospelPadding = isSundayCommentary
+    ? "padding: 24px 24px 16px 24px;"
+    : "padding: 12px 24px 28px 24px;";
+
+  const gospelBlockHtml = `
+          <!-- Sezione: ${gospelSectionTitle} -->
+          <tr>
+            <td style="${gospelPadding}">
+              <div style="margin-bottom: 12px;">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #aa9576;">
+                  ${gospelSectionTitle}
+                </span>
+                <div style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #6b21a8; margin-top: 2px;">
+                  ${gospel.gospelCitation}
+                </div>
+              </div>
+              <div style="font-family: Georgia, serif; font-size: 15px; line-height: 1.7; color: #2c251e; background-color: #ffffff; border: 1px solid #f0e7dc; border-radius: 14px; padding: 20px; text-align: justify;">
+                ${gospel.gospelText.split("\n").filter(Boolean).map(p => `<p style="margin: 0 0 12px 0;">${p}</p>`).join("")}
+              </div>
+            </td>
+          </tr>
+  `.trim();
+
+  // Blocco 2: La Postura Cristiana / Commento al Vangelo
+  const reflectionPadding = isSundayCommentary
+    ? "padding: 12px 24px 28px 24px;"
+    : "padding: 24px 24px 16px 24px;";
+
+  const reflectionBlockHtml = `
+          <!-- Sezione: ${reflectionSectionTitle} -->
+          <tr>
+            <td style="${reflectionPadding}">
+              <div style="background-color: #fcf9f2; border: 1px solid #ebdcc8; border-left: 5px solid #d97706; border-radius: 14px; padding: 20px 22px; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.05);">
+                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                  <span style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #92400e; letter-spacing: 0.5px;">
+                    ${reflectionSectionTitle}
+                  </span>
+                </div>
+                <p style="margin: 0; font-family: Georgia, serif; font-size: 15px; line-height: 1.65; color: #3f2f1f; font-style: italic;">
+                  «${formattedReflection}»
+                </p>
+                ${
+                  isSundayCommentary && authorSignature
+                    ? `
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed #ebdcc8; text-align: right;">
+                  <span style="font-family: Georgia, serif; font-size: 13px; font-style: italic; color: #7c644d; font-weight: 700; letter-spacing: 0.3px;">
+                    — ${authorSignature}
+                  </span>
+                </div>`
+                    : ""
+                }
+              </div>
+            </td>
+          </tr>
+  `.trim();
+
+  // Ordine dei blocchi:
+  // - Domenica con commento abilitato: 1. Vangelo, 2. Commento al Vangelo (+ eventuale Firma)
+  // - Dal Lunedì al Sabato (e Domenica standard senza commento): 1. La Postura Cristiana per Oggi, 2. Il Vangelo del Giorno
+  const mainContentBlocks = isSundayCommentary
+    ? `${gospelBlockHtml}\n${reflectionBlockHtml}`
+    : `${reflectionBlockHtml}\n${gospelBlockHtml}`;
 
   return `
 <!DOCTYPE html>
@@ -734,48 +844,7 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
             </td>
           </tr>
 
-          <!-- 1. Il Vangelo del Giorno / della Domenica -->
-          <tr>
-            <td style="padding: 24px 24px 16px 24px;">
-              <div style="margin-bottom: 12px;">
-                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #aa9576;">
-                  ${gospelSectionTitle}
-                </span>
-                <div style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #6b21a8; margin-top: 2px;">
-                  ${gospel.gospelCitation}
-                </div>
-              </div>
-              <div style="font-family: Georgia, serif; font-size: 15px; line-height: 1.7; color: #2c251e; background-color: #ffffff; border: 1px solid #f0e7dc; border-radius: 14px; padding: 20px; text-align: justify;">
-                ${gospel.gospelText.split("\n").filter(Boolean).map(p => `<p style="margin: 0 0 12px 0;">${p}</p>`).join("")}
-              </div>
-            </td>
-          </tr>
-
-          <!-- 2. Commento al Vangelo e 3. Firma -->
-          <tr>
-            <td style="padding: 12px 24px 28px 24px;">
-              <div style="background-color: #fcf9f2; border: 1px solid #ebdcc8; border-left: 5px solid #d97706; border-radius: 14px; padding: 20px 22px; box-shadow: 0 2px 8px rgba(217, 119, 6, 0.05);">
-                <div style="display: flex; align-items: center; margin-bottom: 12px;">
-                  <span style="font-size: 14px; font-weight: 700; font-family: Georgia, serif; color: #92400e; letter-spacing: 0.5px;">
-                    ${customTitle || "✨ Commento al Vangelo"}
-                  </span>
-                </div>
-                <p style="margin: 0; font-family: Georgia, serif; font-size: 15px; line-height: 1.65; color: #3f2f1f; font-style: italic;">
-                  «${formattedReflection}»
-                </p>
-                ${
-                  authorSignature
-                    ? `
-                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed #ebdcc8; text-align: right;">
-                  <span style="font-family: Georgia, serif; font-size: 13px; font-style: italic; color: #7c644d; font-weight: 700; letter-spacing: 0.3px;">
-                    — ${authorSignature}
-                  </span>
-                </div>`
-                    : ""
-                }
-              </div>
-            </td>
-          </tr>
+          ${mainContentBlocks}
 
           <!-- Pulsante Call to Action -->
           <tr>
@@ -804,7 +873,6 @@ export function buildDailyWordEmailHtml(data: DailyWordEmailData): string {
               </p>
             </td>
           </tr>
-
 
         </table>
       </td>
@@ -901,7 +969,9 @@ async function sendResendBatchPersonalized(
   reflection: string,
   usedModel: string,
   customTitle?: string,
-  authorSignature?: string
+  authorSignature?: string,
+  isSunday?: boolean,
+  isSundayCommentary?: boolean
 ) {
   const batchSize = 40;
   let count = 0;
@@ -914,7 +984,16 @@ async function sendResendBatchPersonalized(
     const batchPayload = chunk.map((u) => {
       const token = generateUnsubscribeToken(u.id);
       const unsubscribeUrl = `${siteUrl}/newsletter/disiscrizione?id=${u.id}&token=${token}`;
-      const html = buildDailyWordEmailHtml({ gospel, reflection, usedModel, unsubscribeUrl, customTitle, authorSignature });
+      const html = buildDailyWordEmailHtml({
+        gospel,
+        reflection,
+        usedModel,
+        unsubscribeUrl,
+        customTitle,
+        authorSignature,
+        isSunday,
+        isSundayCommentary,
+      });
 
       return {
         from: fromAddress,
@@ -957,6 +1036,8 @@ export async function sendDailyWordNewsletter(options?: {
   customReflection?: string;
   customTitle?: string;
   authorSignature?: string;
+  isSunday?: boolean;
+  isSundayCommentary?: boolean;
 }): Promise<{
   success: boolean;
   recipientsCount: number;
@@ -991,17 +1072,28 @@ export async function sendDailyWordNewsletter(options?: {
         usedModel = generated.usedModel;
       }
 
+      const [y, m, d] = gospel.dateStr.split("-").map(Number);
+      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      const isSundayTest =
+        options.isSunday !== undefined
+          ? options.isSunday
+          : dayOfWeek === 0 || Boolean(options.customTitle || options.authorSignature);
+
+      const isSundayCommentary =
+        options.isSundayCommentary !== undefined
+          ? options.isSundayCommentary
+          : isSundayTest && Boolean(options.customTitle || options.authorSignature || options.customReflection);
+
       const emailHtml = buildDailyWordEmailHtml({
         gospel,
         reflection,
         usedModel,
         customTitle: options.customTitle,
         authorSignature: options.authorSignature,
+        isSunday: isSundayTest,
+        isSundayCommentary,
       });
 
-      const [y, m, d] = gospel.dateStr.split("-").map(Number);
-      const isSundayTest =
-        new Date(y, m - 1, d).getDay() === 0 || Boolean(options.customTitle || options.authorSignature);
       const riteName = selectedRite === "romano" ? "Rito Romano" : "Rito Ambrosiano";
       const subjectPrefix = isSundayTest ? "🕊️ La Parola della Domenica" : "🕊️ La Parola del Giorno";
       const emailSubject = `${subjectPrefix} (${riteName}): ${gospel.title}`;
@@ -1132,6 +1224,8 @@ export async function sendDailyWordNewsletter(options?: {
       let ambModel = "";
       let ambTitle: string | undefined = undefined;
       let ambSignature: string | undefined = undefined;
+      const isSundayAmb = cycleInfo.isSundayToday;
+      const isSundayCommentaryAmb = isSundayAmb && Boolean(customAmbrosianoDraft);
 
       if (customAmbrosianoDraft) {
         ambReflection = customAmbrosianoDraft.reflection_text;
@@ -1145,7 +1239,7 @@ export async function sendDailyWordNewsletter(options?: {
         ambModel = generated.usedModel;
       }
 
-      const ambSubject = cycleInfo.isSundayToday
+      const ambSubject = isSundayAmb
         ? `🕊️ La Parola della Domenica: ${ambrosianoGospel.title}`
         : `🕊️ La Parola del Giorno: ${ambrosianoGospel.title}`;
 
@@ -1157,7 +1251,9 @@ export async function sendDailyWordNewsletter(options?: {
         ambReflection,
         ambModel,
         ambTitle,
-        ambSignature
+        ambSignature,
+        isSundayAmb,
+        isSundayCommentaryAmb
       );
       totalSent += sentAmb;
 
@@ -1173,6 +1269,8 @@ export async function sendDailyWordNewsletter(options?: {
       let romModel = "";
       let romTitle: string | undefined = undefined;
       let romSignature: string | undefined = undefined;
+      const isSundayRom = cycleInfo.isSundayToday;
+      const isSundayCommentaryRom = isSundayRom && Boolean(customRomanoDraft);
 
       if (customRomanoDraft) {
         romReflection = customRomanoDraft.reflection_text;
@@ -1186,7 +1284,7 @@ export async function sendDailyWordNewsletter(options?: {
         romModel = generated.usedModel;
       }
 
-      const romSubject = cycleInfo.isSundayToday
+      const romSubject = isSundayRom
         ? `🕊️ La Parola della Domenica (Rito Romano): ${romanoGospel.title}`
         : `🕊️ La Parola del Giorno (Rito Romano): ${romanoGospel.title}`;
 
@@ -1198,7 +1296,9 @@ export async function sendDailyWordNewsletter(options?: {
         romReflection,
         romModel,
         romTitle,
-        romSignature
+        romSignature,
+        isSundayRom,
+        isSundayCommentaryRom
       );
       totalSent += sentRom;
 
