@@ -15,7 +15,7 @@ export async function updateUserProfile(
   fullName: string,
   vocalRegister: string,
   preferredRite: "ambrosiano" | "romano" = "ambrosiano",
-  newsletterEnabled: boolean = true,
+  newsletterEnabled: boolean = false,
 ): Promise<SettingsActionState> {
   if (!fullName) {
     return { error: "Il nome completo è obbligatorio.", success: null };

@@ -45,7 +45,7 @@ export default function ImpostazioniPage() {
   const [fullNameInput, setFullNameInput] = useState("");
   const [vocalRegisterInput, setVocalRegisterInput] = useState("nessuno");
   const [preferredRiteInput, setPreferredRiteInput] = useState<"ambrosiano" | "romano">("ambrosiano");
-  const [newsletterEnabledInput, setNewsletterEnabledInput] = useState(true);
+  const [newsletterEnabledInput, setNewsletterEnabledInput] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ error?: string; success?: string } | null>(null);
   const [profileUpdating, setProfileUpdating] = useState(false);
 
@@ -92,7 +92,7 @@ export default function ImpostazioniPage() {
         setMyProfile(profile as Profile);
         setFullNameInput(profile.full_name || "");
         setVocalRegisterInput(profile.vocal_register || "nessuno");
-        setNewsletterEnabledInput(profile.newsletter_enabled !== false);
+        setNewsletterEnabledInput(Boolean(profile.newsletter_enabled));
 
         const savedRite = (profile.preferred_rite || (typeof window !== "undefined" ? localStorage.getItem("preferred_rite") : "ambrosiano") || "ambrosiano") as "ambrosiano" | "romano";
         setPreferredRiteInput(savedRite);
@@ -342,88 +342,66 @@ export default function ImpostazioniPage() {
 
   const isMaestro = myProfile?.role === "maestro" || myProfile?.role === "responsabile";
 
-  if (!isMaestro) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-3xl border border-[#e4dcce] bg-[#fffdfa] p-12 text-center max-w-xl mx-auto my-12 shadow-sm">
-        <svg className="h-12 w-12 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <h3 className="mt-4 font-serif text-xl font-normal text-[#3f3933]">Accesso Negato</h3>
-        <p className="mt-2 text-sm text-[#736555] leading-relaxed">
-          Questa pagina è riservata esclusivamente ai Maestri e Responsabili della Liturgia.
-        </p>
-        <div className="mt-6">
-          <Link
-            href="/canti"
-            className="inline-flex items-center gap-2 rounded-full bg-[#5c4a37] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#4b3c2c]"
-          >
-            Torna al Catalogo Canti
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-16">
       {/* Header Intestazione */}
       <div>
         <h2 className="font-serif text-2xl font-normal text-[#3f3933] sm:text-3xl">
-          Impostazioni Generali
+          {isMaestro ? "Impostazioni Generali" : "Il Mio Profilo"}
         </h2>
         <p className="text-sm text-[#736555] mt-1">
-          Gestisci il tuo profilo vocale e configura le regole del coro liturgico.
+          {isMaestro
+            ? "Gestisci il tuo profilo vocale e configura le regole del coro liturgico."
+            : "Gestisci i tuoi dati personali, il registro vocale e le preferenze per la newsletter."}
         </p>
       </div>
 
-      {/* Tabs di navigazione */}
-      <div className="flex border-b border-[#ddd2c2] pb-px overflow-x-auto">
-        <button
-          onClick={() => setActiveTab("profilo")}
-          className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
-            activeTab === "profilo"
-              ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
-              : "text-[#736555] hover:text-[#3f3933]"
-          } mr-6 shrink-0`}
-        >
-          Profilo Personale
-        </button>
+      {/* Tabs di navigazione (mostrate solo se maestro/responsabile con permessi amministrativi) */}
+      {isMaestro && (
+        <div className="flex border-b border-[#ddd2c2] pb-px overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("profilo")}
+            className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
+              activeTab === "profilo"
+                ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
+                : "text-[#736555] hover:text-[#3f3933]"
+            } mr-6 shrink-0`}
+          >
+            Profilo Personale
+          </button>
 
-        {isMaestro && (
-          <>
-            <button
-              onClick={() => setActiveTab("liturgia")}
-              className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
-                activeTab === "liturgia"
-                  ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
-                  : "text-[#736555] hover:text-[#3f3933]"
-              } mr-6 shrink-0`}
-            >
-              Liturgia e Momenti
-            </button>
-            <button
-              onClick={() => setActiveTab("coristi")}
-              className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
-                activeTab === "coristi"
-                  ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
-                  : "text-[#736555] hover:text-[#3f3933]"
-              } mr-6 shrink-0`}
-            >
-              Gestione Coristi
-            </button>
-            <button
-              onClick={() => setActiveTab("newsletter")}
-              className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
-                activeTab === "newsletter"
-                  ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
-                  : "text-[#736555] hover:text-[#3f3933]"
-              } shrink-0`}
-            >
-              📬 Newsletter
-            </button>
-          </>
-        )}
-      </div>
+          <button
+            onClick={() => setActiveTab("liturgia")}
+            className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
+              activeTab === "liturgia"
+                ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
+                : "text-[#736555] hover:text-[#3f3933]"
+            } mr-6 shrink-0`}
+          >
+            Liturgia e Momenti
+          </button>
+          <button
+            onClick={() => setActiveTab("coristi")}
+            className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
+              activeTab === "coristi"
+                ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
+                : "text-[#736555] hover:text-[#3f3933]"
+            } mr-6 shrink-0`}
+          >
+            Gestione Coristi
+          </button>
+          <button
+            onClick={() => setActiveTab("newsletter")}
+            className={`pb-3 text-sm font-semibold uppercase tracking-wider transition ${
+              activeTab === "newsletter"
+                ? "border-b-2 border-[#5c4a37] text-[#5c4a37]"
+                : "text-[#736555] hover:text-[#3f3933]"
+            } shrink-0`}
+          >
+            📬 Newsletter
+          </button>
+        </div>
+      )}
 
 
       {/* 1. Tab Profilo Personale */}

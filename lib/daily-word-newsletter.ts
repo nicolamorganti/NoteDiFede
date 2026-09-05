@@ -1160,8 +1160,8 @@ export async function sendDailyWordNewsletter(options?: {
       if (u.email && u.email.includes("@")) {
         const userProf = profileMap.get(u.id);
         
-        // Se l'utente ha esplicitamente disabilitato la newsletter, salta
-        if (userProf?.newsletter_enabled === false) {
+        // Invia la newsletter solo agli utenti con newsletter_enabled === true (disabilitata di default per i nuovi iscritti)
+        if (userProf?.newsletter_enabled !== true) {
           continue;
         }
 

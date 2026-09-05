@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [newsletterConsent, setNewsletterConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
@@ -73,6 +74,7 @@ export default function LoginPage() {
             data: {
               full_name: fullName,
               username: email.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
+              newsletter_enabled: newsletterConsent,
             },
           },
         });
@@ -262,6 +264,24 @@ export default function LoginPage() {
                 disabled={loading}
               />
             </div>
+
+            {/* Checkbox Consenso Newsletter (Opzionale, default disabilitata per consenso volontario) */}
+            {isSignUp && (
+              <div className="flex items-start gap-3 rounded-2xl border border-[#ebdcc8] bg-white/60 p-3.5 text-xs text-[#5c4a37]">
+                <input
+                  id="newsletterConsent"
+                  type="checkbox"
+                  checked={newsletterConsent}
+                  onChange={(e) => setNewsletterConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-[#d9cdbf] text-[#5c4a37] focus:ring-[#aa9576] cursor-pointer"
+                  disabled={loading}
+                />
+                <label htmlFor="newsletterConsent" className="leading-relaxed cursor-pointer select-none">
+                  <span className="font-semibold block text-[#3f3933]">📬 Iscriviti a &quot;La Parola del Giorno&quot;</span>
+                  <span className="text-[#736555] text-[11px]">Ricevi ogni mattina alle ore 06:00 il Vangelo e la postura spirituale (disattivabile in ogni momento).</span>
+                </label>
+              </div>
+            )}
 
             {/* Error Message */}
             {error && (
