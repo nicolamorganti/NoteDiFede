@@ -296,44 +296,51 @@ export async function parseMassImageAction(formData: FormData) {
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
 
-    const prompt = `Sei un esperto di liturgia cattolica (rito ambrosiano) e canti liturgici. Analizza questa immagine di un foglietto liturgico manoscritto o stampato.
+    const prompt = `Sei un esperto di liturgia cattolica (rito ambrosiano) e canti liturgici. Analizza con massima precisione questa immagine di un foglietto liturgico manoscritto o stampato.
 Estrai i dettagli della celebrazione nel seguente formato JSON:
 {
-  "title": "Titolo della celebrazione (es. IV dopo Pentecoste, Messa di Pasqua)",
+  "title": "Titolo della celebrazione (es. III dopo il Martirio di San Giovanni, IV dopo Pentecoste, Messa di Pasqua)",
   "liturgicalYear": "A" o "B" o "C" (anno liturgico, se indicato o deducibile, default "A"),
-  "celebrationDate": "Data della celebrazione in formato YYYY-MM-DD (se indicata o deducibile, es. 2026-06-21)",
+  "celebrationDate": "Data della celebrazione in formato YYYY-MM-DD (se indicata o deducibile, es. 2026-09-13)",
   "notes": "Eventuali annotazioni generali o avvisi per la celebrazione",
   "moments": [
     {
       "momentName": "Nome del momento liturgico standard",
       "songs": [
         {
-          "title": "Titolo del canto (es. Lo Spirito di Dio, Chiesa di Dio)",
-          "code": "Codice numerico associato se indicato (es. '207', '342', o null)",
-          "alternateCode": "Codice alternativo se indicato (es. '114', '190', o null)",
-          "notes": "Annotazioni specifiche sul canto per questo momento (es. '1^ strofa', 'come da foglietto', 'cantato inizio e fine')"
+          "title": "Titolo del canto (es. Grandi Cose, Pane Vivo, Cantiamo Te)",
+          "code": "Codice numerico del catalogo/foglietto se indicato (es. '135/74', '7/22', '15', '283', o null)",
+          "alternateCode": "Codice alternativo se indicato (es. '114', o null)",
+          "notes": "Annotazioni specifiche (es. 'Cantato inizio e fine', 'Strofa letta', 'Come da foglietto', 'Si parte dalla strofa')"
         }
       ]
     }
   ]
 }
 
-Regole importanti per i nomi dei momenti:
-Mappa i momenti liturgici esattamente ai seguenti nomi standard della tabella mass_moments:
-- 'Ingresso' (es. 'ALL\\'INGRESSO')
-- 'Atto Penitenziale'
-- 'Gloria'
-- 'Salmo'
-- 'Canto al Vangelo' (es. 'AL VANGELO')
-- 'Offertorio'
-- 'Santo'
-- 'Memoriale' (mappa qui 'Mistero della Fede' o 'Annunciamo')
-- 'Agnello di Dio' (mappa qui 'Spezzare del Pane')
-- 'Comunione'
-- 'Finale' (mappa qui 'Fine')
+Regole importanti per i nomi dei momenti liturgici (Rito Ambrosiano):
+Mappa i momenti liturgici presenti nel foglietto esattamente ai seguenti nomi standard della tabella mass_moments:
+- 'Ingresso' (su foglietto: 'ALL\\'INGRESSO', 'INGRESSO')
+- 'Gloria' (su foglietto: 'GLORIA')
+- 'Salmo' (su foglietto: 'SALMO', 'SALMO RESPONSORIALE')
+- 'Canto al Vangelo' (su foglietto: 'AL VANGELO', 'ALLELUIA')
+- 'Dopo il Vangelo' (su foglietto: 'DOPO VANGELO', 'DOPO IL VANGELO' - se indicato 'LETTO' o vuoto, lascia l'array songs vuoto [])
+- 'Offertorio' (su foglietto: 'OFFERTORIO')
+- 'Santo' (su foglietto: 'SANTO' - se vuoto, barrato con '/' o non specificato, indica titolo 'Santo (Belli)')
+- 'Mistero della Fede' (su foglietto: 'MISTERO DELLA FEDE', 'ANNUNCIAMO')
+- 'Spezzare del Pane' (su foglietto: 'SPEZZARE DEL PANE', 'FRAZIONE DEL PANE')
+- 'Comunione' (su foglietto: 'COMUNIONE')
+- 'Finale' (su foglietto: 'FINE', 'FINALE')
+(Altri momenti opzionali se presenti: 'Aspersione', 'Atto Penitenziale', 'Amen', 'Agnello di Dio (Agnus Dei)', 'Padre Nostro', 'Canto al Battesimo').
 
-Se ci sono canti alternativi o molteplici per lo stesso momento (es. 'oppure', 'o'), inseriscili tutti come elementi separati nell'array 'songs' di quel momento.
-Se un momento è vuoto o non ha canti, non includerlo oppure lascia l'array 'songs' vuoto.
+Regole speciali di trascrizione per canti e note:
+1. GLORIA: se trovi scritto 'Cantato inizio e fine' (o simile), il titolo del canto è 'Gloria Zanella' e la nota è 'Cantato inizio e fine'.
+2. SANTO: se vuoto, barrato con '/' o assente, il titolo del canto è 'Santo (Belli)'.
+3. MISTERO DELLA FEDE: se trovi scritto 'ANNUNCIAMO', estrai titolo 'Annunciamo'.
+4. SPEZZARE DEL PANE: se trovi scritto ad es. 'COME DA FOGLIETTO "CANTIAMO TE"', estrai titolo 'Cantiamo Te' e nota 'Come da foglietto'.
+5. COMUNIONE: se trovi ad es. 'PANE VIVO - COME DA FOGLIETTO', estrai titolo 'Pane Vivo' e nota 'Come da foglietto'.
+6. Non confondere le note di esecuzione ('Come da foglietto', 'Strofa letta', 'Si parte dalla strofa') con il titolo del canto.
+7. Se ci sono canti alternativi o molteplici per lo stesso momento (es. 'oppure', 'o'), inseriscili come elementi separati nell'array 'songs'.
 Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
 
     // Catena aggiornata e verificata dei modelli Gemini con supporto multimodale Vision per OCR
@@ -425,83 +432,243 @@ Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
     // Recuperiamo i momenti standard per validazione
     const { data: dbMoments } = await adminSupabase
       .from("mass_moments")
-      .select("id, name")
+      .select("id, name, sort_order")
       .order("sort_order", { ascending: true });
 
-    const momentsMap = new Map((dbMoments || []).map((m) => [m.name.toLowerCase(), m.id]));
+    // Recuperiamo il catalogo dei canti per un matching rapido ed efficace
+    const { data: allSongs } = await adminSupabase
+      .from("songs")
+      .select("id, title, code, alternate_title");
 
-    const processedMoments = [];
+    const songsCatalog = allSongs || [];
+    const validMoments = dbMoments || [];
+
+    // Troviamo i canti di default richiesti
+    const gloriaZanellaSong = songsCatalog.find((s) => s.title.toLowerCase().includes("zanella"));
+    const santoBelliSong = songsCatalog.find((s) => {
+      const t = s.title.toLowerCase();
+      return t.includes("santo") && t.includes("belli");
+    });
+
+    // Mappatore/normalizzatore robusto dei momenti per il Rito Ambrosiano
+    const findMatchingMoment = (rawMomentName: string) => {
+      if (!rawMomentName) return null;
+      const clean = rawMomentName.trim().toLowerCase();
+
+      const exact = validMoments.find((m) => m.name.toLowerCase() === clean);
+      if (exact) return exact;
+
+      if (clean.includes("ingresso")) return validMoments.find((m) => m.name.toLowerCase() === "ingresso") || null;
+      if (clean.includes("aspersione")) return validMoments.find((m) => m.name.toLowerCase() === "aspersione") || null;
+      if (clean.includes("gloria")) return validMoments.find((m) => m.name.toLowerCase() === "gloria") || null;
+      if (clean.includes("salmo")) return validMoments.find((m) => m.name.toLowerCase() === "salmo") || null;
+      if (clean.includes("dopo vangelo") || clean.includes("dopo il vangelo")) {
+        return validMoments.find((m) => m.name.toLowerCase() === "dopo il vangelo") || null;
+      }
+      if (clean.includes("vangelo") || clean.includes("alleluia")) {
+        return validMoments.find((m) => m.name.toLowerCase() === "canto al vangelo") || null;
+      }
+      if (clean.includes("offertorio")) return validMoments.find((m) => m.name.toLowerCase() === "offertorio") || null;
+      if (clean.includes("santo")) return validMoments.find((m) => m.name.toLowerCase() === "santo") || null;
+      if (clean.includes("mistero") || clean.includes("fede") || clean.includes("memoriale") || clean.includes("annunciamo")) {
+        return validMoments.find((m) => m.name.toLowerCase() === "mistero della fede") || null;
+      }
+      if (clean.includes("amen") || clean.includes("dossologia")) {
+        return validMoments.find((m) => m.name.toLowerCase() === "amen") || null;
+      }
+      if (clean.includes("spezzare") || clean.includes("frazione")) {
+        return validMoments.find((m) => m.name.toLowerCase() === "spezzare del pane") || null;
+      }
+      if (clean.includes("agnello") || clean.includes("agnus")) {
+        return validMoments.find((m) => m.name.toLowerCase().includes("agnello")) || null;
+      }
+      if (clean.includes("padre nostro")) return validMoments.find((m) => m.name.toLowerCase() === "padre nostro") || null;
+      if (clean.includes("comunione")) return validMoments.find((m) => m.name.toLowerCase() === "comunione") || null;
+      if (clean.includes("fine") || clean.includes("finale") || clean.includes("congedo")) {
+        return validMoments.find((m) => m.name.toLowerCase() === "finale") || null;
+      }
+      if (clean.includes("battesimo")) return validMoments.find((m) => m.name.toLowerCase().includes("battesimo")) || null;
+
+      return null;
+    };
+
+    // Funzione intelligente di matching del canto nel catalogo
+    const matchSongInCatalog = (
+      rawTitle: string,
+      rawCode: string | null,
+      rawNotes: string | null,
+      momentName: string
+    ) => {
+      const norm = (str: string | null | undefined) =>
+        (str || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+      const cleanTitle = norm(rawTitle);
+      const cleanNotes = norm(rawNotes);
+      const cleanMoment = norm(momentName);
+
+      // Regola 1: Gloria Zanella
+      if (
+        cleanMoment.includes("gloria") &&
+        (cleanNotes.includes("inizio e fine") || cleanTitle.includes("inizio e fine") || cleanTitle.includes("zanella"))
+      ) {
+        if (gloriaZanellaSong) return gloriaZanellaSong;
+      }
+
+      // Regola 2: Santo (Belli)
+      if (
+        cleanMoment.includes("santo") &&
+        (!cleanTitle || cleanTitle === "letto" || cleanTitle === "santo" || cleanTitle.includes("belli"))
+      ) {
+        if (santoBelliSong) return santoBelliSong;
+      }
+
+      if (!cleanTitle && !rawCode) return null;
+
+      // 1. Titolo esatto
+      if (cleanTitle) {
+        const exact = songsCatalog.find(
+          (s) => norm(s.title) === cleanTitle || (s.alternate_title && norm(s.alternate_title) === cleanTitle)
+        );
+        if (exact) return exact;
+      }
+
+      const codeNum = rawCode ? rawCode.match(/\d+/)?.[0] : null;
+
+      // 2. Sia codice che parole del titolo corrispondono
+      if (codeNum && cleanTitle) {
+        const both = songsCatalog.find((s) => {
+          const sNum = (s.code || "").match(/\d+/)?.[0];
+          return sNum === codeNum && (norm(s.title).includes(cleanTitle) || cleanTitle.includes(norm(s.title)));
+        });
+        if (both) return both;
+      }
+
+      // 3. Corrispondenza codice numerico
+      if (codeNum) {
+        const codeMatches = songsCatalog.filter((s) => (s.code || "").match(/\d+/)?.[0] === codeNum);
+        if (codeMatches.length === 1) return codeMatches[0];
+        if (codeMatches.length > 1 && cleanTitle) {
+          const withTitle = codeMatches.find(
+            (s) => norm(s.title).includes(cleanTitle) || cleanTitle.includes(norm(s.title))
+          );
+          if (withTitle) return withTitle;
+        }
+      }
+
+      // 4. Prefisso del titolo
+      if (cleanTitle && cleanTitle.length >= 3) {
+        const starts = songsCatalog.find((s) => norm(s.title).startsWith(cleanTitle));
+        if (starts) return starts;
+      }
+
+      // 5. Sottostringa del titolo
+      if (cleanTitle && cleanTitle.length >= 4) {
+        const sub = songsCatalog.find(
+          (s) => norm(s.title).includes(cleanTitle) || (cleanTitle.length > 5 && cleanTitle.includes(norm(s.title)))
+        );
+        if (sub) return sub;
+      }
+
+      // 6. Sottostringa in alternate_title
+      if (cleanTitle && cleanTitle.length >= 4) {
+        const alt = songsCatalog.find((s) => s.alternate_title && norm(s.alternate_title).includes(cleanTitle));
+        if (alt) return alt;
+      }
+
+      return null;
+    };
+
+    const processedMomentsMap = new Map<string, {
+      momentId: string;
+      momentName: string;
+      sortOrder: number;
+      songs: any[];
+    }>();
 
     if (parsedData.moments && Array.isArray(parsedData.moments)) {
       for (const rawMoment of parsedData.moments) {
-        const momentName = rawMoment.momentName;
-        const momentId = momentsMap.get(momentName.toLowerCase()) || null;
-
-        if (!momentId) {
-          // Se non mappato a un momento standard del DB, saltiamo
+        const matchedMoment = findMatchingMoment(rawMoment.momentName);
+        if (!matchedMoment) {
           continue;
         }
 
-        const songsList = [];
+        const songsList: any[] = [];
         if (rawMoment.songs && Array.isArray(rawMoment.songs)) {
           for (const rawSong of rawMoment.songs) {
-            let matchedSong = null;
+            let songTitle = rawSong.title || "";
+            let songNotes = rawSong.notes || null;
 
-            // 1. Cerca per codice
-            if (rawSong.code) {
-              const { data } = await adminSupabase
-                .from("songs")
-                .select("id, title, code")
-                .ilike("code", `%${rawSong.code}%`)
-                .limit(1);
-              if (data && data.length > 0) {
-                matchedSong = data[0];
+            // Se Gloria contiene "Cantato inizio e fine" nel titolo o nelle note
+            const isGloria = matchedMoment.name.toLowerCase() === "gloria";
+            if (
+              isGloria &&
+              ((songTitle && songTitle.toLowerCase().includes("inizio e fine")) ||
+                (songNotes && songNotes.toLowerCase().includes("inizio e fine")))
+            ) {
+              songTitle = gloriaZanellaSong ? gloriaZanellaSong.title : "Gloria Zanella";
+              if (!songNotes || !songNotes.toLowerCase().includes("inizio e fine")) {
+                songNotes = "Cantato inizio e fine";
               }
             }
 
-            // 2. Cerca per titolo se non trovato
-            if (!matchedSong && rawSong.title) {
-              const { data } = await adminSupabase
-                .from("songs")
-                .select("id, title, code")
-                .ilike("title", `%${rawSong.title}%`)
-                .limit(1);
-              if (data && data.length > 0) {
-                matchedSong = data[0];
-              }
-            }
-
-            // 3. Cerca per titolo alternativo se non trovato
-            if (!matchedSong && rawSong.title) {
-              const { data } = await adminSupabase
-                .from("songs")
-                .select("id, title, code")
-                .ilike("alternate_title", `%${rawSong.title}%`)
-                .limit(1);
-              if (data && data.length > 0) {
-                matchedSong = data[0];
-              }
-            }
+            const matched = matchSongInCatalog(songTitle, rawSong.code, songNotes, matchedMoment.name);
 
             songsList.push({
-              title: rawSong.title,
-              code: rawSong.code || null,
+              title: matched ? matched.title : songTitle,
+              code: rawSong.code || (matched ? matched.code : null),
               alternateCode: rawSong.alternateCode || null,
-              notes: rawSong.notes || null,
-              matchedSongId: matchedSong ? matchedSong.id : null,
-              matchedTitle: matchedSong ? matchedSong.title : null,
-              matchedCode: matchedSong ? matchedSong.code : null,
+              notes: songNotes,
+              matchedSongId: matched ? matched.id : null,
+              matchedTitle: matched ? matched.title : null,
+              matchedCode: matched ? matched.code : null,
             });
           }
         }
 
-        processedMoments.push({
-          momentId,
-          momentName,
+        processedMomentsMap.set(matchedMoment.id, {
+          momentId: matchedMoment.id,
+          momentName: matchedMoment.name,
+          sortOrder: matchedMoment.sort_order,
           songs: songsList,
         });
       }
     }
+
+    // Regola Santo di default se vuoto, assente o barrato
+    const santoDb = validMoments.find((m) => m.name.toLowerCase() === "santo");
+    if (santoDb) {
+      const existingSanto = processedMomentsMap.get(santoDb.id);
+      const isSantoEmpty =
+        !existingSanto ||
+        existingSanto.songs.length === 0 ||
+        (existingSanto.songs.length === 1 &&
+          (!existingSanto.songs[0].title ||
+            ["/", "-", "letto", "santo"].includes(existingSanto.songs[0].title.trim().toLowerCase())));
+
+      if (isSantoEmpty) {
+        processedMomentsMap.set(santoDb.id, {
+          momentId: santoDb.id,
+          momentName: santoDb.name,
+          sortOrder: santoDb.sort_order,
+          songs: [
+            {
+              title: santoBelliSong ? santoBelliSong.title : "Santo (Belli)",
+              code: santoBelliSong ? santoBelliSong.code : null,
+              alternateCode: null,
+              notes: null,
+              matchedSongId: santoBelliSong ? santoBelliSong.id : null,
+              matchedTitle: santoBelliSong ? santoBelliSong.title : null,
+              matchedCode: santoBelliSong ? santoBelliSong.code : null,
+            },
+          ],
+        });
+      }
+    }
+
+    // Ordina i momenti processati secondo il sort_order liturgico
+    const processedMoments = Array.from(processedMomentsMap.values())
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(({ sortOrder, ...rest }) => rest);
 
     return {
       error: null,
@@ -606,6 +773,7 @@ export async function saveImportedMassAction(
               song_id: songId,
               moment_id: moment.momentId,
               position: position++,
+              notes: nullableString(song.notes || ""),
             });
 
           if (linkErr) {
