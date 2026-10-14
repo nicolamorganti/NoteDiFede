@@ -66,7 +66,16 @@ export function SundayNewsletterEditor() {
   }, []);
 
   useEffect(() => {
-    loadDraft(selectedRite);
+    let active = true;
+    (async () => {
+      await Promise.resolve();
+      if (active) {
+        loadDraft(selectedRite);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [selectedRite, loadDraft]);
 
   // 2. Funzione di salvataggio automatico

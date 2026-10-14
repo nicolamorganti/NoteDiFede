@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { notifyNewRegistration } from "@/app/actions/notifications";
@@ -19,19 +20,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [newsletterConsent, setNewsletterConsent] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  useEffect(() => {
+  const [error, setError] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("error") === "auth_failed") {
-        setError("Autenticazione con Google non riuscita. Riprova.");
+        return "Autenticazione con Google non riuscita. Riprova.";
       }
     }
-  }, []);
+    return "";
+  });
+  const [success, setSuccess] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("deleted") === "true") {
+        return "Il tuo account e tutti i tuoi dati personali sono stati eliminati definitivamente.";
+      }
+    }
+    return "";
+  });
 
   const handleGoogleSignIn = async () => {
     setError("");
@@ -62,6 +72,11 @@ export default function LoginPage() {
       return;
     }
 
+    if (isSignUp && !privacyConsent) {
+      setError("È necessario accettare l'Informativa sulla Privacy per completare la registrazione.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -75,6 +90,7 @@ export default function LoginPage() {
               full_name: fullName,
               username: email.split("@")[0] + "_" + Math.floor(Math.random() * 1000),
               newsletter_enabled: newsletterConsent,
+              privacy_accepted_at: new Date().toISOString(),
             },
           },
         });
@@ -273,12 +289,43 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={newsletterConsent}
                   onChange={(e) => setNewsletterConsent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-[#d9cdbf] text-[#5c4a37] focus:ring-[#aa9576] cursor-pointer"
+                  className="mt-0.5 h-4 w-4 rounded border-[#d9cdbf] text-[#5c4a37] focus:ring-[#aa9576] cursor-pointer shrink-0"
                   disabled={loading}
                 />
                 <label htmlFor="newsletterConsent" className="leading-relaxed cursor-pointer select-none">
                   <span className="font-semibold block text-[#3f3933]">📬 Iscriviti a &quot;La Parola del Giorno&quot;</span>
                   <span className="text-[#736555] text-[11px]">Ricevi ogni mattina alle ore 06:00 il Vangelo e la postura spirituale (disattivabile in ogni momento).</span>
+                </label>
+              </div>
+            )}
+
+            {/* Checkbox Accettazione Privacy (Obbligatoria per la registrazione) */}
+            {isSignUp && (
+              <div className="flex items-start gap-3 rounded-2xl border border-[#ebdcc8] bg-white/60 p-3.5 text-xs text-[#5c4a37]">
+                <input
+                  id="privacyConsent"
+                  type="checkbox"
+                  required
+                  checked={privacyConsent}
+                  onChange={(e) => setPrivacyConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-[#d9cdbf] text-[#5c4a37] focus:ring-[#aa9576] cursor-pointer shrink-0"
+                  disabled={loading}
+                />
+                <label htmlFor="privacyConsent" className="leading-relaxed cursor-pointer select-none">
+                  <span className="font-semibold block text-[#3f3933]">
+                    Accetto l&apos;Informativa sulla Privacy <span className="text-red-600">*</span>
+                  </span>
+                  <span className="text-[#736555] text-[11px] block mt-0.5">
+                    Dichiaro di aver preso visione dell&apos;
+                    <button
+                      type="button"
+                      onClick={() => setPrivacyModalOpen(true)}
+                      className="font-bold underline text-[#5c4a37] hover:text-[#2c241c] cursor-pointer inline mx-0.5"
+                    >
+                      Informativa sul Trattamento dei Dati
+                    </button>
+                    secondo il GDPR. I tuoi dati non saranno mai ceduti a terzi.
+                  </span>
                 </label>
               </div>
             )}
@@ -349,6 +396,18 @@ export default function LoginPage() {
               )}
               <span>{isSignUp ? "Continua con Google" : "Accedi con Google"}</span>
             </button>
+
+            <p className="mt-2.5 text-center text-[11px] text-[#8a755d] leading-tight">
+              Accedendo o registrandoti con Google o email, confermi di aver letto l&apos;
+              <button
+                type="button"
+                onClick={() => setPrivacyModalOpen(true)}
+                className="underline font-semibold text-[#5c4a37] hover:text-[#2c241c] cursor-pointer inline mx-0.5"
+              >
+                Informativa sulla Privacy
+              </button>
+              .
+            </p>
           </div>
 
           {/* Divider */}
@@ -400,6 +459,63 @@ export default function LoginPage() {
           Note di Fede • {APP_VERSION}
         </p>
       </div>
+
+      {/* Modal Informativa Privacy Rapida */}
+      {privacyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-3xl border border-[#d8c5ad] bg-[#fffdfa] p-6 sm:p-8 shadow-2xl text-[#3f3933] space-y-5">
+            <div className="flex items-center justify-between border-b border-[#e4dcce] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🛡️</span>
+                <h3 className="font-serif text-lg font-bold text-[#2c241c]">Informativa sulla Privacy</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPrivacyModalOpen(false)}
+                className="rounded-full p-1.5 text-[#8a755d] hover:bg-[#f4ebd9] hover:text-[#2c241c] transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs text-[#5c4a37] leading-relaxed">
+              <p>
+                <strong>Note di Fede</strong> è un progetto pastorale aperto e senza fini di lucro, dedicato al canto sacro e alla preghiera comunitaria.
+              </p>
+              <div className="rounded-2xl bg-[#faf6f0] border border-[#ebdcc8] p-3.5 space-y-2">
+                <p className="font-semibold text-[#2c241c]">I punti chiave della tua tutela:</p>
+                <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                  <li><strong>Nessun fine commerciale:</strong> non vendiamo né cediamo mai i tuoi dati a soggetti terzi o inserzionisti.</li>
+                  <li><strong>Dati minimi essenziali:</strong> memorizziamo solo nome, email e preferenze corali/liturgiche necessarie per l&apos;uso dell&apos;app.</li>
+                  <li><strong>Server europei protetti:</strong> i dati sono ospitati su database PostgreSQL cifrati (Supabase) in Europa.</li>
+                  <li><strong>Diritto all&apos;oblio garantito:</strong> puoi cancellare il tuo account e tutti i tuoi dati in qualunque momento dalla sezione <em>Impostazioni</em>.</li>
+                </ul>
+              </div>
+              <p>
+                Per approfondire tutti gli aspetti normativi ai sensi del GDPR (UE 2016/679), consulta la pagina{" "}
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  className="font-bold underline text-[#5c4a37] hover:text-[#2c241c]"
+                >
+                  Informativa Privacy Completa ↗
+                </Link>
+                .
+              </p>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPrivacyModalOpen(false)}
+                className="rounded-2xl bg-[#5c4a37] px-5 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-[#4b3c2c] transition cursor-pointer"
+              >
+                Ho compreso
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

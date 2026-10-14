@@ -416,13 +416,19 @@ export default function CreditiPage() {
         </p>
       </div>
 
-      {/* Tasto Ritorno */}
-      <div className="text-center pt-2">
+      {/* Tasto Ritorno e Link Privacy */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
         <Link
           href="/liturgia"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#2c241c] hover:bg-[#4a3b2c] text-[#f7f2ea] text-xs sm:text-sm font-semibold transition shadow-xs"
         >
           <span>← Torna alla Liturgia & Preghiera</span>
+        </Link>
+        <Link
+          href="/privacy"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-[#d8c5ad] bg-white/80 hover:bg-white text-[#5c4a37] text-xs sm:text-sm font-semibold transition shadow-xs"
+        >
+          <span>🛡️ Informativa sulla Privacy</span>
         </Link>
       </div>
     </div>

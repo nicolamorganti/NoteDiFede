@@ -606,5 +606,29 @@ export async function testSundayNewsletterDraftAction(payload: {
   }
 }
 
+// 12. Cancellazione definitiva dell'account (Diritto all'Oblio / GDPR)
+export async function deleteMyAccountAction(): Promise<SettingsActionState> {
+  const { user, error: authError } = await verifyUserRole(["ospite", "cantore", "maestro", "responsabile"]);
+  if (authError || !user) {
+    return { error: authError || "Non autorizzato: sessione non valida.", success: null };
+  }
 
+  try {
+    const adminClient = createAdminSupabaseClient();
 
+    // Elimina l'utente da auth.users.
+    // Grazie al vincolo ON DELETE CASCADE su profiles.id -> auth.users.id, 
+    // PostgreSQL rimuove a cascata la riga corrispondente da public.profiles.
+    const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(user.id);
+
+    if (deleteUserError) {
+      console.error("Errore eliminazione utente da Supabase Auth:", deleteUserError);
+      return { error: `Impossibile eliminare l'account: ${deleteUserError.message}`, success: null };
+    }
+
+    return { error: null, success: "Account eliminato definitivamente." };
+  } catch (err: any) {
+    console.error("Eccezione durante deleteMyAccountAction:", err);
+    return { error: err.message || "Errore imprevisto durante la cancellazione.", success: null };
+  }
+}

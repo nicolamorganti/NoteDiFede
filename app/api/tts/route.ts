@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ fallback: true, message: "Testo non valido o troppo breve" });
     }
 
-    let cleanText = text
+    const cleanText = text
       .replace(/[*†☩#_~^=|\/\\<>]/g, " ")
       .replace(/\s*[-–—]{1,}\s*/g, ", ")
       .replace(/\s+/g, " ")

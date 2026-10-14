@@ -13,7 +13,7 @@ function sanitizeHtml(rawHtml: string): string {
     rawHtml.match(/<div class="inner">([\s\S]*?)<\/div>/i) ||
     rawHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
 
-  let content = innerMatch ? innerMatch[1] : rawHtml;
+  const content = innerMatch ? innerMatch[1] : rawHtml;
 
   // 2. Pulizia di script, sponsor e banner di donazione
   return content

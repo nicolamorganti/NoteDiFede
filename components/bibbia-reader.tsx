@@ -83,6 +83,7 @@ export function BibbiaReader() {
   const [showLectio, setShowLectio] = useState<boolean>(false);
   const [copiedLectio, setCopiedLectio] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [isSelectionLectio, setIsSelectionLectio] = useState<boolean>(false);
 
   const readerContainerRef = useRef<HTMLDivElement | null>(null);
   const lectioSectionRef = useRef<HTMLDivElement | null>(null);
@@ -294,14 +295,36 @@ export function BibbiaReader() {
     setLectioError("Generazione annullata dall'utente.");
   };
 
-  // Generazione Lectio Divina con Gemini
-  const handleGenerateLectio = async () => {
-    if (lectioText) {
+  // Generazione Lectio Divina con Gemini (supporta sia l'intero capitolo sia un testo selezionato)
+  const handleGenerateLectio = async (customText?: string | React.MouseEvent) => {
+    const isFromSelection = typeof customText === "string" && customText.trim().length > 0;
+
+    // Se stiamo rieseguendo una nuova lectio da selezione o capitolo
+    if (lectioText && !isFromSelection && !isSelectionLectio) {
       setShowLectio((prev) => !prev);
       return;
     }
 
     if (!chapterData || !chapterData.verses.length) return;
+
+    let textToAnalyze = "";
+    if (isFromSelection && typeof customText === "string") {
+      textToAnalyze = customText.trim();
+      // Rimuovi la selezione attiva per chiudere la barra flottante
+      if (typeof window !== "undefined") {
+        window.getSelection()?.removeAllRanges();
+      }
+    } else {
+      textToAnalyze = chapterData.verses
+        .map((v) => `${v.num}. ${v.text}`)
+        .join("\n");
+    }
+
+    if (textToAnalyze.length < 20) {
+      setShowLectio(true);
+      setLectioError("Il brano selezionato è troppo breve per generare la Lectio Divina (seleziona almeno un versetto completo o 20 caratteri).");
+      return;
+    }
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -309,10 +332,7 @@ export function BibbiaReader() {
     setLectioLoading(true);
     setLectioError(null);
     setShowLectio(true);
-
-    const fullChapterText = chapterData.verses
-      .map((v) => `${v.num}. ${v.text}`)
-      .join("\n");
+    setIsSelectionLectio(isFromSelection);
 
     try {
       const res = await fetch("/api/bibbia/lectio", {
@@ -322,7 +342,7 @@ export function BibbiaReader() {
           bookName: chapterData.bookName,
           chapter: chapterData.chapter,
           category: chapterData.category,
-          text: fullChapterText,
+          text: textToAnalyze,
         }),
         signal: controller.signal,
       });
@@ -1188,6 +1208,11 @@ export function BibbiaReader() {
                       </span>
                       <h3 className="text-xl sm:text-2xl font-bold font-serif" style={{ color: isChurchMode ? "#fbbf24" : "#5c4a37" }}>
                         Lectio Divina: {chapterData.bookName} {chapterData.chapter}
+                        {isSelectionLectio && (
+                          <span className="block sm:inline sm:ml-2 text-xs sm:text-sm font-sans font-medium text-[#8a755d]">
+                            (Estratto selezionato)
+                          </span>
+                        )}
                       </h3>
                     </div>
 
@@ -1342,16 +1367,28 @@ export function BibbiaReader() {
         }
       `}</style>
 
-      {/* Barra Azione Flottante Inferiore per Selezione Testo (Stato WhatsApp) */}
+      {/* Barra Azione Flottante Inferiore per Selezione Testo (Stato WhatsApp e Genera Lectio) */}
       {hasActiveSelection && !quoteModalOpen && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 p-1.5 rounded-full bg-[#2c241c] text-white shadow-2xl border border-[#d8c5ad] animate-in fade-in slide-in-from-bottom-4 duration-200">
           <button
             type="button"
             onClick={() => setQuoteModalOpen(true)}
-            className="flex items-center gap-2 rounded-full bg-[#2c241c] text-white px-5 py-3 text-xs sm:text-sm font-serif font-bold shadow-2xl hover:bg-[#44382c] hover:scale-105 active:scale-95 transition border border-[#d8c5ad] cursor-pointer"
+            className="flex items-center gap-2 rounded-full px-4 py-2.5 text-xs sm:text-sm font-serif font-bold hover:bg-[#44382c] transition cursor-pointer"
           >
             <span>📸</span>
-            <span>Crea Stato WhatsApp</span>
+            <span className="hidden sm:inline">Crea</span>
+            <span>Stato WhatsApp</span>
+          </button>
+
+          <div className="w-[1px] h-6 bg-[#aa9576]/40" />
+
+          <button
+            type="button"
+            onClick={() => handleGenerateLectio(selectedQuoteText)}
+            className="flex items-center gap-2 rounded-full bg-[#aa9576] text-[#2c241c] px-4 py-2.5 text-xs sm:text-sm font-serif font-bold hover:bg-[#c4b193] active:scale-95 transition cursor-pointer shadow-xs"
+          >
+            <span>✨</span>
+            <span>Genera Lectio Divina</span>
           </button>
         </div>
       )}

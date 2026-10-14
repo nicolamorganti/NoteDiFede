@@ -427,7 +427,7 @@ function parseAmbrosianGospelFromHtml(
   const titleMatch =
     html.match(/<h1[^>]*class=["']entry-title["'][^>]*>([\s\S]*?)<\/h1>/i) ||
     html.match(/<title>([^<]+)<\/title>/i);
-  let title = titleMatch
+  const title = titleMatch
     ? titleMatch[1].replace(/<[^>]+>/g, "").replace(/ - Chiesa di Milano.*/i, "").trim()
     : fallbackTitle;
 

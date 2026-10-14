@@ -14,6 +14,7 @@ import {
   restoreDefaultMomentsAction,
   updateUserRoleAndRegister,
   testDailyWordNewsletterAction,
+  deleteMyAccountAction,
 } from "./actions";
 import { SundayNewsletterEditor } from "@/components/sunday-newsletter-editor";
 
@@ -48,6 +49,12 @@ export default function ImpostazioniPage() {
   const [newsletterEnabledInput, setNewsletterEnabledInput] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ error?: string; success?: string } | null>(null);
   const [profileUpdating, setProfileUpdating] = useState(false);
+
+  // States for Account Deletion (GDPR)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // States for Liturgical Moments Tab
   const [moments, setMoments] = useState<Moment[]>([]);
@@ -165,6 +172,29 @@ export default function ImpostazioniPage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== "ELIMINA") {
+      setDeleteError("Digita esattamente la parola 'ELIMINA' per confermare.");
+      return;
+    }
+
+    setDeleteError(null);
+    setIsDeletingAccount(true);
+    try {
+      const res = await deleteMyAccountAction();
+      if (res.error) {
+        setDeleteError(res.error);
+        setIsDeletingAccount(false);
+        return;
+      }
+
+      await supabase.auth.signOut();
+      router.push("/?deleted=true");
+    } catch (err: any) {
+      setDeleteError(err.message || "Errore imprevisto durante l'eliminazione dell'account.");
+      setIsDeletingAccount(false);
+    }
+  };
 
   // --- Moments actions ---
   const handleMoveUp = (index: number) => {
@@ -548,6 +578,99 @@ export default function ImpostazioniPage() {
               {profileUpdating ? "Salvataggio..." : "Salva Profilo"}
             </button>
           </form>
+
+          {/* Zona Riservata: Eliminazione Account (Diritto all'Oblio / GDPR) */}
+          <div className="mt-10 pt-6 border-t border-[#eedfd0] space-y-3">
+            <h4 className="font-serif text-sm font-bold text-red-900 flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Zona Riservata &bull; Diritto all&apos;Oblio</span>
+            </h4>
+            <p className="text-xs text-[#736555] leading-relaxed max-w-xl">
+              In conformità con il Regolamento GDPR (UE 2016/679), puoi cancellare in qualsiasi momento il tuo account e tutti i dati personali associati (nome, email, credenziali e preferenze). L&apos;operazione è irreversibile.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteError(null);
+                setDeleteConfirmText("");
+                setDeleteModalOpen(true);
+              }}
+              className="rounded-2xl border border-red-300 bg-red-50/70 hover:bg-red-100 px-4 py-2.5 text-xs font-bold text-red-700 transition cursor-pointer"
+            >
+              Elimina definitivamente il mio account
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Conferma Eliminazione Account */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl border border-red-200 bg-[#fffdfa] p-6 shadow-2xl text-[#3f3933] space-y-5">
+            <div className="flex items-center justify-between border-b border-red-100 pb-3">
+              <div className="flex items-center gap-2 text-red-800">
+                <span className="text-xl">⚠️</span>
+                <h3 className="font-serif text-base font-bold">Cancellazione Account</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                className="rounded-full p-1.5 text-[#8a755d] hover:bg-[#f4ebd9] hover:text-[#2c241c] transition cursor-pointer"
+                disabled={isDeletingAccount}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-[#5c4a37] leading-relaxed">
+              <p className="font-semibold text-red-800">
+                Attenzione: questa azione è immediata e irreversibile.
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-[11px] text-[#736555]">
+                <li>Il tuo profilo, email, password e credenziali verranno distrutti.</li>
+                <li>L&apos;eventuale iscrizione alla meditazione quotidiana verrà annullata.</li>
+                <li>I canti parrocchiali che hai inserito rimarranno nell&apos;archivio del coro come patrimonio comune.</li>
+              </ul>
+              <div className="pt-2 space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#3f3933]">
+                  Per confermare, digita <span className="font-mono text-red-700">ELIMINA</span>:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="ELIMINA"
+                  disabled={isDeletingAccount}
+                  className="w-full rounded-xl border border-red-300 bg-white px-3.5 py-2 text-sm font-mono font-bold text-red-900 uppercase placeholder-gray-400 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+
+              {deleteError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 font-medium">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#f0e4d6]">
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeletingAccount}
+                className="rounded-xl border border-[#d9cdbf] bg-white px-4 py-2 text-xs font-semibold text-[#5c4a37] hover:bg-[#faf6f0] transition cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount || deleteConfirmText.trim().toUpperCase() !== "ELIMINA"}
+                className="rounded-xl bg-red-700 px-4 py-2 text-xs font-bold text-white shadow hover:bg-red-800 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {isDeletingAccount ? "Eliminazione in corso..." : "Elimina definitivamente"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

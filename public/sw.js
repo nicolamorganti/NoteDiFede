@@ -1,4 +1,4 @@
-const CACHE_NAME = "notedifede-v1.7.0";
+const CACHE_NAME = "notedifede-v2.5.5";
 
 // Asset statici principali pre-memorizzati in cache all'installazione
 const PRECACHE_ASSETS = [

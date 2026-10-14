@@ -15,15 +15,12 @@ export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // 1. Riconosci la chiamata automatica di Vercel Crons (user-agent: vercel-cron/1.0)
-  const isVercelCron = userAgent.includes("vercel-cron");
-
-  // 2. Riconosci se l'Authorization header corrisponde al CRON_SECRET o alla service role key
+  // 1. Riconosci se l'Authorization header corrisponde al CRON_SECRET o alla service role key
   const isSecretMatch =
     (Boolean(cronSecret) && authHeader === `Bearer ${cronSecret}`) ||
     (Boolean(serviceRoleKey) && authHeader === `Bearer ${serviceRoleKey}`);
 
-  // 3. Fallback: autorizza anche se invocato da un utente con ruolo maestro/responsabile loggato
+  // 2. Fallback: autorizza anche se invocato da un utente con ruolo maestro/responsabile loggato (es. test manuale da UI)
   let isAdminSession = false;
   try {
     const { role } = await verifyUserRole(["maestro", "responsabile"]);
@@ -34,7 +31,7 @@ export async function GET(request: NextRequest) {
     // Nessuna sessione attiva
   }
 
-  const isAuthorized = isSecretMatch || isVercelCron || isAdminSession;
+  const isAuthorized = isSecretMatch || isAdminSession;
 
   if (!isAuthorized) {
     console.warn("⚠️ Tentativo non autorizzato di esecuzione Cronjob La Parola del Giorno");
@@ -44,10 +41,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const triggerSource = isVercelCron
-    ? "Vercel Cron (Automatico)"
-    : isSecretMatch
-    ? "Bearer Token"
+  const triggerSource = isSecretMatch
+    ? userAgent.includes("vercel-cron")
+      ? "Vercel Cron (Automatico)"
+      : "Bearer Token"
     : "Admin Session";
 
   console.log(`🕒 Esecuzione Cronjob 'La Parola del Giorno' avviata (${triggerSource})...`);
