@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireEnv } from "@/lib/env";
 import { generateUnsubscribeToken } from "@/lib/unsubscribe-token";
+import { getGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
 
 export type LiturgyRite = "ambrosiano" | "romano";
 
@@ -564,14 +565,8 @@ REGOLE TASSATIVE:
 - Concludi SEMPRE e TASSATIVAMENTE con una frase compiuta e punto fermo finale. Non interrompere MAI a metà frase. Niente titoli markdown.`;
   }
 
-  const candidateModels = [
-    process.env.GEMINI_MODEL,
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-flash-latest",
-  ].filter(Boolean) as string[];
+  // Catena aggiornata e verificata dei modelli Gemini ufficiali (gemini-flash-latest come primo, modelli deprecati rimossi)
+  const candidateModels = getGeminiCandidateModels();
 
   let reflection: string | null = null;
   let usedModel = "";
@@ -591,8 +586,8 @@ REGOLE TASSATIVE:
         },
       };
 
-      // thinkingConfig è supportato da gemini-2.5-flash ma genera errore 400 su gemini-1.5-flash
-      if (model.includes("2.5") || model.includes("2.0")) {
+      // Per Gemini 2.5 impostiamo thinkingBudget a 0 per evitare ritardi di reasoning
+      if (model.includes("2.5")) {
         requestBody.generationConfig.thinkingConfig = {
           thinkingBudget: 0,
         };
@@ -612,13 +607,10 @@ REGOLE TASSATIVE:
         const candidate = data.candidates?.[0];
         if (!candidate) continue;
 
-        // Concatena tutte le parti testuali non-thought
-        const textParts = (candidate.content?.parts || [])
-          .filter((p: any) => !p.thought && typeof p.text === "string")
-          .map((p: any) => p.text)
-          .join("");
+        const rawText = extractGeminiCandidateText(candidate);
+        if (!rawText) continue;
 
-        let text = textParts.trim()
+        let text = rawText
           .replace(/^(\*\*.*?\*\*|#+.*?\n)\s*/gi, "")
           .replace(/^[«"“\s]+/, "")
           .replace(/[»"”\s]+$/, "")

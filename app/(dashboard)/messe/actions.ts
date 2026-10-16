@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { verifyUserRole } from "@/lib/supabase/server";
 import { autoLinkPsalmFile } from "@/app/(dashboard)/canti/actions";
+import { getGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
 
 export type MassFormState = {
   error: string | null;
@@ -344,19 +345,7 @@ Regole speciali di trascrizione per canti e note:
 Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
 
     // Catena aggiornata e verificata dei modelli Gemini con supporto multimodale Vision per OCR
-    const candidateModels = [
-      process.env.GEMINI_MODEL,
-      "gemini-flash-latest",
-      "gemini-3.7-flash",
-      "gemini-3.6-flash",
-      "gemini-3.5-flash",
-      "gemini-2.5-flash",
-      "gemini-flash-lite-latest",
-      "gemini-3.1-flash-lite",
-    ].filter(Boolean) as string[];
-
-
-
+    const candidateModels = getGeminiCandidateModels();
 
     let textOutput: string | null = null;
     let lastError = "";
@@ -399,7 +388,7 @@ Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
 
         if (apiResponse.ok) {
           const resJson = await apiResponse.json();
-          textOutput = resJson.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          textOutput = extractGeminiCandidateText(resJson.candidates?.[0]);
           if (textOutput) {
             break;
           }
@@ -408,12 +397,13 @@ Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
           lastError = `[${model}] HTTP ${apiResponse.status}: ${errBody}`;
           console.warn(`Tentativo modello ${model} fallito per OCR messa, passo al successivo:`, lastError);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearTimeout(timeoutId);
-        if (err.name === "AbortError") {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        if (errorObj.name === "AbortError") {
           lastError = `[${model}] Timeout 25s superato`;
         } else {
-          lastError = `[${model}] ${err.message || String(err)}`;
+          lastError = `[${model}] ${errorObj.message || String(err)}`;
         }
         console.warn(`Eccezione modello ${model} per OCR messa, passo al successivo:`, lastError);
       }

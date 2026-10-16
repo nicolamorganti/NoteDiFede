@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
 
@@ -75,17 +76,8 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
 - Niente convenevoli di apertura o formule da pulpito (niente "Carissimi fratelli", "Cari amici", ecc.). Entra direttamente nella contemplazione del brano.`;
 
 
-    // Catena aggiornata e verificata dei modelli Gemini ufficiali
-    const candidateModels = [
-      process.env.GEMINI_MODEL,
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-2.5-flash-lite",
-    ].filter(Boolean) as string[];
-
-
-
+    // Catena aggiornata e verificata dei modelli Gemini ufficiali (gemini-flash-latest come primo, modelli deprecati rimossi)
+    const candidateModels = getGeminiCandidateModels();
 
     const geminiPayload = {
       contents: [
@@ -122,7 +114,7 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
 
         if (apiResponse.ok) {
           const data = await apiResponse.json();
-          generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          generatedText = extractGeminiCandidateText(data.candidates?.[0]);
           if (generatedText) {
             usedModel = model;
             break;
@@ -132,12 +124,13 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
           lastError = `[${model}] HTTP ${apiResponse.status}: ${errBody}`;
           console.warn(`Tentativo modello ${model} fallito per omelia, passo al successivo:`, lastError);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearTimeout(timeoutId);
-        if (err.name === "AbortError") {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        if (errorObj.name === "AbortError") {
           lastError = `[${model}] Timeout 20s superato`;
         } else {
-          lastError = `[${model}] ${err.message || String(err)}`;
+          lastError = `[${model}] ${errorObj.message || String(err)}`;
         }
         console.warn(`Eccezione modello ${model} per omelia, passo al successivo:`, lastError);
       }
@@ -161,10 +154,11 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
       omelia: generatedText,
       model: usedModel,
     });
-  } catch (error: any) {
-    console.error("Errore server Omelia/Comprensione Vangelo:", error);
+  } catch (error: unknown) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    console.error("Errore server Omelia/Comprensione Vangelo:", errorObj);
     return NextResponse.json(
-      { error: error.message || "Errore interno durante l'elaborazione del supporto alla comprensione." },
+      { error: errorObj.message || "Errore interno durante l'elaborazione del supporto alla comprensione." },
       { status: 500 }
     );
   }
