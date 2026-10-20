@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { verifyUserRole } from "@/lib/supabase/server";
 import { autoLinkPsalmFile } from "@/app/(dashboard)/canti/actions";
-import { getGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
+import { resolveGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
 
 export type MassFormState = {
   error: string | null;
@@ -344,15 +344,23 @@ Regole speciali di trascrizione per canti e note:
 7. Se ci sono canti alternativi o molteplici per lo stesso momento (es. 'oppure', 'o'), inseriscili come elementi separati nell'array 'songs'.
 Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
 
-    // Catena aggiornata e verificata dei modelli Gemini con supporto multimodale Vision per OCR
-    const candidateModels = getGeminiCandidateModels();
+    // Catena dinamica e verificata dei modelli Gemini con supporto multimodale Vision per OCR
+    const candidateModels = await resolveGeminiCandidateModels(apiKey);
 
     let textOutput: string | null = null;
     let lastError = "";
+    let latestAliasOverloaded = false;
+    const topNumberedFlashModel = candidateModels.find((m) =>
+      /^gemini-\d+(?:\.\d+)?-flash$/.test(m)
+    );
 
     for (const model of candidateModels) {
+      if (latestAliasOverloaded && model === topNumberedFlashModel) {
+        continue;
+      }
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
       try {
         const apiResponse = await fetch(
@@ -395,13 +403,19 @@ Restituisci esclusivamente il JSON valido senza markdown aggiuntivo.`;
         } else {
           const errBody = await apiResponse.text();
           lastError = `[${model}] HTTP ${apiResponse.status}: ${errBody}`;
+          if (model === "gemini-flash-latest" && (apiResponse.status === 503 || apiResponse.status === 429 || apiResponse.status === 504)) {
+            latestAliasOverloaded = true;
+          }
           console.warn(`Tentativo modello ${model} fallito per OCR messa, passo al successivo:`, lastError);
         }
       } catch (err: unknown) {
         clearTimeout(timeoutId);
         const errorObj = err instanceof Error ? err : new Error(String(err));
+        if (model === "gemini-flash-latest") {
+          latestAliasOverloaded = true;
+        }
         if (errorObj.name === "AbortError") {
-          lastError = `[${model}] Timeout 25s superato`;
+          lastError = `[${model}] Timeout 20s superato`;
         } else {
           lastError = `[${model}] ${errorObj.message || String(err)}`;
         }

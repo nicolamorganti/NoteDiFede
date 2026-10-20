@@ -61,10 +61,10 @@ function formatMassDate(value: string) {
 export async function getMasses(): Promise<MassListItem[]> {
   const supabase = createAdminSupabaseClient();
 
-  // Seleziona messe e unisci i conteggi dei canti
+  // Seleziona messe con conteggio aggregato dei canti in un'unica query
   const { data: massesData, error: massesError } = await supabase
     .from("masses")
-    .select("id, title, liturgical_year, celebration_date, notes, created_at")
+    .select("id, title, liturgical_year, celebration_date, notes, created_at, mass_songs(count)")
     .order("celebration_date", { ascending: false });
 
   if (massesError) {
@@ -72,33 +72,20 @@ export async function getMasses(): Promise<MassListItem[]> {
     return [];
   }
 
-  // Per ogni messa, recuperiamo il conteggio dei canti
-  const { data: countData, error: countError } = await supabase
-    .from("mass_songs")
-    .select("mass_id");
-
-  if (countError) {
-    console.error("Supabase getMassSongs count error", countError);
-  }
-
-  const countsByMassId = (countData ?? []).reduce<Record<string, number>>((acc, item) => {
-    acc[item.mass_id] = (acc[item.mass_id] ?? 0) + 1;
-    return acc;
-  }, {});
-
   return ((massesData || []) as {
     id: string;
     title: string;
     liturgical_year: "A" | "B" | "C";
     celebration_date: string;
     notes: string | null;
+    mass_songs?: { count: number }[];
   }[]).map((mass) => ({
     id: mass.id,
     title: mass.title,
     liturgicalYear: mass.liturgical_year,
     celebrationDate: mass.celebration_date,
     notes: mass.notes,
-    songCount: countsByMassId[mass.id] ?? 0,
+    songCount: mass.mass_songs?.[0]?.count ?? 0,
     createdAtLabel: formatMassDate(mass.celebration_date),
   }));
 }

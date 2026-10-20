@@ -137,28 +137,33 @@ export async function getSongs(): Promise<SongListItem[]> {
     supabase
       .from("songs")
       .select("id, code, title, alternate_title, notes, updated_at")
-      .order("title", { ascending: true }),
+      .order("title", { ascending: true })
+      .limit(5000),
     supabase
       .from("song_arrangements")
       .select(
         "id, song_id, arrangement_name, musical_key, instrumentation, notes, updated_at",
       )
-      .order("updated_at", { ascending: false }),
+      .order("updated_at", { ascending: false })
+      .limit(10000),
     supabase
       .from("song_files")
       .select(
         "id, song_id, arrangement_id, file_type, file_name, mime_type, file_size_bytes, created_at, storage_path",
       )
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(20000),
     supabase
       .from("song_links")
       .select(
         "id, song_id, arrangement_id, label, url, provider, link_type, notes, created_at",
       )
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(10000),
     supabase
       .from("song_moments")
-      .select("song_id, moment_id, mass_moments(id, name, sort_order)"),
+      .select("song_id, moment_id, mass_moments(id, name, sort_order)")
+      .limit(10000),
   ]);
 
   if (songsError) {

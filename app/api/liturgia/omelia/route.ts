@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { getGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
+import { resolveGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
 
@@ -76,8 +76,8 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
 - Niente convenevoli di apertura o formule da pulpito (niente "Carissimi fratelli", "Cari amici", ecc.). Entra direttamente nella contemplazione del brano.`;
 
 
-    // Catena aggiornata e verificata dei modelli Gemini ufficiali (gemini-flash-latest come primo, modelli deprecati rimossi)
-    const candidateModels = getGeminiCandidateModels();
+    // Catena dinamica e verificata dei modelli Gemini ufficiali (gemini-flash-latest come primo, seguito dai singoli modelli Flash attivi)
+    const candidateModels = await resolveGeminiCandidateModels(apiKey);
 
     const geminiPayload = {
       contents: [
@@ -95,11 +95,19 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
     let lastError = "";
     let generatedText: string | null = null;
     let usedModel = "";
+    let latestAliasOverloaded = false;
+    const topNumberedFlashModel = candidateModels.find((m) =>
+      /^gemini-\d+(?:\.\d+)?-flash$/.test(m)
+    );
 
     for (const model of candidateModels) {
+      if (latestAliasOverloaded && model === topNumberedFlashModel) {
+        continue;
+      }
+
       const controller = new AbortController();
-      // 20 secondi di timeout per modello
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      // 15 secondi di timeout per modello
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       try {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -122,13 +130,19 @@ CRITERI DI STILE E SINTASSI (AUTENTICA VOCE DI CARLO MARIA MARTINI):
         } else {
           const errBody = await apiResponse.text();
           lastError = `[${model}] HTTP ${apiResponse.status}: ${errBody}`;
+          if (model === "gemini-flash-latest" && (apiResponse.status === 503 || apiResponse.status === 429 || apiResponse.status === 504)) {
+            latestAliasOverloaded = true;
+          }
           console.warn(`Tentativo modello ${model} fallito per omelia, passo al successivo:`, lastError);
         }
       } catch (err: unknown) {
         clearTimeout(timeoutId);
         const errorObj = err instanceof Error ? err : new Error(String(err));
+        if (model === "gemini-flash-latest") {
+          latestAliasOverloaded = true;
+        }
         if (errorObj.name === "AbortError") {
-          lastError = `[${model}] Timeout 20s superato`;
+          lastError = `[${model}] Timeout 15s superato`;
         } else {
           lastError = `[${model}] ${errorObj.message || String(err)}`;
         }

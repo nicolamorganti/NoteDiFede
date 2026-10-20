@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { verifyUserRole } from "@/lib/supabase/server";
 
 type SongFileRecord = {
   storage_bucket: string;
   storage_path: string;
   file_name: string;
+  file_type: string;
   mime_type: string | null;
 };
 
@@ -25,12 +27,28 @@ export async function GET(
 
   const { data: file, error: fileError } = await supabase
     .from("song_files")
-    .select("storage_bucket, storage_path, file_name, mime_type")
+    .select("storage_bucket, storage_path, file_name, file_type, mime_type")
     .eq("id", fileId)
     .single<SongFileRecord>();
 
   if (fileError || !file) {
     return new Response("File non trovato", { status: 404 });
+  }
+
+  // Controllo permessi per le tracce vocali MP3 (riservate a cantore, responsabile e maestro)
+  const isAudioTrack =
+    file.file_type.startsWith("mp3_") ||
+    file.file_name.toLowerCase().endsWith(".mp3") ||
+    Boolean(file.mime_type && file.mime_type.startsWith("audio/"));
+
+  if (isAudioTrack) {
+    const { role } = await verifyUserRole(["cantore", "responsabile", "maestro"]);
+    if (!role) {
+      return new Response(
+        "Accesso riservato ai Coristi abilitati (Cantore, Responsabile o Maestro).",
+        { status: 403 },
+      );
+    }
   }
 
   const { data: signedUrlData, error: signedUrlError } = await supabase.storage

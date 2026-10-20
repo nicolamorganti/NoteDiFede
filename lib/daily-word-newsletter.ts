@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireEnv } from "@/lib/env";
 import { generateUnsubscribeToken } from "@/lib/unsubscribe-token";
-import { getGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
+import { resolveGeminiCandidateModels, extractGeminiCandidateText } from "@/lib/gemini";
 
 export type LiturgyRite = "ambrosiano" | "romano";
 
@@ -565,33 +565,42 @@ REGOLE TASSATIVE:
 - Concludi SEMPRE e TASSATIVAMENTE con una frase compiuta e punto fermo finale. Non interrompere MAI a metà frase. Niente titoli markdown.`;
   }
 
-  // Catena aggiornata e verificata dei modelli Gemini ufficiali (gemini-flash-latest come primo, modelli deprecati rimossi)
-  const candidateModels = getGeminiCandidateModels();
+  // Catena dinamica e verificata dei modelli Gemini ufficiali (gemini-flash-latest come primo, seguito dai singoli modelli Flash attivi)
+  const candidateModels = await resolveGeminiCandidateModels(apiKey);
 
   let reflection: string | null = null;
   let usedModel = "";
   let lastError = "";
+  let latestAliasOverloaded = false;
+
+  // Identifica il primo modello numerato standard (es. gemini-3.8-flash) a cui punta gemini-flash-latest
+  const topNumberedFlashModel = candidateModels.find((m) =>
+    /^gemini-\d+(?:\.\d+)?-flash$/.test(m)
+  );
 
   for (const model of candidateModels) {
+    // Se gemini-flash-latest è appena fallito per 503 (high demand) o timeout, salta il modello numerato
+    // corrispondente (es. gemini-3.8-flash) per non restare bloccati due volte sullo stesso pool saturo
+    if (latestAliasOverloaded && model === topNumberedFlashModel) {
+      console.warn(
+        `[${model}] Saltato perché gemini-flash-latest è in sovraccarico/timeout; passo direttamente al modello successivo.`
+      );
+      continue;
+    }
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+    // 12s di timeout per singolo modello per garantire ampio margine entro i 60s di Vercel Cron
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const requestBody: any = {
+      const requestBody = {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.65,
           maxOutputTokens: 2048,
         },
       };
-
-      // Per Gemini 2.5 impostiamo thinkingBudget a 0 per evitare ritardi di reasoning
-      if (model.includes("2.5")) {
-        requestBody.generationConfig.thinkingConfig = {
-          thinkingBudget: 0,
-        };
-      }
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -650,11 +659,22 @@ REGOLE TASSATIVE:
       } else {
         const errBody = await res.text();
         lastError = `[${model}] HTTP ${res.status}: ${errBody}`;
+        if (model === "gemini-flash-latest" && (res.status === 503 || res.status === 429 || res.status === 504)) {
+          latestAliasOverloaded = true;
+        }
         console.warn(`Tentativo modello ${model} fallito per newsletter, provo il successivo:`, lastError);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timeoutId);
-      lastError = `[${model}] ${err.message || String(err)}`;
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      if (model === "gemini-flash-latest") {
+        latestAliasOverloaded = true;
+      }
+      if (errorObj.name === "AbortError") {
+        lastError = `[${model}] Timeout 12s superato`;
+      } else {
+        lastError = `[${model}] ${errorObj.message || String(err)}`;
+      }
       console.warn(`Eccezione modello ${model} per newsletter:`, lastError);
     }
   }

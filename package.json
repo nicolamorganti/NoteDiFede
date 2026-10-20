@@ -1,6 +1,6 @@
 {
   "name": "note-di-fede",
-  "version": "2.5.7",
+  "version": "2.5.8",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -29,5 +29,11 @@
     "supabase": "^2.92.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "core-js": false,
+    "sharp": true,
+    "supabase": true,
+    "unrs-resolver": true
   }
 }

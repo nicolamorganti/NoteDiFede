@@ -1,11 +1,14 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createAdminSupabaseClient } from "@/lib/supabase/server";
 import { notifyNewRegistration } from "@/app/actions/notifications";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/canti";
+  const rawNext = searchParams.get("next") ?? "/canti";
+
+  // Prevenzione Open Redirect: accetta solo percorsi interni relativi che non iniziano con //
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/canti";
 
   if (code) {
     const supabase = await createServerSupabaseClient();
@@ -15,20 +18,21 @@ export async function GET(request: Request) {
       const user = data.user;
       const adminClient = createAdminSupabaseClient();
 
-      // Verifica o crea il profilo dell'utente se è il primo accesso via Google
+      const fullName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "Utente Google";
+
+      // Verifica o completa il profilo dell'utente (il trigger handle_new_user crea la riga,
+      // ma se full_name era vuoto al momento del trigger la aggiorniamo)
       const { data: existingProfile } = await adminClient
         .from("profiles")
-        .select("id")
+        .select("id, full_name")
         .eq("id", user.id)
         .maybeSingle();
 
       if (!existingProfile) {
-        const fullName =
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          user.email?.split("@")[0] ||
-          "Utente Google";
-
         const username =
           (user.email?.split("@")[0] || "user") + "_" + Math.floor(Math.random() * 1000);
 
@@ -37,16 +41,25 @@ export async function GET(request: Request) {
           username,
           full_name: fullName,
           role: "ospite",
-          vocal_register: null,
+          vocal_register: "nessuno",
         });
+      } else if (!existingProfile.full_name && fullName) {
+        await adminClient
+          .from("profiles")
+          .update({ full_name: fullName })
+          .eq("id", user.id);
+      }
 
-        // Invia notifica agli amministratori per la nuova registrazione
-        if (user.email) {
-          try {
-            await notifyNewRegistration(user.email, fullName);
-          } catch (err) {
-            console.error("Errore notifica nuovo utente Google:", err);
-          }
+      // Determina se si tratta del primo accesso assoluto (utente creato negli ultimi 2 minuti)
+      const createdAtMs = user.created_at ? new Date(user.created_at).getTime() : 0;
+      const isFirstSignIn =
+        !existingProfile || (createdAtMs > 0 && Date.now() - createdAtMs < 2 * 60 * 1000);
+
+      if (isFirstSignIn && user.email) {
+        try {
+          await notifyNewRegistration(user.email, fullName);
+        } catch (err) {
+          console.error("Errore notifica nuovo utente Google:", err);
         }
       }
 

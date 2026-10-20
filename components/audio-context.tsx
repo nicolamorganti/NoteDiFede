@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useRef, useEffect } from "react";
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
 
 export type AudioTrack = {
   songTitle: string;
@@ -86,6 +86,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLooping]);
 
+  const seek = useCallback((time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  }, []);
+
   // Sincronizza MediaSession API (controlli lockscreen nativi Android / iOS / Bluetooth)
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator)) return;
@@ -131,7 +138,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } else {
       navigator.mediaSession.playbackState = "none";
     }
-  }, [activeTrack, isPlaying, duration]);
+  }, [activeTrack, isPlaying, duration, seek]);
 
   // Sincronizza posizione con MediaSession
   useEffect(() => {
@@ -212,13 +219,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (audioRef.current && activeTrack) {
       audioRef.current.play().catch(console.error);
       setIsPlaying(true);
-    }
-  };
-
-  const seek = (time: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
     }
   };
 

@@ -6,6 +6,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// Protezione anti-replay / anti-abuso: impedisce esecuzioni automatiche multiple ravvicinate (cooldown 6 ore)
+let lastAutoCronRunAt = 0;
+const AUTO_CRON_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+
 /**
  * Endpoint Cron invocato automaticamente da Vercel Crons ogni giorno alle 04:00 UTC (06:00 italiane)
  */
@@ -42,6 +46,18 @@ export async function GET(request: NextRequest) {
       { error: "Non autorizzato: token CRON o sessione amministrativa non valida." },
       { status: 401 }
     );
+  }
+
+  // Se l'accesso avviene solo tramite User-Agent (senza Bearer secret né sessione admin), applica cooldown
+  if (isVercelCron && !isSecretMatch && !isAdminSession) {
+    const now = Date.now();
+    if (now - lastAutoCronRunAt < AUTO_CRON_COOLDOWN_MS) {
+      return NextResponse.json(
+        { error: "Esecuzione automatica già effettuata di recente." },
+        { status: 429 }
+      );
+    }
+    lastAutoCronRunAt = now;
   }
 
   const triggerSource = isVercelCron

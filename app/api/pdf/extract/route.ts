@@ -76,7 +76,11 @@ async function fetchDriveCeiBuffer(url: string): Promise<ArrayBuffer> {
 
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       const loc = res.headers.get("location")!;
-      currentUrl = loc.startsWith("http") ? loc : new URL(loc, currentUrl).href;
+      const nextUrl = loc.startsWith("http") ? loc : new URL(loc, currentUrl).href;
+      if (!isAllowedPdfUrl(nextUrl)) {
+        throw new Error("Redirect verso URL non autorizzato bloccato per sicurezza.");
+      }
+      currentUrl = nextUrl;
     } else {
       break;
     }

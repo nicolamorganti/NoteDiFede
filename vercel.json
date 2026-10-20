@@ -1,4 +1,6 @@
 {
+  "installCommand": "unset npm_config_cache_dir; npm install --no-fund",
+  "buildCommand": "unset npm_config_cache_dir; npm run build",
   "crons": [
     {
       "path": "/api/cron/parola-del-giorno",
