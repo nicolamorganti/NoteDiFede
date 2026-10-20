@@ -1,4 +1,4 @@
--- Note di Fede - Consolidamento Sicurezza RLS (Catalogo, Profili, Storage)
+-- Note di Fede - Consolidamento Sicurezza RLS e Data API Grants (Supabase Oct 30 Change)
 -- Migrazione: 20261020220000_harden_rls_and_storage.sql
 
 -- =====================================================================
@@ -43,3 +43,56 @@ CREATE POLICY "Allow upload to note-di-fede for maestro"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'note-di-fede' AND public.is_maestro());
+
+-- =====================================================================
+-- 4. EXPLICIT DATA API GRANTS (Supabase Breaking Change 30 Ottobre 2026)
+-- =====================================================================
+-- Garantisce esplicitamente i permessi a livello di tabella per i ruoli
+-- anon, authenticated e service_role (le policy RLS continuano a filtrare
+-- le righe). Questo assicura che 'supabase db reset', preview branches o
+-- ricostruzioni dello schema dopo il 30 ottobre funzionino senza errori.
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
+-- Catalogo pubblico in lettura per anon (filtrato da RLS)
+GRANT SELECT ON TABLE
+  public.songs,
+  public.mass_moments,
+  public.song_moments,
+  public.song_arrangements,
+  public.masses,
+  public.mass_songs,
+  public.song_files,
+  public.song_links,
+  public.activity_log
+TO anon;
+
+-- Operazioni per utenti autenticati (sempre governate dalle policy RLS)
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+  public.profiles,
+  public.songs,
+  public.mass_moments,
+  public.song_moments,
+  public.song_arrangements,
+  public.masses,
+  public.mass_songs,
+  public.song_files,
+  public.song_links,
+  public.activity_log,
+  public.sunday_newsletter_drafts
+TO authenticated;
+
+-- Accesso completo per service_role (backend admin / cron)
+GRANT ALL ON TABLE
+  public.profiles,
+  public.songs,
+  public.mass_moments,
+  public.song_moments,
+  public.song_arrangements,
+  public.masses,
+  public.mass_songs,
+  public.song_files,
+  public.song_links,
+  public.activity_log,
+  public.sunday_newsletter_drafts
+TO service_role;
